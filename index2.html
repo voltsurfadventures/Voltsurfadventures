@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VoltSurf Adventures</title>
+<meta name="robots" content="noindex" />
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet" />
+<style>
+:root{--ink:#061018;--navy:#0b2740;--foam:#f3f1ea;--gold:#e4c15a;--cyan:#3cd4e8;--muted:#8fa3b3;--line:rgba(243,241,234,.14)}
+*{box-sizing:border-box;margin:0;padding:0}body{background:var(--ink);color:var(--foam);font-family:Montserrat,system-ui,sans-serif}img{max-width:100%;display:block}a{color:inherit;text-decoration:none}
+.display{font-weight:800;letter-spacing:.04em;text-transform:uppercase;line-height:.95}
+header{position:fixed;inset:0 0 auto;z-index:50;backdrop-filter:blur(10px);background:linear-gradient(to bottom,rgba(6,16,24,.85),rgba(6,16,24,.35))}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}.nav{height:78px;display:flex;align-items:center;justify-content:space-between}
+.brand img{height:58px;background:var(--foam);border-radius:8px;padding:3px 8px}
+.btn{display:inline-flex;background:var(--gold);color:var(--ink);font-weight:600;border:0;border-radius:999px;padding:12px 20px}
+.hero{min-height:100dvh;display:flex;align-items:flex-end;background:#061018 url(poster~2.jpg) center 35%/cover no-repeat;position:relative}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(to top,#061018 10%,transparent 55%)}
+.hero-copy{position:relative;padding:0 20px 72px;max-width:1120px;margin:0 auto;width:100%}
+.kicker{font-size:12px;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
+h1{font-size:clamp(3.2rem,11vw,7rem)}.lede{margin-top:18px;max-width:36rem;color:rgba(243,241,234,.82);line-height:1.55}
+.cta{margin-top:28px;display:flex;gap:10px;flex-wrap:wrap}.btn.ghost{background:transparent;color:var(--foam);box-shadow:inset 0 0 0 1px var(--line)}
+.grid2{display:grid;gap:12px;padding-top:40px}@media(min-width:800px){.grid2{grid-template-columns:1fr 1fr}}
+.card-link{position:relative;min-height:300px;overflow:hidden;border-radius:16px}
+.card-link img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.card-link .cap{position:relative;height:100%;min-height:300px;display:flex;flex-direction:column;justify-content:flex-end;padding:24px;background:linear-gradient(to top,#061018,transparent 60%)}
+.badge{display:inline-block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:rgba(228,193,90,.18);color:var(--gold)}
+.badge.cyan{background:rgba(60,212,232,.18);color:var(--cyan)}section.pad{padding:56px 0}h2{font-size:clamp(2.4rem,6vw,3.6rem)}
+.fleet{display:grid;gap:16px;margin-top:28px}@media(min-width:800px){.fleet{grid-template-columns:repeat(3,1fr)}}
+.tile{background:var(--navy);border-radius:16px;overflow:hidden}.tile img{height:200px;width:100%;object-fit:cover}.tile .body{padding:20px}.tile h3{font-size:32px}.price{color:var(--gold);font-weight:600}.muted{color:var(--muted)}
+.goldbar{background:var(--gold);color:var(--ink);border-radius:16px;padding:36px 28px;display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;align-items:center}
+footer{background:var(--navy);margin-top:40px}.foot{padding:48px 20px;max-width:1120px;margin:0 auto}
+form{display:grid;gap:12px}input,select,textarea{width:100%;background:#0a1c2c;color:var(--foam);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:inherit}
+.ok{display:none;padding:14px;border-radius:12px;background:rgba(63,191,138,.15);color:#9de0c3}
+</style></head>
+<body>
+<header><div class="wrap nav"><a class="brand" href="#top"><img src="poster~2.jpg" alt="VoltSurf Adventures"></a><a class="btn" href="#book">Book now</a></div></header>
+<section class="hero" id="top"><div class="shade"></div><div class="hero-copy"><p class="kicker">Electric watersports</p><h1 class="display">Ride above<br>the water</h1><p class="lede">Carbon efoils by day. Two-seat neon pontoons after dark.</p><div class="cta"><a class="btn" href="#book">Book a session</a></div></div></section>
+<section class="pad" id="rides"><div class="wrap"><p class="kicker">The fleet</p><h2 class="display">Pick your ride</h2><div class="fleet"><article class="tile"><img src="poster.jpg" alt=""><div class="body"><h3 class="display">First Flight</h3><p class="price">$95</p><a class="btn" href="#book">Book</a></div></article><article class="tile"><img src="1788509191025.jpg" alt=""><div class="body"><h3 class="display">Volt Hour</h3><p class="price">$165</p><a class="btn" href="#book">Book</a></div></article><article class="tile"><img src="poster.jpg" alt=""><div class="body"><h3 class="display">Island Hopper</h3><p class="price">$89</p><a class="btn" href="#book">Book</a></div></article></div></div></section>
+<section class="pad" id="book"><div class="wrap" style="max-width:720px"><p class="kicker">Book</p><h2 class="display">Get ready to ride</h2><form id="bookform"><select name="service" required><option value="">Choose a session</option><option>First Flight — $95</option><option>Volt Hour — $165</option><option>Night Neon Cruise — $149</option></select><input name="name" placeholder="Name" required><input type="email" name="email" placeholder="Email" required><button class="btn" type="submit">Request this slot</button><p class="ok" id="ok">Got it.</p></form></div></section>
+<footer class="foot"><p class="muted">ride@voltsurfadventures.com · Hidden preview at /index2.html</p></footer>
+<script>document.getElementById('bookform').addEventListener('submit',function(e){e.preventDefault();document.getElementById('ok').style.display='block';});</script>
+</body></html>
