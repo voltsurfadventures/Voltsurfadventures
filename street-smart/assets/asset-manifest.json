@@ -1,0 +1,714 @@
+[
+  {
+    "path": "characters/player_idle.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: the player (Minh)",
+    "what": "Minh, the courier: green jacket, green helmet with white stripe, big green delivery box, white outline",
+    "code": "render.js playerLook() + art.js person()"
+  },
+  {
+    "path": "characters/player_walk_sheet.png",
+    "w": 1688,
+    "h": 317,
+    "used": "Gameplay: player walking (frame from walk phase)",
+    "what": "Walk cycle, 8 frames of 211x317 px, left to right",
+    "code": "render.js playerLook() + art.js person()"
+  },
+  {
+    "path": "characters/player_walk_carry_sheet.png",
+    "w": 1688,
+    "h": 317,
+    "used": "Gameplay: player carrying an order",
+    "what": "Walk cycle carrying a bowl of phở, 8 frames of 211x317 px",
+    "code": "art.js person() + carryItem()"
+  },
+  {
+    "path": "characters/player_sitting_sad.png",
+    "w": 211,
+    "h": 317,
+    "used": "Story cutscene shot 6",
+    "what": "Minh sitting on a stool in the rain",
+    "code": "story.js minhSad"
+  },
+  {
+    "path": "characters/customer_waiting.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: the customer waiting for a delivery",
+    "what": "Customer holding a phone, waving",
+    "code": "render.js drawCustomer()"
+  },
+  {
+    "path": "characters/vendor_shopkeeper.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: shopkeeper handing over the order",
+    "what": "Vendor in a red apron, waving",
+    "code": "render.js drawCustomer() (vendor branch)"
+  },
+  {
+    "path": "characters/seller_sunglasses.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: street seller (SS.SELLERS.sunglasses)",
+    "what": "Sunglasses seller with a display rack",
+    "code": "render.js drawSeller()"
+  },
+  {
+    "path": "characters/seller_fruit.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: street seller (SS.SELLERS.fruit)",
+    "what": "Fruit seller with a shoulder pole and baskets, conical hat",
+    "code": "render.js drawSeller()"
+  },
+  {
+    "path": "characters/seller_watch.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: street seller (SS.SELLERS.watch)",
+    "what": "Watch seller opening his jacket full of watches",
+    "code": "render.js drawSeller()"
+  },
+  {
+    "path": "characters/seller_ride.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: street seller (SS.SELLERS.ride)",
+    "what": "Fake ride-hail driver in a green helmet waving a phone",
+    "code": "render.js drawSeller()"
+  },
+  {
+    "path": "characters/seller_shoe.png",
+    "w": 211,
+    "h": 317,
+    "used": "Gameplay: street seller (SS.SELLERS.shoe)",
+    "what": "Shoe-shine man crouching with a brush",
+    "code": "render.js drawSeller()"
+  },
+  {
+    "path": "characters/scooter_single.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, one rider (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_couple.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, rider + passenger (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_family.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, family of four on one bike (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_crates.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, stacked crates on the back (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_flowers.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, flower baskets (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_chickens.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, chickens in cages (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_boxes.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, tall stack of boxes (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_delivery.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, delivery rider with a box (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_ridehail.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: traffic, side view",
+    "what": "Scooter, ride-hail rider in green with a passenger (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_banhbao.png",
+    "w": 396,
+    "h": 317,
+    "used": "Gameplay: the bánh bao bike (bonus)",
+    "what": "Scooter, the bánh bao bike: steamer box and megaphone (faces right; flipped for left)",
+    "code": "art.js scooterSprite()"
+  },
+  {
+    "path": "characters/scooter_crossing_toward.png",
+    "w": 185,
+    "h": 290,
+    "used": "Gameplay: cross-street traffic coming toward the camera",
+    "what": "Scooter seen from the front",
+    "code": "art.js scooterVSprite()"
+  },
+  {
+    "path": "characters/scooter_crossing_away.png",
+    "w": 185,
+    "h": 290,
+    "used": "Gameplay: cross-street traffic going away",
+    "what": "Scooter seen from behind",
+    "code": "art.js scooterVSprite()"
+  },
+  {
+    "path": "characters/car_sedan.png",
+    "w": 396,
+    "h": 264,
+    "used": "Gameplay: traffic, side view",
+    "what": "Car: sedan (no lettering)",
+    "code": "art.js carSprite()"
+  },
+  {
+    "path": "characters/car_taxi.png",
+    "w": 396,
+    "h": 264,
+    "used": "Gameplay: traffic, side view",
+    "what": "Car: taxi (no lettering)",
+    "code": "art.js carSprite()"
+  },
+  {
+    "path": "characters/car_van.png",
+    "w": 396,
+    "h": 264,
+    "used": "Gameplay: traffic, side view",
+    "what": "Car: van (no lettering)",
+    "code": "art.js carSprite()"
+  },
+  {
+    "path": "backgrounds/shop_pho.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"PHỞ BÒ\" and its goods (pho), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_cafe.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"CÀ PHÊ\" and its goods (cafe), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_banhmi.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"BÁNH MÌ\" and its goods (banhmi), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_grill.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"BÚN CHẢ\" and its goods (grill), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_steamer.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"BÁNH BAO\" and its goods (steamer), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_rice.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"CƠM TẤM\" and its goods (rice), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_tea.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"TRÀ ĐÁ\" and its goods (tea), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_cane.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"NƯỚC MÍA\" and its goods (cane), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_grocery.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"TẠP HÓA\" and its goods (grocery), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_barber.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"HỚT TÓC\" and its goods (barber), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_beer.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts along the street",
+    "what": "Shop front with sign \"BIA HƠI\" and its goods (beer), daytime",
+    "code": "art.js shopSprite() / drawShop()"
+  },
+  {
+    "path": "backgrounds/shop_pho_golden.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts (golden lighting)",
+    "what": "Shop \"PHỞ BÒ\" at golden",
+    "code": "art.js shopSprite()"
+  },
+  {
+    "path": "backgrounds/shop_pho_night.png",
+    "w": 536,
+    "h": 389,
+    "used": "Background: shop fronts (night lighting)",
+    "what": "Shop \"PHỞ BÒ\" at night, neon sign",
+    "code": "art.js shopSprite()"
+  },
+  {
+    "path": "backgrounds/far_skyline_0.png",
+    "w": 1124,
+    "h": 411,
+    "used": "Background: distant buildings behind the shops (tiles repeat)",
+    "what": "Far skyline tile 1 of 4",
+    "code": "art.js farTile()"
+  },
+  {
+    "path": "backgrounds/far_skyline_1.png",
+    "w": 1124,
+    "h": 411,
+    "used": "Background: distant buildings behind the shops (tiles repeat)",
+    "what": "Far skyline tile 2 of 4",
+    "code": "art.js farTile()"
+  },
+  {
+    "path": "backgrounds/far_skyline_2.png",
+    "w": 1124,
+    "h": 411,
+    "used": "Background: distant buildings behind the shops (tiles repeat)",
+    "what": "Far skyline tile 3 of 4",
+    "code": "art.js farTile()"
+  },
+  {
+    "path": "backgrounds/far_skyline_3.png",
+    "w": 1124,
+    "h": 411,
+    "used": "Background: distant buildings behind the shops (tiles repeat)",
+    "what": "Far skyline tile 4 of 4",
+    "code": "art.js farTile()"
+  },
+  {
+    "path": "backgrounds/prop_parked_scooters.png",
+    "w": 458,
+    "h": 260,
+    "used": "Gameplay: footpath obstacle",
+    "what": "Row of parked scooters on the footpath (blocks walking)",
+    "code": "art.js (see render.js drawObstacle)"
+  },
+  {
+    "path": "backgrounds/prop_food_cart.png",
+    "w": 260,
+    "h": 281,
+    "used": "Gameplay: footpath obstacle",
+    "what": "Street food cart with umbrella",
+    "code": "art.js (see render.js drawObstacle)"
+  },
+  {
+    "path": "backgrounds/prop_durian_stall.png",
+    "w": 324,
+    "h": 346,
+    "used": "Gameplay: footpath obstacle",
+    "what": "Durian stall with \"SẦU RIÊNG\" sign",
+    "code": "art.js (see render.js drawObstacle)"
+  },
+  {
+    "path": "backgrounds/prop_flower_pots.png",
+    "w": 216,
+    "h": 238,
+    "used": "Gameplay: footpath obstacle",
+    "what": "Potted plants",
+    "code": "art.js (see render.js drawObstacle)"
+  },
+  {
+    "path": "backgrounds/prop_table_stools.png",
+    "w": 291,
+    "h": 152,
+    "used": "Gameplay: footpath obstacle",
+    "what": "Low table with plastic stools",
+    "code": "art.js (see render.js drawObstacle)"
+  },
+  {
+    "path": "backgrounds/prop_street_pole.png",
+    "w": 108,
+    "h": 1016,
+    "used": "Gameplay: power pole with tangled wires",
+    "what": "Street pole",
+    "code": "art.js poleSprite()"
+  },
+  {
+    "path": "effects/puff_dust.png",
+    "w": 139,
+    "h": 139,
+    "used": "Effect: dust kicked up by scooters",
+    "what": "Soft round puff (tinted per use)",
+    "code": "art.js puff()"
+  },
+  {
+    "path": "effects/puff_durian.png",
+    "w": 139,
+    "h": 139,
+    "used": "Effect: durian stink cloud",
+    "what": "Green-yellow puff",
+    "code": "art.js puff()"
+  },
+  {
+    "path": "effects/glow_lantern.png",
+    "w": 277,
+    "h": 277,
+    "used": "Effect: warm light pools, lanterns, bánh bao glow",
+    "what": "Radial glow (additive)",
+    "code": "art.js glow()"
+  },
+  {
+    "path": "effects/headlight_cone.png",
+    "w": 476,
+    "h": 195,
+    "used": "Effect: scooter headlights at night",
+    "what": "Headlight beam (additive)",
+    "code": "art.js headlightCone()"
+  },
+  {
+    "path": "effects/neon_glow.png",
+    "w": 411,
+    "h": 228,
+    "used": "Effect: glow around neon signs at night",
+    "what": "Neon sign glow",
+    "code": "art.js neonGlowSprite()"
+  },
+  {
+    "path": "icons/food_pho.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: phở (PHỞ BÒ)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/food_buncha.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: bún chả (BÚN CHẢ)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/food_comtam.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: cơm tấm (CƠM TẤM)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/food_banhbao.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: bánh bao (BÁNH BAO)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/food_banhmi.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: bánh mì (BÁNH MÌ)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/food_caphe.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: iced coffee (CÀ PHÊ)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/food_trada.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: iced tea (TRÀ ĐÁ)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/food_nuocmia.png",
+    "w": 96,
+    "h": 96,
+    "used": "Gameplay: order badge, carried item, order chip, passport",
+    "what": "Food: sugarcane juice (NƯỚC MÍA)",
+    "code": "art.js carryItem()"
+  },
+  {
+    "path": "icons/sign_bowl.png",
+    "w": 64,
+    "h": 64,
+    "used": "Background: icon-style shop signs",
+    "what": "Sign pictogram: bowl",
+    "code": "art.js icon()"
+  },
+  {
+    "path": "icons/sign_cup.png",
+    "w": 64,
+    "h": 64,
+    "used": "Background: icon-style shop signs",
+    "what": "Sign pictogram: cup",
+    "code": "art.js icon()"
+  },
+  {
+    "path": "icons/sign_bread.png",
+    "w": 64,
+    "h": 64,
+    "used": "Background: icon-style shop signs",
+    "what": "Sign pictogram: bread",
+    "code": "art.js icon()"
+  },
+  {
+    "path": "icons/sign_bun.png",
+    "w": 64,
+    "h": 64,
+    "used": "Background: icon-style shop signs",
+    "what": "Sign pictogram: bun",
+    "code": "art.js icon()"
+  },
+  {
+    "path": "icons/sign_basket.png",
+    "w": 64,
+    "h": 64,
+    "used": "Background: icon-style shop signs",
+    "what": "Sign pictogram: basket",
+    "code": "art.js icon()"
+  },
+  {
+    "path": "icons/sign_scissors.png",
+    "w": 64,
+    "h": 64,
+    "used": "Background: icon-style shop signs",
+    "what": "Sign pictogram: scissors",
+    "code": "art.js icon()"
+  },
+  {
+    "path": "icons/sign_glass.png",
+    "w": 64,
+    "h": 64,
+    "used": "Background: icon-style shop signs",
+    "what": "Sign pictogram: glass",
+    "code": "art.js icon()"
+  },
+  {
+    "path": "icons/coin.png",
+    "w": 48,
+    "h": 48,
+    "used": "Gameplay + HUD: coins",
+    "what": "Gold coin",
+    "code": "art.js coin()"
+  },
+  {
+    "path": "icons/heart.png",
+    "w": 48,
+    "h": 48,
+    "used": "HUD: lives",
+    "what": "Heart",
+    "code": "art.js heart()"
+  },
+  {
+    "path": "icons/hud_conf.png",
+    "w": 64,
+    "h": 64,
+    "used": "HUD: meter icon",
+    "what": "Confidence (walking figure)",
+    "code": "art.js hudIcon()"
+  },
+  {
+    "path": "icons/hud_breath.png",
+    "w": 64,
+    "h": 64,
+    "used": "HUD: meter icon",
+    "what": "Breath (lungs)",
+    "code": "art.js hudIcon()"
+  },
+  {
+    "path": "ui/logo.png",
+    "w": 1520,
+    "h": 320,
+    "used": "Title screen + loading",
+    "what": "\"STREET SMART\" logo lettering (font: Baloo 2)",
+    "code": "ui.js logo()"
+  },
+  {
+    "path": "ui/button_primary.png",
+    "w": 480,
+    "h": 140,
+    "used": "Menus: main buttons",
+    "what": "Orange rounded button (PLAY)",
+    "code": "ui.js button()"
+  },
+  {
+    "path": "icons/app_icon_1024.png",
+    "w": 1024,
+    "h": 1024,
+    "used": "App Store / Google Play icon (PLACEHOLDER, not loaded by the game)",
+    "what": "Minh on a dark background with the logo",
+    "code": "tools/export-assets.js"
+  },
+  {
+    "path": "backgrounds/street_morning.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Gameplay background, level 1",
+    "what": "Full street scene at morning: sky, far buildings, shop fronts, footpaths, road and traffic",
+    "code": "render.js render()"
+  },
+  {
+    "path": "backgrounds/street_golden.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Gameplay background, level 2",
+    "what": "Full street scene at golden: sky, far buildings, shop fronts, footpaths, road and traffic",
+    "code": "render.js render()"
+  },
+  {
+    "path": "backgrounds/street_night.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Gameplay background, level 3",
+    "what": "Full street scene at night: sky, far buildings, shop fronts, footpaths, road and traffic",
+    "code": "render.js render()"
+  },
+  {
+    "path": "ui/screen_title.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Title screen",
+    "what": "Title screen layout: logo, PLAY, HOW TO PLAY, STORY, SETTINGS, CREDITS",
+    "code": "ui.js drawTitle()"
+  },
+  {
+    "path": "ui/screen_levels.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Level select",
+    "what": "Level cards, Scooter Fund meter, Upgrades and Food Passport buttons",
+    "code": "ui.js drawLevels()"
+  },
+  {
+    "path": "ui/screen_gameplay_hud.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Gameplay HUD",
+    "what": "HUD: confidence + breath meters, hearts, coins, order chip, touch buttons, PICK UP marker, guide arrow",
+    "code": "render.js drawHUD() + input.js draw()"
+  },
+  {
+    "path": "backgrounds/story_shot_1.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 1",
+    "what": "Minh speeds through Hanoi (\"VROOOM!\")",
+    "code": "story.js shots[0]"
+  },
+  {
+    "path": "backgrounds/story_shot_2.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 2",
+    "what": "He runs in for an order; the key left in the ignition (\"TING!\")",
+    "code": "story.js shots[1]"
+  },
+  {
+    "path": "backgrounds/story_shot_3.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 3",
+    "what": "The tourist snatches the key (\"SNATCH!!\")",
+    "code": "story.js shots[2]"
+  },
+  {
+    "path": "backgrounds/story_shot_4.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 4",
+    "what": "Minh's shocked face (\"TRỜI ƠI!!\")",
+    "code": "story.js shots[3]"
+  },
+  {
+    "path": "backgrounds/story_shot_5.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 5",
+    "what": "The tourist rides off on Minh's scooter",
+    "code": "story.js shots[4]"
+  },
+  {
+    "path": "backgrounds/story_shot_6.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 6",
+    "what": "Minh in the rain; Bà Lan tells him to walk",
+    "code": "story.js shots[5]"
+  },
+  {
+    "path": "backgrounds/story_shot_7.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 7",
+    "what": "Goal card: save 1,500 coins for a new scooter",
+    "code": "story.js shots[6]"
+  }
+]
