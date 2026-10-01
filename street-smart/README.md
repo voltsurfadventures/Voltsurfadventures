@@ -153,6 +153,40 @@ Recommended `capacitor.config.json` additions:
 
 The game also shows its own "rotate your device" screen if it is ever shown in portrait.
 
+### Full screen on phones
+
+The game has to fill the whole phone screen, with no status bar and no navigation bar.
+
+1. Install the status-bar plugin. The game hides the bar itself on start-up (`SS.Fullscreen.nativeSetup()` in `js/main.js`):
+   ```bash
+   npm install @capacitor/status-bar
+   npx cap sync
+   ```
+2. **Android:** to hide the navigation bar too ("immersive" mode), paste this into `android/app/src/main/java/.../MainActivity.java`:
+   ```java
+   import android.os.Bundle;
+   import androidx.core.view.WindowCompat;
+   import androidx.core.view.WindowInsetsCompat;
+   import androidx.core.view.WindowInsetsControllerCompat;
+   import com.getcapacitor.BridgeActivity;
+
+   public class MainActivity extends BridgeActivity {
+     @Override public void onWindowFocusChanged(boolean hasFocus) {
+       super.onWindowFocusChanged(hasFocus);
+       if (hasFocus) {
+         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+         WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+         c.hide(WindowInsetsCompat.Type.systemBars());
+         c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+       }
+     }
+   }
+   ```
+   Also add `android:windowLayoutInDisplayCutoutMode` set to `shortEdges` to the app theme in `res/values/styles.xml`, so the game draws under the camera notch. The game already keeps its buttons inside the safe areas.
+3. **iOS:** use the Info.plist keys listed above (`UIStatusBarHidden`, `UIViewControllerBasedStatusBarAppearance = NO`) and tick **Requires full screen**. The home indicator auto-hides while you play.
+
+**In a mobile browser** (for testing): the game goes full screen on the first tap and locks to landscape where the browser allows it. There's also a FULL SCREEN button on the title screen and a toggle in Settings. iPhone Safari has no full-screen feature for web pages, so on iPhone the title screen shows a tip instead: tap Share, then *Add to Home Screen*. Opened from the home screen, the game runs full screen (`manifest.webmanifest` and the `apple-mobile-web-app-*` tags handle this).
+
 ### Optional native upgrades (one-line swaps)
 
 - **Haptics:** `SS.Haptics.vibrate()` in `js/save.js` is the only place vibration happens. Replace its body with `@capacitor/haptics` calls (`Haptics.impact(...)`) for proper iOS haptics. iOS Safari/WKWebView has no `navigator.vibrate`.

@@ -9,6 +9,61 @@
 
   SS.View = { w: 960, h: C.VIEW_H, S: 1, cssW: 960, cssH: 540, unitsPerCss: 1, insets: { l: 0, r: 0, t: 0, b: 0 }, portrait: false };
 
+  /* ---------------- Full screen ----------------
+   * Browsers: enter real full screen on the first tap (a user gesture is
+   * required) and lock to landscape where the browser allows it.
+   * iPhone Safari has no full-screen API; there the game shows a tip to
+   * "Add to Home Screen", which runs it full screen (see the meta tags and
+   * manifest.webmanifest). In the Capacitor app the status bar is hidden. */
+  const Full = (SS.Fullscreen = {
+    autoTried: false,
+    native() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); },
+    standalone() {
+      const mm = (q) => !!(window.matchMedia && matchMedia(q).matches);
+      // an installed home-screen app (not just a browser that is in full screen right now)
+      return navigator.standalone === true || mm('(display-mode: standalone)') || (mm('(display-mode: fullscreen)') && !this.isOn());
+    },
+    available() {
+      if (this.native() || (this.standalone() && !this.isOn())) return false;
+      const d = document, el = d.documentElement;
+      return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen));
+    },
+    isOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
+    needsHomeScreenTip() {
+      const iOS = /iPhone|iPod/.test(navigator.userAgent);
+      return iOS && !this.available() && !this.standalone() && !this.native();
+    },
+    enter() {
+      if (!this.available() || this.isOn()) return;
+      const el = document.documentElement;
+      try {
+        const p = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen();
+        if (p && p.then) p.then(() => this.lockLandscape()).catch(() => {});
+      } catch (e) { /* not allowed here (e.g. inside a frame) */ }
+    },
+    exit() {
+      try { if (document.exitFullscreen) document.exitFullscreen().catch(() => {}); else if (document.webkitExitFullscreen) document.webkitExitFullscreen(); } catch (e) { /* */ }
+    },
+    toggle() { if (this.isOn()) this.exit(); else this.enter(); },
+    lockLandscape() {
+      try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* */ }
+    },
+    // first tap on a phone/tablet: go full screen once (never nag after the player leaves it)
+    auto(e) {
+      if (this.autoTried) return;
+      if (e && e.pointerType === 'mouse') return;
+      if (!SS.Input.touchMode && !(e && e.type === 'touchend')) return;
+      this.autoTried = true;
+      this.enter();
+    },
+    nativeSetup() {
+      if (!this.native()) return;
+      const P = window.Capacitor.Plugins || {};
+      try { if (P.StatusBar) { P.StatusBar.hide(); if (P.StatusBar.setOverlaysWebView) P.StatusBar.setOverlaysWebView({ overlay: true }); } } catch (e) { /* */ }
+      try { if (P.ScreenOrientation && P.ScreenOrientation.lock) P.ScreenOrientation.lock({ orientation: 'landscape' }); } catch (e) { /* */ }
+    },
+  });
+
   const M = (SS.Main = {
     quality: 1,           // 1 = high, 0.5 = low (fewer particles, simpler effects)
     lowMode: false,
@@ -27,6 +82,14 @@
       window.addEventListener('resize', () => this.resize());
       window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 120));
       if (window.visualViewport) window.visualViewport.addEventListener('resize', () => this.resize());
+      // full screen: phones go full screen on the first tap; re-measure when it changes
+      Full.nativeSetup();
+      const autoFs = (e) => Full.auto(e);
+      window.addEventListener('pointerup', autoFs, true);
+      window.addEventListener('touchend', autoFs, true);
+      const fsChange = () => setTimeout(() => this.resize(), 60);
+      document.addEventListener('fullscreenchange', fsChange);
+      document.addEventListener('webkitfullscreenchange', fsChange);
 
       // auto-pause + mute when the app goes to the background
       const hide = () => { SS.UI.pause(); SS.Audio.suspend(); };

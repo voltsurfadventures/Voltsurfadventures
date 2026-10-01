@@ -308,6 +308,12 @@
       this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 14 * u, u);
       this.text(ctx, S.privacy + '   v' + SS.CONFIG.VERSION, vw / 2, vh - ins.b - 14 * u, 11 * u, 'rgba(255,255,255,0.6)', 600);
       if (!SS.Audio.unlocked && Math.floor(this.t * 2) % 2 === 0) this.text(ctx, S.tapToStart, lx, by + 70 * u, 13 * u, '#ffffff', 700);
+      // full screen button (browsers that support it) or the iPhone home-screen tip
+      if (SS.Fullscreen.available() && !SS.Fullscreen.isOn()) {
+        this.button(ctx, 'fullscr', vw - ins.r - 150 * u, ins.t + 44 * u, 134 * u, 34 * u, S.fullscreenBtn, { color: '#3fb7a6', size: 12 * u, action: () => SS.Fullscreen.enter() });
+      } else if (SS.Fullscreen.needsHomeScreenTip()) {
+        this.text(ctx, S.iosFullTip, vw / 2, vh - ins.b - 32 * u, 11.5 * u, '#ffd23f', 700);
+      }
     },
     coinBadge(ctx, rx, y, u) {
       ctx.font = SS.font(17 * u, 800, true);
@@ -484,6 +490,7 @@
       toggle('zoom', S.zoomSetting, st.zoom !== false, true, () => SS.Save.setSetting('zoom', st.zoom === false));
       y += 46 * u;
       toggle('synth', S.synthMusic, !!st.synthMusic, false, () => { SS.Save.setSetting('synthMusic', !st.synthMusic); const w = SS.Audio.wantMusic; SS.Audio.stopMusic(); if (w) SS.Audio.playMusic(w); });
+      if (SS.Fullscreen.available()) toggle('fulls', S.fullscreen, SS.Fullscreen.isOn(), true, () => SS.Fullscreen.toggle());
       y += 46 * u;
       this.text(ctx, S.graphics, lx, y + 4 * u, 13 * u, '#fff', 700, false, 'left');
       const opts = [['auto', S.gfxAuto], ['high', S.gfxHigh], ['low', S.gfxLow]];
