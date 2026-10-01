@@ -11,50 +11,33 @@
 <link rel="manifest" href="manifest.webmanifest">
 <title>Street Smart</title>
 <style>
-  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 400; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-Regular.ttf') format('truetype'); }
-  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 600; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-SemiBold.ttf') format('truetype'); }
-  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 700; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-Bold.ttf') format('truetype'); }
-  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 800; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-ExtraBold.ttf') format('truetype'); }
-  @font-face { font-family: 'Baloo 2'; font-weight: 700; font-style: normal; font-display: swap; src: url('assets/fonts/Baloo2-Bold.ttf') format('truetype'); }
-  @font-face { font-family: 'Baloo 2'; font-weight: 800; font-style: normal; font-display: swap; src: url('assets/fonts/Baloo2-ExtraBold.ttf') format('truetype'); }
-  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0a12; color: #fff; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; font-family: 'Be Vietnam Pro', system-ui, sans-serif; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0a12; color: #fff; touch-action: none; font-family: system-ui, sans-serif; }
   #game { position: fixed; left: 0; top: 0; display: block; touch-action: none; transform: none !important; }
-  #safe-probe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); }
-  #loading { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #120c18; }
+  #safe-probe { position: fixed; width: 0; height: 0; visibility: hidden; padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); }
+  #loading { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #120c18; color: #ffd23f; font-weight: 800; }
   #loading.done { opacity: 0; pointer-events: none; }
-  #loading .logo { font-weight: 800; font-size: 42px; color: #ffd23f; }
-  #loading .bar { width: 180px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); margin-top: 22px; overflow: hidden; }
-  #loading .bar i { display: block; height: 100%; width: 40%; background: #f0a33a; }
-  #loading .sub { margin-top: 12px; font-size: 13px; opacity: .7; }
   #rotate { display: none !important; }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 <div id="safe-probe"></div>
-<div id="loading"><div class="logo">STREET SMART</div><div class="bar"><i></i></div><div class="sub">Loading…</div></div>
+<div id="loading">STREET SMART</div>
 <div id="rotate"></div>
-<script src="js/config.js?v=3"></script>
-<script src="js/look.js?v=3"></script>
-<script>
-  (function () {
-    var C = SS.CONFIG, S = SS.STRINGS;
-    document.title = C.TITLE;
-    document.querySelector('#loading .logo').textContent = C.TITLE;
-    document.querySelector('#loading .sub').textContent = S.loading;
-  })();
-</script>
-<script src="js/save.js?v=3"></script>
-<script src="js/banhbao-clip.js?v=3"></script>
-<script src="js/audio.js?v=3"></script>
-<script src="js/art.js?v=3"></script>
-<script src="js/input.js?v=3"></script>
-<script src="js/world.js?v=3"></script>
-<script src="js/game.js?v=3"></script>
-<script src="js/render.js?v=3"></script>
-<script src="js/story.js?v=3"></script>
-<script src="js/ui.js?v=3"></script>
-<script src="js/main.js?v=3"></script>
-<script src="js/phone.js?v=3"></script>
+<script src="js/config.js?v=4"></script>
+<script src="js/look.js?v=4"></script>
+<script src="js/save.js?v=4"></script>
+<script src="js/banhbao-clip.js?v=4"></script>
+<script src="js/audio.js?v=4"></script>
+<script src="js/art.js?v=4"></script>
+<script src="js/input.js?v=4"></script>
+<script src="js/world.js?v=4"></script>
+<script src="js/game.js?v=4"></script>
+<script src="js/render.js?v=4"></script>
+<script src="js/painted.js?v=4"></script>
+<script src="js/story.js?v=4"></script>
+<script src="js/ui.js?v=4"></script>
+<script src="js/main.js?v=4"></script>
+<script src="js/phone.js?v=4"></script>
 </body>
 </html>
