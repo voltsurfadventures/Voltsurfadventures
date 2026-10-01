@@ -53,6 +53,8 @@
     if (L.headlights > 0) this.drawHeadlightCones(ctx);
     this.drawEntities(ctx);
     this.drawClouds(ctx);
+    // keep Minh visible inside a durian cloud
+    if (p && p.inCloud > 0.1 && !p.tumble) { const o = this.playerLook(); o.halo = null; ctx.globalAlpha = 0.8; Art.person(ctx, o); ctx.globalAlpha = 1; }
     this.drawParticles(ctx);
     ctx.restore();
 
@@ -67,6 +69,26 @@
       this.drawWorldUI(ctx, cx, vw);
       ctx.restore();
       this.drawHUD(ctx, vw, vh);
+      // durian damage: the screen pulses red at the edges
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      if (this.hurtPulse > 0.01) {
+        const k = this.hurtPulse * (0.65 + 0.35 * Math.sin(this.time * 12));
+        const gr = ctx.createRadialGradient(vw / 2, vh / 2, vh * 0.18, vw / 2, vh / 2, vw * 0.5);
+        gr.addColorStop(0, 'rgba(255,0,0,0)'); gr.addColorStop(0.55, 'rgba(255,0,0,' + (0.28 * k).toFixed(3) + ')'); gr.addColorStop(1, 'rgba(255,0,0,' + (0.85 * k).toFixed(3) + ')');
+        ctx.fillStyle = gr; ctx.fillRect(0, 0, vw, vh);
+        ctx.strokeStyle = 'rgba(255,30,30,' + (0.9 * k).toFixed(3) + ')'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, vw - 10, vh - 10);
+      }
+      // short hint banner (e.g. hold your breath)
+      if (this.hint) {
+        const h = this.hint, a = Math.min(1, h.t * 3, (2.6 - h.t) * 6);
+        ctx.globalAlpha = a;
+        ctx.font = SS.font(22, 800, true);
+        const w = ctx.measureText(h.text).width + 56, y = vh * 0.24;
+        ctx.fillStyle = 'rgba(30,38,6,0.92)'; Art.rr(ctx, vw / 2 - w / 2, y - 26, w, 52, 14); ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#c6e65a'; Art.rr(ctx, vw / 2 - w / 2, y - 26, w, 52, 14); ctx.stroke();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#e8ff8a'; ctx.fillText(h.text, vw / 2, y + 1);
+        ctx.globalAlpha = 1;
+      }
       // SCAMMED alert (fake CRAB driver charged double), on top of everything
       if (this.scam) this.drawScam(ctx, vw, vh);
     }
@@ -350,8 +372,9 @@
       case 'cart': {
         const v = o.vendor;
         const up = Math.sin(t + v.ph) > 0.6;
-        Art.personCached(ctx, { x: o.x + 18, y: o.y - o.d * 0.55, s: Art.depth(o.y) / Art.ENT * 1.02, face: -1, phase: 0, moving: 0, skin: v.skin, shirt: v.shirt, hat: v.hat, arms: up ? 'up' : null }, 'cv' + o.seed + (up ? 'u' : ''), 1);
         Art.draw(ctx, Art.cartSprite(o), o.x, o.y);
+        // the seller stands beside the cart (not hidden behind it), calling out to passers-by
+        Art.personCached(ctx, { x: o.x + 54, y: o.y + 3, s: Art.depth(o.y) / Art.ENT * 1.08, face: -1, phase: 0, moving: 0, skin: v.skin, shirt: v.shirt, hat: v.hat, arms: up ? 'up' : null, mouth: up ? 0.6 : 0 }, 'cv' + o.seed + (up ? 'u' : ''), 1);
         // hanging bulb under the umbrella
         Art.circle(ctx, o.x + 8, o.y - 92, 3.2, '#fff2b0');
         ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 + this.L.lantern * 0.4;
@@ -451,8 +474,10 @@
     if (c.vendor) {
       const L = c.look, wave = !c.handed && Math.abs(this.player.x - c.x) < 420;
       // a little counter with the food on it
-      if (!c.handed) { ctx.fillStyle = '#8a5a32'; Art.rr(ctx, c.x + 12, c.y - 22, 30, 20, 3); ctx.fill(); ctx.fillStyle = '#6a4224'; ctx.fillRect(c.x + 12, c.y - 22, 30, 4);
-        ctx.save(); ctx.translate(c.x + 27, c.y - 22); Art.carryItem(ctx, c.food.carry, 0, 0, 0, 1, c.food.cup); ctx.restore(); }
+      // the vendor's food cart, with today's dish on top
+      const goods = c.food.carry === 'bread' ? 'banhmi' : 'fruit';
+      Art.draw(ctx, Art.cartSprite({ seed: 900 + (c.food.id || '').length * 13, goods }), c.x - 50, c.y - 2);
+      if (!c.handed) { ctx.save(); ctx.translate(c.x - 50, c.y - 44); ctx.scale(1.3, 1.3); Art.carryItem(ctx, c.food.carry, 0, 0, 0, 1, c.food.cup); ctx.restore(); }
       Art.person(ctx, { ink: '#24150f', x: c.x, y: c.y, s: Art.depth(c.y), face: c.leaveT != null ? c.leaveDir : 1, phase: c.phase, moving: c.moving || 0,
         skin: L.skin, shirt: L.shirt, pants: L.pants, hair: L.hair, hat: L.hat, arms: wave ? 'up' : null, mouth: wave ? 0.5 + 0.5 * Math.sin(this.time * 8) : 0, vest: '#c84b3a' });
       return;
@@ -486,23 +511,26 @@
   /* ---------------- atmosphere ---------------- */
   P.drawClouds = function (ctx) {
     if (!this.clouds.length) return;
-    const puff = Art.puff('#b9c43a'), core = Art.puff('#8a9a20');
+    const puff = Art.puff('#a9bb2c'), core = Art.puff('#5e6e0c');
     const t = this.time;
     for (const c of this.clouds) {
       for (const q of c.puffs) {
         const a = q.a + t * q.sp;
         const x = c.x + Math.cos(a) * q.d * c.r, y = c.y + Math.sin(a) * q.d * c.r * 0.55;
         const r = c.r * q.s;
-        ctx.globalAlpha = c.alpha * 0.42;
+        ctx.globalAlpha = c.alpha * 0.58;
         ctx.drawImage(puff.c, x - r, y - r * 0.8, r * 2, r * 1.6);
       }
-      ctx.globalAlpha = c.alpha * 0.28;
-      ctx.drawImage(core.c, c.x - c.r * 0.6, c.y - c.r * 0.4, c.r * 1.2, c.r * 0.8);
+      ctx.globalAlpha = c.alpha * 0.5;
+      ctx.drawImage(core.c, c.x - c.r * 0.75, c.y - c.r * 0.5, c.r * 1.5, c.r * 1.0);
+      // flies buzzing in the stink
+      ctx.globalAlpha = c.alpha * 0.9; ctx.fillStyle = '#1a1a10';
+      for (let k = 0; k < 5; k++) { const a = t * (3 + k) + k * 1.7; ctx.fillRect(c.x + Math.cos(a) * c.r * 0.45, c.y - c.r * 0.1 + Math.sin(a * 1.3) * c.r * 0.25, 2.2, 2.2); }
       // stink squiggles rising
-      ctx.globalAlpha = c.alpha * 0.6;
-      ctx.strokeStyle = '#6f7f12'; ctx.lineWidth = 2;
-      for (let k = 0; k < 3; k++) {
-        const sx = c.x + (k - 1) * c.r * 0.4, sy = c.y - c.r * 0.2 - ((t * 20 + k * 15) % 30);
+      ctx.globalAlpha = c.alpha * 0.8;
+      ctx.strokeStyle = '#4f5e08'; ctx.lineWidth = 3;
+      for (let k = 0; k < 5; k++) {
+        const sx = c.x + (k - 2) * c.r * 0.3, sy = c.y - c.r * 0.25 - ((t * 24 + k * 13) % 36);
         ctx.beginPath(); ctx.moveTo(sx, sy + 14);
         ctx.bezierCurveTo(sx - 6, sy + 8, sx + 6, sy + 4, sx, sy - 2); ctx.stroke();
       }
@@ -711,8 +739,6 @@
     };
     if (o && o.state === 'waiting') {
       const sh = o.shop;
-      ctx.strokeStyle = U.rgba(SS.COL_PICK, 0.55 + 0.35 * Math.sin(t * 5)); ctx.lineWidth = 4;
-      ctx.strokeRect(sh.x + 6, G.FACADE_BOT - 86, sh.w - 12, 86 + G.ROAD_TOP - G.FACADE_BOT + 6); // outline the whole shop front
       beacon(o.vendor.x, o.vendor.y, SS.COL_PICK, o.food, S.pickUpTag);
     }
     if (o && o.state === 'carrying') beacon(o.drop.x, o.drop.y, SS.COL_DROP, o.food, S.deliverTag);

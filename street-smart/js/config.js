@@ -180,6 +180,9 @@
     popSunglasses: 'Sunglasses on!',
     popOuch: 'Ouch!',
     popGassed: 'Durian overload!',
+    stinkHint: 'Hold your breath, durian stinks!',
+    popStinkHit: 'Choking on durian!',
+    coughs: ['*cough*', '*cough cough*', '*hack*', 'Ugh!'],
     popBump: 'Bump!',
     popConfidenceLow: 'Riders can\'t read you!',
 

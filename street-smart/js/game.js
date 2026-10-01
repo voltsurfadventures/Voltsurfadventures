@@ -770,20 +770,42 @@
 
     updateBreath(dt) {
       const p = this.player;
+      if (this.hurtPulse > 0) this.hurtPulse = Math.max(0, this.hurtPulse - dt * 1.4);
+      if (this.stinkHintCD > 0) this.stinkHintCD -= dt;
+      if (this.hint) { this.hint.t -= dt; if (this.hint.t <= 0) this.hint = null; }
       let inCloud = 0;
       for (const c of this.clouds) {
         const dx = p.x - c.x, dy = (p.y - 30 - c.y) * 1.3;
         if (dx * dx + dy * dy < (c.r * 0.85) * (c.r * 0.85)) inCloud = Math.max(inCloud, c.alpha);
       }
       p.inCloud = inCloud;
+      // breathing the stink (not holding your breath): cough, lose confidence, spill, and after a while lose a heart
+      if (inCloud > 0.1 && !p.holding && !p.tumble) {
+        p.breathCough -= dt;
+        if (p.breathCough <= 0) {
+          p.breathCough = 0.75;
+          SS.Audio.sfx('cough');
+          SS.Haptics.vibrate(25);
+          this.popup(U.pick(S.coughs), p.x + p.face * 18, p.y - 92, '#c6e65a', 0.8, 16);
+          for (let k = 0; k < 3; k++) this.particle('puff', p.x + p.face * 10, p.y - 62, p.face * U.rand(20, 50), U.rand(-25, 5), 0.7, 0, '#9aaa2a');
+        }
+        p.conf = Math.max(0, p.conf - 9 * inCloud * dt);
+        this.spill(1.6 * inCloud * dt, false);
+        p.stinkT = (p.stinkT || 0) + dt * inCloud;
+        this.hurtPulse = Math.min(1, (this.hurtPulse || 0) + dt * 3);
+        if ((this.stinkHintCD || 0) <= 0) { this.stinkHintCD = 6; this.hint = { text: S.stinkHint, t: 2.6 }; }
+        if (p.stinkT >= 2.4 && p.invuln <= 0) {
+          p.stinkT = 0; p.lives--; this.stats.hits++; p.invuln = 1.6; this.cam.shake = 8; this.flash = 0.3;
+          this.popup(S.popStinkHit, p.x, p.y - 112, '#ff6a5a', 1.4, 22);
+          SS.Audio.sfx('tumble'); SS.Haptics.vibrate([60, 40, 90]);
+          if (p.lives <= 0) this.lose('lives');
+        }
+      } else p.stinkT = Math.max(0, (p.stinkT || 0) - dt);
       if (p.gassed > 0) { p.breath = Math.min(100, p.breath + 10 * dt); return; }
       const lungs = 1 - 0.25 * SS.Save.up('lungs');
       if (p.holding) p.breath -= 15 * lungs * dt;
-      else if (inCloud > 0.1) {
-        p.breath -= 42 * inCloud * lungs * dt;
-        p.breathCough -= dt;
-        if (p.breathCough <= 0) { p.breathCough = 0.7; this.particle('puff', p.x + p.face * 10, p.y - 62, p.face * 30, -10, 0.6, 0, '#b8c94a'); }
-      } else p.breath = Math.min(100, p.breath + 24 * dt);
+      else if (inCloud > 0.1) p.breath -= 42 * inCloud * lungs * dt;
+      else p.breath = Math.min(100, p.breath + 24 * dt);
       if (p.breath <= 0) {
         p.breath = 0; p.gassed = 3.8; p.holding = false;
         SS.Audio.sfx('cough');
@@ -1114,11 +1136,11 @@
         if (st.timer <= 0) {
           st.timer = U.rand(4.5, 7.5) / (0.6 + this.level.density * 0.5);
           const c = {
-            x: st.x + U.rand(-20, 20), y: st.near ? st.y - 50 : st.y - 10, r: 26, rMax: U.rand(85, 115),
-            vx: U.rand(-16, 16), vy: st.near ? -U.rand(14, 24) : U.rand(14, 24), life: 0, max: U.rand(10, 13), alpha: 0,
+            x: st.x + U.rand(-20, 20), y: st.near ? st.y - 50 : st.y - 10, r: 30, rMax: U.rand(125, 165),
+            vx: U.rand(-16, 16), vy: st.near ? -U.rand(14, 24) : U.rand(14, 24), life: 0, max: U.rand(13, 16), alpha: 0,
             puffs: [],
           };
-          const n = SS.Main.quality > 0.6 ? 9 : 5;
+          const n = SS.Main.quality > 0.6 ? 14 : 7;
           for (let k = 0; k < n; k++) c.puffs.push({ a: Math.random() * 6.28, d: Math.random() * 0.6, s: U.rand(0.5, 0.9), sp: U.rand(-0.6, 0.6) });
           this.clouds.push(c);
           SS.Audio.sfx('gas', { pan: this.pan(c.x), vol: U.clamp(1 - Math.abs(this.pan(c.x)) * 0.6, 0.3, 1) });
@@ -1129,6 +1151,9 @@
         const c = this.clouds[i];
         c.life += dt * ts;
         c.r = U.lerp(c.r, c.rMax, Math.min(1, dt * 0.6));
+        // the stink creeps toward you
+        const pl = this.player;
+        if (pl && Math.abs(pl.x - c.x) < 420) c.vx = U.lerp(c.vx, Math.sign(pl.x - c.x) * 22, dt * 0.4);
         c.x += c.vx * dt * ts; c.y += c.vy * dt * ts;
         c.y = U.clamp(c.y, G.FACADE_BOT - 20, G.VIEW_H - 40);
         c.alpha = Math.min(1, c.life / 0.8) * Math.min(1, (c.max - c.life) / 2.5);
