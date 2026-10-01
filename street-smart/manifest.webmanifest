@@ -1,0 +1,11 @@
+{
+  "name": "Street Smart",
+  "short_name": "Street Smart",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0b0a12",
+  "theme_color": "#0b0a12"
+}

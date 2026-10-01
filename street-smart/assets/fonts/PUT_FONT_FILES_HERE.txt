@@ -1,0 +1,11 @@
+Put these font files in this folder (free, SIL Open Font License):
+
+  BeVietnamPro-Regular.ttf
+  BeVietnamPro-SemiBold.ttf
+  BeVietnamPro-Bold.ttf
+  BeVietnamPro-ExtraBold.ttf
+  Baloo2-Bold.ttf
+  Baloo2-ExtraBold.ttf
+
+Also copy each family's OFL.txt licence file in here.
+See the main README.md for where to download them.
