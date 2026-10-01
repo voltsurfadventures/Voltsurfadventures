@@ -1054,7 +1054,12 @@
       const I = this.inter;
       if (I) {
         if (p.onRoad) { I.confSum += p.conf; I.n++; }
-        const done = I.goal === 'far' ? (p.y < G.ROAD_TOP - 2 && Math.abs(p.x - I.x) > G.CROSS_HALF) : (p.y > G.ROAD_BOT + 4 && Math.abs(p.x - I.x) > G.CROSS_HALF);
+        // Two ways through: cross the main road to the other footpath, OR carry straight on
+        // across the side street to the footpath beyond it. A timeout makes sure nobody is ever stuck.
+        I.t = (I.t || 0) + dt;
+        const acrossRoad = I.goal === 'far' ? p.y < G.ROAD_TOP - 2 : p.y > G.ROAD_BOT + 4;
+        const acrossSide = p.x > I.x + G.CROSS_HALF + 12 && (p.y < G.ROAD_TOP - 2 || p.y > G.ROAD_BOT + 4);
+        const done = acrossRoad || acrossSide || I.t > 45;
         if (done && !p.tumble) {
           I.done = true; I.active = false; this.inter = null;
           const avg = I.n ? I.confSum / I.n : 50;

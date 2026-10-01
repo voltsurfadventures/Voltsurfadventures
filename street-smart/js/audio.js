@@ -489,11 +489,11 @@
     // Scooter horns are cheap electric buzzers ("meep"); car horns are lower two-tone blasts.
     horn(pan, type, vol, t, car) {
       const c = this.ctx; t = t || c.currentTime + 0.005;
-      const f = car ? [330, 350, 300][type % 3] : [410, 440, 470, 500, 530, 390][type % 6];
+      const f = car ? [360, 390, 340][type % 3] : [760, 820, 880, 940, 1000, 720][type % 6]; // scooter horns: thin, high 'meep'
       const patterns = [[[0, 0.1]], [[0, 0.08], [0.13, 0.08]], [[0, 0.34]], [[0, 0.06], [0.1, 0.06], [0.2, 0.12]], [[0, 0.16]], [[0, 0.08], [0.12, 0.22]]];
       const pat = patterns[(type * 7 + (car ? 2 : 0)) % patterns.length];
-      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = car ? 900 : 1700; bp.Q.value = 0.8;
-      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 250;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = car ? 900 : 2600; bp.Q.value = car ? 0.8 : 0.7;
+      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = car ? 250 : 550;
       const g = c.createGain(); g.gain.value = 0.0001;
       const p = this.panNode(pan); bp.connect(hp); hp.connect(g); g.connect(p); p.connect(this.sfxBus);
       const end = t + pat[pat.length - 1][0] + pat[pat.length - 1][1] + 0.1;

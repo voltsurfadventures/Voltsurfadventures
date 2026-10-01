@@ -830,6 +830,14 @@
       ctx.lineWidth = 4 * u; ctx.strokeText(this.banner.sub, vw / 2, by + 28 * u); ctx.fillStyle = '#fff'; ctx.fillText(this.banner.sub, vw / 2, by + 28 * u);
       ctx.globalAlpha = 1;
     }
+    // while an intersection is locked, keep a small reminder of the way out on screen
+    if (this.inter && this.inter.active && !this.banner) {
+      ctx.font = SS.font(13 * u, 800); ctx.textAlign = 'center';
+      const tw = ctx.measureText(S.crossHintShort).width + 26 * u, hy = py + 66 * u;
+      ctx.fillStyle = 'rgba(10,12,20,0.78)'; Art.rr(ctx, vw / 2 - tw / 2, hy, tw, 26 * u, 13 * u); ctx.fill();
+      ctx.strokeStyle = '#7ff0d8'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, vw / 2 - tw / 2, hy, tw, 26 * u, 13 * u); ctx.stroke();
+      ctx.fillStyle = '#7ff0d8'; ctx.fillText(S.crossHintShort, vw / 2, hy + 13.5 * u);
+    }
     // level intro card
     if (this.state === 'intro') this.drawIntroCard(ctx, vw, vh, u);
     // fake ride-hail lift: quick fade with motion streaks
