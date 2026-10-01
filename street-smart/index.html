@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0a12">
+<meta name="format-detection" content="telephone=no">
+<title>Street Smart</title>
+<style>
+  /* Local fonts only (see README for the exact files). If the files are
+     missing, the fallback stack in config.js keeps Vietnamese diacritics. */
+  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 400; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-Regular.ttf') format('truetype'); }
+  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 600; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-SemiBold.ttf') format('truetype'); }
+  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 700; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-Bold.ttf') format('truetype'); }
+  @font-face { font-family: 'Be Vietnam Pro'; font-weight: 800; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-ExtraBold.ttf') format('truetype'); }
+  @font-face { font-family: 'Baloo 2'; font-weight: 700; font-style: normal; font-display: swap; src: url('assets/fonts/Baloo2-Bold.ttf') format('truetype'); }
+  @font-face { font-family: 'Baloo 2'; font-weight: 800; font-style: normal; font-display: swap; src: url('assets/fonts/Baloo2-ExtraBold.ttf') format('truetype'); }
+
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; background: #0b0a12; color: #fff;
+    touch-action: none; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  }
+  #game { position: fixed; left: 0; top: 0; display: block; touch-action: none; outline: none; }
+  /* invisible element used to read env(safe-area-inset-*) from JS */
+  #safe-probe {
+    position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;
+    padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px);
+  }
+  /* branded loading screen (shown instantly, before any JS work) */
+  #loading {
+    position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 60%, #3a2030 0%, #120c18 70%); transition: opacity .5s ease;
+  }
+  #loading.done { opacity: 0; pointer-events: none; }
+  #loading .logo {
+    font-family: 'Baloo 2', 'Be Vietnam Pro', system-ui, -apple-system, Roboto, sans-serif; font-weight: 800;
+    font-size: clamp(34px, 8vw, 72px); letter-spacing: 1px; color: #ffd23f;
+    text-shadow: 0 0 0 #000, 3px 3px 0 #ff4fa3, 6px 6px 0 #1a0f1e; transform: rotate(-2deg);
+  }
+  #loading .bar { width: 180px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); margin-top: 22px; overflow: hidden; }
+  #loading .bar i { display: block; height: 100%; width: 40%; border-radius: 3px; background: #f0a33a; animation: load 1.1s ease-in-out infinite; }
+  #loading .sub { margin-top: 12px; font-size: 13px; opacity: .7; }
+  @keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+  /* rotate-your-device screen (landscape only) */
+  #rotate {
+    position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: #120c18; text-align: center; padding: 24px;
+  }
+  body.portrait #rotate { display: flex; }
+  #rotate .phone {
+    width: 46px; height: 80px; border: 4px solid #ffd23f; border-radius: 10px; position: relative;
+    animation: turn 2s ease-in-out infinite;
+  }
+  #rotate .phone::after { content: ''; position: absolute; left: 50%; bottom: 5px; width: 10px; height: 3px; margin-left: -5px; border-radius: 2px; background: #ffd23f; }
+  #rotate h2 { margin: 28px 0 6px; font-size: 20px; font-weight: 800; }
+  #rotate p { margin: 0; opacity: .7; font-size: 14px; }
+  @keyframes turn { 0%, 20% { transform: rotate(0deg); } 50%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="safe-probe"></div>
+<div id="loading"><div class="logo">STREET SMART</div><div class="bar"><i></i></div><div class="sub">Loading…</div></div>
+<div id="rotate"><div class="phone"></div><h2>Please rotate your device</h2><p>Street Smart is played in landscape</p></div>
+
+<!-- Game code: plain JS, no frameworks, no network requests. -->
+<script src="js/config.js"></script>
+<script>
+  // single source of truth for the title / strings, even on the HTML screens
+  (function () {
+    var C = SS.CONFIG, S = SS.STRINGS;
+    document.title = C.TITLE.charAt(0) + C.TITLE.slice(1).toLowerCase().replace(/ (.)/g, function (m, c) { return ' ' + c.toUpperCase(); });
+    document.querySelector('#loading .logo').textContent = C.TITLE;
+    document.querySelector('#loading .sub').textContent = S.loading;
+    document.querySelector('#rotate h2').textContent = S.rotate;
+    document.querySelector('#rotate p').textContent = S.rotateSub;
+  })();
+</script>
+<script src="js/save.js"></script>
+<script src="js/banhbao-clip.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/art.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
