@@ -901,6 +901,28 @@
 
     // power-up chips
     let cy = y0 + 2 * 34 * u + 4 * u;
+    // ---- lives: big hearts on their own row, shake when lost, glow when won back ----
+    {
+      if (this.hudLives == null) this.hudLives = p.lives;
+      if (p.lives < this.hudLives) this.heartFx = { t: 0.7, lost: true };
+      else if (p.lives > this.hudLives) this.heartFx = { t: 1.2, lost: false, i: p.lives - 1 };
+      this.hudLives = p.lives;
+      const fx = this.heartFx; if (fx) { fx.t -= 1 / 60; if (fx.t <= 0) this.heartFx = null; }
+      const nl = Math.max(SS.CONFIG.LIVES, p.lives), hr = 12.5 * u, gap = 31 * u;
+      const pw = 14 * u + nl * gap, ph = 34 * u;
+      const shx = fx && fx.lost ? Math.sin(fx.t * 60) * 4 * u * fx.t : 0;
+      ctx.fillStyle = 'rgba(10,12,20,0.72)'; Art.rr(ctx, x0 + shx, cy, pw, ph, 12 * u); ctx.fill();
+      ctx.strokeStyle = fx && fx.lost ? '#ff4d5e' : 'rgba(255,120,130,0.55)'; ctx.lineWidth = 2 * u; Art.rr(ctx, x0 + shx, cy, pw, ph, 12 * u); ctx.stroke();
+      for (let i = 0; i < nl; i++) {
+        const hx = x0 + shx + 7 * u + gap * i + gap / 2, hy = cy + ph / 2 + 1 * u, on = i < p.lives;
+        const pop = fx && !fx.lost && fx.i === i ? 1 + 0.4 * Math.sin(Math.min(1, (1.2 - fx.t) * 3) * Math.PI) : 1;
+        if (on) { ctx.save(); ctx.globalAlpha = 0.35; Art.heart(ctx, hx, hy + 2 * u, hr * pop * 1.15, '#000'); ctx.restore(); }
+        Art.heart(ctx, hx, hy, hr * pop, on ? '#ff3b50' : 'rgba(255,255,255,0.18)');
+        if (on) { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(hx - hr * 0.42, hy - hr * 0.35, hr * 0.22, hr * 0.14, -0.6, 0, Math.PI * 2); ctx.fill(); }
+      }
+      if (SS.Save.up('charm') && !this.charmUsed) Art.circle(ctx, x0 + pw + 12 * u, cy + ph / 2, 6 * u, '#ffd75a');
+      cy += ph + 8 * u;
+    }
     const chip = (text, col) => {
       ctx.font = SS.font(11 * u, 800);
       const w = ctx.measureText(text).width + 16 * u;
@@ -924,9 +946,6 @@
     ctx.fillStyle = 'rgba(10,12,20,0.6)'; Art.rr(ctx, rx - cw, y0, cw, 24 * u, 12 * u); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillText(coinTxt, rx - 28 * u, y0 + 12.5 * u);
     Art.coin(ctx, rx - 14 * u, y0 + 12 * u, 7.5 * u, 0);
-    const nl = Math.max(SS.CONFIG.LIVES, p.lives);
-    for (let i = 0; i < nl; i++) Art.heart(ctx, rx - cw - 14 * u - i * 20 * u, y0 + 12 * u, 7.5 * u, i < p.lives ? '#ff4d5e' : 'rgba(255,255,255,0.22)');
-    if (SS.Save.up('charm') && !this.charmUsed) Art.circle(ctx, rx - cw - 14 * u - nl * 20 * u, y0 + 12 * u, 5 * u, '#ffd75a');
     const o = this.order;
     if (o) {
       const F = o.food, carrying = o.state === 'carrying';

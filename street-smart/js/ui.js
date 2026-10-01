@@ -158,10 +158,10 @@
     update(dt) {
       this.t += dt;
       if (this.toast) { this.toast.t -= dt; if (this.toast.t <= 0) this.toast = null; }
-      // start menu music on the first tap (browsers block audio before that)
+      // the main theme starts as soon as audio exists (at load in the app; on the first tap in a browser)
       if (SS.Audio.unlocked && !this.musicStarted) {
         this.musicStarted = true;
-        if (this.screen !== 'game') { if (SS.Save.data.settings.synthMusic) SS.Audio.playJingle('title'); setTimeout(() => { if (this.screen !== 'game') { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); } }, 1600); }
+        if (this.screen !== 'game') { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); }
       }
       if (this.screen === 'game') {
         const s = this.session;
@@ -362,7 +362,13 @@
       ctx.globalAlpha = 1;
       this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 14 * u, u);
       this.text(ctx, S.privacy + '   v' + SS.CONFIG.VERSION, vw / 2, vh - ins.b - 12 * u, 10 * u, 'rgba(255,255,255,0.45)', 600);
-      if (!SS.Audio.unlocked && Math.floor(this.t * 2) % 2 === 0) this.text(ctx, S.tapToStart, bx + bw / 2, by + 70 * u, 13 * u, '#ffffff', 700);
+      if (!SS.Audio.running()) {
+        // browsers keep sound off until the first touch: ask for it, big and clear
+        const k = 0.75 + 0.25 * Math.sin(this.t * 5);
+        ctx.globalAlpha = k; ctx.fillStyle = 'rgba(0,0,0,0.55)'; Art.rr(ctx, vw / 2 - 170 * u, vh - ins.b - 70 * u, 340 * u, 44 * u, 22 * u); ctx.fill();
+        this.text(ctx, S.tapAnywhere, vw / 2, vh - ins.b - 48 * u, 17 * u, '#ffd47a', 800, true);
+        ctx.globalAlpha = 1;
+      }
       if (SS.Fullscreen.available() && !SS.Fullscreen.isOn()) {
         this.button(ctx, 'fullscr', vw - ins.r - 150 * u, ins.t + 44 * u, 134 * u, 34 * u, S.fullscreenBtn, { color: '#3fb7a6', size: 12 * u, action: () => SS.Fullscreen.enter() });
       } else if (SS.Fullscreen.needsHomeScreenTip()) {

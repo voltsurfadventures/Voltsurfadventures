@@ -1487,6 +1487,12 @@
       const tip = Math.max(1, Math.round((6 + o.dist / 110) * (0.25 + 0.75 * q / 100) * (1 + 0.1 * Math.min(5, Math.max(0, this.streak - 1)))));
       o.tip = tip;
       this.tips += tip; this.coins += tip; this.delivered++; this.ratingSum += stars;
+      // every 2 jobs done wins a heart back (up to the maximum)
+      if (this.delivered % 2 === 0 && p.lives < C.LIVES) {
+        p.lives++;
+        this.popup(S.popHeartBack, p.x, p.y - 140, '#ff6a7a', 1.8, 22);
+        SS.Audio.sfx('powerup'); SS.Haptics.vibrate([20, 40, 20]);
+      }
       this.score += tip * 10 + stars * 60;
       const lines = (F.temp === 'cold' ? S.reactionsCold : S.reactions)[stars - 1];
       const c = o.cust; c.bubble = U.pick(lines); c.bubbleT = 2.8; c.mood = stars >= 4 ? 1 : stars <= 2 ? -1 : 0; c.leaveT = 3.2; c.leaveDir = Math.random() < 0.5 ? -1 : 1;

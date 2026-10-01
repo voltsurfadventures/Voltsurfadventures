@@ -62,6 +62,7 @@
   SS.STRINGS = {
     loading: 'Loading…',
     tapToStart: 'Tap to start',
+    tapAnywhere: 'TAP ANYWHERE TO START',
     play: 'PLAY',
     settings: 'SETTINGS',
     credits: 'CREDITS',
@@ -83,6 +84,10 @@
     scooterReady: 'You can afford a new scooter! Riding is coming in Chapter 2.',
     story: {
       s0: 'Hanoi. The Old Quarter. Rush hour.',
+      s1p: 'Hanoi, the Old Quarter. Minh was the fastest CRAB rider in town.',
+      s2p: 'One hot afternoon he parked, ran in with an order... and left the key in.',
+      s6p: 'No scooter. No job. Just rain... until Bà Lan came by.',
+      minh2b: 'On foot? In THIS traffic?!',
       s1: 'Minh was the fastest CRAB rider in town.',
       vroom: 'VROOOM!',
       s2a: 'One hot afternoon, he parked, ran in with an order...',
@@ -181,6 +186,7 @@
     popSunglasses: 'Sunglasses on!',
     popOuch: 'Ouch!',
     popGassed: 'Durian overload!',
+    popHeartBack: '+1 ❤  Two jobs done!',
     stinkHint: 'Hold your breath, durian stinks!',
     popStinkHit: 'Choking on durian!',
     coughs: ['*cough*', '*cough cough*', '*hack*', 'Ugh!'],

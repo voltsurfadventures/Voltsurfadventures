@@ -206,10 +206,10 @@ function serve() {
   await shot('ui/screen_gameplay_hud.png', 'Gameplay HUD', 'HUD: confidence + breath meters, hearts, coins, order chip, touch buttons, PICK UP marker, guide arrow', 'render.js drawHUD() + input.js draw()');
   // story frames (the cutscene loads its two paintings first)
   await page.evaluate(() => SS.UI.playStory(() => {})); await page.waitForFunction(() => SS.Story.imgs && !SS.Story.loading, null, { timeout: 10000 });
-  const times = [3.5, 3.0, 3.2, 2.2, 1.6, 3.5, 5.0, 3.0];
-  const shotWhat = ['The Old Quarter at rush hour (street painting, slow pan)', 'Minh and his CRAB box (cover art, push-in)', 'The key left in a parked scooter ("TING!")', 'The tourist snatches the key ("SNATCH!!")', 'Minh\'s shocked face ("TRỜI ƠI!!")', 'The tourist rides off on Minh\'s scooter ("Spasibo!")', 'Rain; Bà Lan tells Minh to deliver on foot', 'Goal card: save 1,500 coins for a new scooter'];
+  const times = [2.0, 2.6, 3.8, 3.6, 6.0, 3.0];
+  const shotWhat = ['Paper cut-out: Minh rides his scooter into the Old Quarter ("VROOOM!")', 'He parks at the café and leaves the key in ("TING!")', 'The tourist snatches the key ("SNATCH!!")', 'Minh comes out to find his scooter gone ("TRỜI ƠI!!")', 'Rain; Bà Lan tells Minh to deliver on foot', 'Goal card: save 1,500 coins for a new scooter'];
   for (let i = 0; i < times.length; i++) {
-    await page.evaluate(([i, t]) => { SS.Story.prev = null; SS.Story.shot = i; SS.Story.lt = t; SS.Story.fired = { s: 1, g: 1, h: 1, h2: 1, t: 1, r: 1, p: 1, c: 1 }; SS.Story.shake = 0; SS.Story.flash = 0; }, [i, times[i]]);
+    await page.evaluate(([i, t]) => { SS.Story.shot = i; SS.Story.lt = t; SS.Story.fired = { s: 1, g: 1, h: 1, h2: 1, t: 1, r: 1, p: 1, c: 1, e: 1 }; SS.Story.shake = 0; SS.Story.wipe = 0; }, [i, times[i]]);
     await page.waitForTimeout(120);
     await shot(`backgrounds/story_shot_${i + 1}.png`, 'Opening story cutscene, shot ' + (i + 1), shotWhat[i], 'story.js shots[' + i + ']');
   }
