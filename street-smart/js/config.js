@@ -56,6 +56,7 @@
   // marker colours chosen to stand out against the warm street palette
   SS.COL_PICK = '#1fd1ff'; // pick up: electric cyan
   SS.COL_DROP = '#ff2e88'; // deliver: hot pink
+  SS.COL_PLAYER = '#b6ff1a'; // you: hi-vis lime (no one else wears it)
 
   SS.STRINGS = {
     loading: 'Loading…',
@@ -206,7 +207,7 @@
     redLight: 'Red light: cross now!',
     objective: '{cargo} → {shop}  ·  {m} m',
     objectiveHere: '{cargo} → {shop}  ·  cross the road!',
-    endHint: 'Cross the road to the shop under the yellow flag to deliver!',
+    endHint: 'Cross the road to your pink DELIVER marker!',
     banhbaoIndicator: 'BÁNH BAO',
     howToPlay: 'HOW TO PLAY',
     letsGo: "LET'S GO",
@@ -214,14 +215,14 @@
     ctrlDpad: 'Arrows',
     ctrlJoystick: 'Joystick',
     howto: [
-      ['THE JOB', 'Collect hot food and iced drinks at shops with a yellow flag. Deliver each order to the customer with a green pin before it goes cold.'],
+      ['THE JOB', 'Collect hot food and iced drinks at the blue PICK UP marker. Deliver each order to the customer under the pink DELIVER marker before it goes cold.'],
       ['FLOW, DON\'T DASH', 'On the road, walk slowly and steadily. Riders read your path and steer around you. Stopping, reversing or sprinting confuses them, and that is when they hit you.'],
       ['WATCH OUT', 'Sellers grab you: tap NO THANKS or BUY. Durian stink clouds: hold your breath. Bumps and sudden moves spill your cargo.'],
       ['TIPS & UPGRADES', 'Fast, clean deliveries earn big tips and 5 stars. Spend tips on upgrades. Step in front of the bánh bao bike at the right moment for a power-up.'],
     ],
-    howtoFooter: '3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
+    howtoFooter: 'You wear the lime-green shirt. 3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
     purchaseUnavailable: 'Purchases are not available yet',
-    controlsTouch: 'Arrow pad: walk   ·   SPRINT   ·   HOLD BREATH   ·   NO THANKS   ·   BUY',
+    controlsTouch: 'Drag on the left: walk   ·   SPRINT   ·   HOLD BREATH   ·   NO THANKS   ·   BUY',
     controlsKeys: 'WASD / Arrows: walk   ·   Shift: sprint   ·   Space: hold breath   ·   E: no thanks (hold E: buy)   ·   Esc: pause',
     flowing: 'FLOWING',
     holding: 'HOLDING',
@@ -241,14 +242,14 @@
 
     // tutorial (level 1)
     tut: {
-      move: 'Walk with the arrow pad (bottom left), or WASD / arrow keys.',
+      move: 'Touch and drag anywhere on the LEFT side of the screen to walk.',
       moveDesktop: 'Move with WASD or the arrow keys.',
       blocked: 'The footpath is blocked. Step out into the road.',
       steady: 'Walk slowly and STEADILY. Riders read your path and flow around you.',
       drain: 'Stopping, reversing or sprinting drains CONFIDENCE. Low confidence = chaos.',
       cargo: 'Careful! Sudden moves and bumps spill the food. Watch the CONDITION bar.',
-      pickup: 'Your first order! Go to the shop with the yellow flag and step onto its footpath to collect it.',
-      carry: 'It is hot! The HEAT bar drops every second. Take it to the customer with the green pin.',
+      pickup: 'Your first order! Go to the blue PICK UP marker and step into its ring to collect it.',
+      carry: 'It is hot! The HEAT bar drops every second. Take it to the customer under the pink DELIVER marker.',
       tip: 'Delivered! Faster and cleaner deliveries earn bigger tips. Spend tips on upgrades between shifts.',
       light: 'Traffic lights! When the main road is red, the bikes stop. That is your moment to cross.',
       durian: 'Durian cloud! Hold BREATH (Space) to walk through the stink.',
@@ -321,7 +322,7 @@
                   lines: ['Buy watch! Buy watch!', 'Good price!', 'Buy watch!'] },
     // Fake ride-hail driver: waves a phone at you. Buying = a wild bike ride further down the street.
     // NOTE: "Grab" is a trademark of Grab Holdings. Change these lines before release if you want to avoid it.
-    ride:       { behaviour: 'follow', speed: 118, price: 35, hold: 0.3, escape: 5, giveUp: 12,
+    ride:       { behaviour: 'follow', speed: 118, price: 120, hold: 0.3, escape: 5, giveUp: 12,
                   lines: ['You want to grab? You want to grab?', 'Moto? Cheap cheap!', 'Very fast! Very safe!'] },
     shoe:       { behaviour: 'grab',   speed: 0,   price: 15, hold: 0.0,  escape: 6, giveUp: 0, finish: 3.6,
                   lines: ['Shoe clean, mister?', 'Very shiny!', 'Almost done!'] },
@@ -403,7 +404,7 @@
         {
           id: 'vn-1', name: 'Old Quarter Morning', time: 'morning', music: 'morning',
           cargo: 'pho', destination: 'TẠP HÓA', orders: 3, foods: ['pho', 'banhmi', 'caphe', 'banhbao'],
-          brief: 'Bà Lan: “Your first shift! Collect each order at the shop with the yellow flag, then get it to the customer while it is still hot.”',
+          brief: 'Bà Lan: “Your first shift! Collect each order at the blue PICK UP marker, then get it to the customer while it is still hot.”',
           length: 11200, density: 0.62, speedMul: 0.9, wildRiders: 0.03,
           intersections: [3400, 8000],
           durianEvery: 2200, durianFirst: 1500, cars: 13,

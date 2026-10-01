@@ -492,12 +492,7 @@
         this.button(ctx, 'gfx' + k, lx + cw - (3 - i) * (bw + 6 * u) + 6 * u, y - 14 * u, bw, 36 * u, lab, { flat: st.graphics !== k, color: '#3fb7a6', size: 12 * u, action: () => { SS.Save.setSetting('graphics', k); SS.Main.applySettings(true); } });
       });
       y += 48 * u;
-      this.text(ctx, S.controlsSetting, lx, y + 4 * u, 13 * u, '#fff', 700, false, 'left');
-      [['dpad', S.ctrlDpad], ['joystick', S.ctrlJoystick]].forEach(([k, lab], i) => {
-        const bw = 96 * u, cur = (st.controls || 'dpad') === k;
-        this.button(ctx, 'ctl' + k, lx + cw - (2 - i) * (bw + 6 * u) + 6 * u, y - 14 * u, bw, 36 * u, lab, { flat: !cur, color: '#f0a33a', size: 12 * u, action: () => { SS.Save.setSetting('controls', k); SS.Input.layout(); } });
-      });
-      y += 54 * u;
+      y += 6 * u;
       if (!fromPause) this.button(ctx, 'reset', vw / 2 - 110 * u, y - 6 * u, 220 * u, 38 * u, S.resetProgress, { color: '#e2574c', size: 13 * u, action: () => { this.overlay = 'confirmReset'; } });
       const back = fromPause ? () => { this.overlay = 'pause'; } : () => this.go('title');
       this.button(ctx, 'sback', vw / 2 - 80 * u, py + ph - 52 * u, 160 * u, 40 * u, S.back, { flat: true, size: 14 * u, action: back });

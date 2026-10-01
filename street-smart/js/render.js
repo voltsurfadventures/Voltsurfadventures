@@ -272,7 +272,7 @@
     if (p && !(this.state === 'won' && this.stateT > 1.2)) {
       const o = this.playerLook();
       if (p.tumble) { o.rot = p.tumble.rot; o.lift = p.tumble.z + 18; o.moving = 0; o.carry = null; o.arms = 'up'; }
-      ctx.globalAlpha = 0.32; Art.person(ctx, o); ctx.globalAlpha = 1;
+      o.halo = null; ctx.globalAlpha = 0.32; Art.person(ctx, o); ctx.globalAlpha = 1;
     }
   };
   P.drawEntityList = function (ctx) {
@@ -411,7 +411,8 @@
     return {
       x: p.x, y: p.y, s: Art.depth(p.y) * 1.06, face: p.face, phase: p.phase,
       moving: Math.min(1, Math.hypot(p.vx, p.vy) / SS.CONFIG.WALK_SPEED),
-      skin: '#f0c9a0', shirt: '#2a9d8f', pants: '#c9b48a', hair: '#6b3e1f', backpack: '#c9762e', shoe: '#3a2a22',
+      skin: '#f0c9a0', shirt: SS.COL_PLAYER, pants: '#1d2747', hair: '#6b3e1f', backpack: '#ff5a14', shoe: '#11131c',
+      hat: 'cap', hatColor: SS.COL_PLAYER, halo: '#ffffff',
       legsBare: true, carry: this.cargoDef.carry, carryColor: this.cargoDef.cup, cargoPct: p.cargo / 100, carryTilt: p.carryTilt || 0, arms: this.cargoDef.carry ? 'carry' : null,
       sunglasses: p.sunglasses > 0, mouth: p.gassed > 0 ? 0.8 : 0, outline: this.L.rim, ink: '#24150f',
     };
@@ -420,9 +421,11 @@
     const p = this.player, L = this.L;
     if (this.state === 'won' && this.stateT > 1.2) return;
     // ground ring keeps the player readable in the swarm
-    ctx.strokeStyle = U.rgba(p.onRoad ? (p.conf > 70 ? '#7ff0d8' : p.conf < 30 ? '#ff6a5a' : '#ffe08a') : '#ffffff', 0.7);
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y, 19, 6.5, 0, 0, TAU); ctx.stroke();
+    ctx.fillStyle = 'rgba(10,12,20,0.35)';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 24, 8, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = p.onRoad && p.conf < 30 ? '#ff4a3a' : SS.COL_PLAYER;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 24, 8, 0, 0, TAU); ctx.stroke();
     if (p.invuln > 0 && !p.tumble && Math.floor(this.time * 14) % 2 === 0) ctx.globalAlpha = 0.45;
     const o = this.playerLook();
     if (p.tumble) { o.rot = p.tumble.rot; o.lift = p.tumble.z + 18; o.moving = 0; o.mouth = 1; o.carry = null; o.arms = 'up'; }

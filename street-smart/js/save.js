@@ -15,7 +15,7 @@
     levels: {},            // levelId -> { stars, best, completed }
     fullGame: false,       // set by the in-app purchase hook
     tutorialDone: false,
-    settings: { music: 0.45, sfx: 0.9, vibration: true, graphics: 'auto', controls: 'dpad', synthMusic: false, zoom: true },
+    settings: { music: 0.45, sfx: 0.9, vibration: true, graphics: 'auto', synthMusic: false, zoom: true },
     howtoSeen: false,
     upgrades: {},          // upgradeId -> level
     stamps: {},            // foodId -> true (food passport)

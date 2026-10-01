@@ -141,6 +141,7 @@
       if (o.rot) ctx.rotate(o.rot);
       ctx.scale(s * (o.face || 1), s);
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (o.halo) this.personPass(ctx, o, o.halo, 10);
       if (o.ink) this.personPass(ctx, o, o.ink, 5.2);
       if (o.outline) this.personPass(ctx, o, o.outline, 3.0);
       this.personPass(ctx, o, null, 0);

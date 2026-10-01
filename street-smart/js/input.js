@@ -175,7 +175,8 @@
       } else this.buyHoldT = 0;
     },
 
-    mode() { return (SS.Save.data.settings.controls || 'dpad') === 'joystick' ? 'joystick' : 'dpad'; },
+    // touch: an invisible floating joystick on the left half of the screen
+    mode() { return 'joystick'; },
 
     consumeEdges() { this.noThanks = false; this.buy = false; this.pause = false; },
 
@@ -233,8 +234,8 @@
           ctx.lineTo(cx - ux * sz * 0.6 - uy * sz, cy - uy * sz * 0.6 - ux * sz);
           ctx.closePath(); ctx.fill();
         }
-      } else if (active) {
-        // floating joystick: only visible while your thumb is down
+      } else if (active && this.showStick) {
+        // floating joystick (invisible by default; set showStick to debug)
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = 'rgba(15,18,28,0.3)';
         ctx.beginPath(); ctx.arc(j.bx, j.by, j.r, 0, Math.PI * 2); ctx.fill();
