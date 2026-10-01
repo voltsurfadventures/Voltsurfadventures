@@ -46,8 +46,8 @@ Recorded sound beats anything synthesised in code. Put MP3 files in `assets/audi
 
 | File | What it is |
 |---|---|
-| `horn_1.mp3` … `horn_6.mp3` | Scooter horns. Short beeps, 0.1–0.5 s, trimmed tight. Different horns sound more natural. |
-| `car_horn_1.mp3` … `car_horn_3.mp3` | Car horns |
+| `horn_1.mp3` … `horn_6.mp3` | Scooter horns. Short beeps, 0.1–0.5 s, trimmed tight. **Included** (from the developer's own recording). |
+| `car_horn_1.mp3` … `car_horn_3.mp3` | Car horns. Two are **included**: lower-pitched versions of the scooter horns. |
 | `music_main.mp3` | Main track, used everywhere unless a level has its own (loops). **Included.** |
 | `music_menu.mp3` | Title and menus (loops) |
 | `music_morning.mp3` | Level 1 (loops) |

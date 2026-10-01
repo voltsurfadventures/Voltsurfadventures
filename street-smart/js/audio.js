@@ -548,7 +548,7 @@
       if (smp.length) {
         const s = c.createBufferSource(); s.buffer = smp[type % smp.length];
         s.playbackRate.value = U.rand(0.94, 1.08);
-        const g = c.createGain(); g.gain.value = 0.55 * vol;
+        const g = c.createGain(); g.gain.value = (car ? 0.4 : 0.32) * vol;
         const p = this.panNode(pan); s.connect(g); g.connect(p); p.connect(this.sfxBus); s.start(t);
         return;
       }
