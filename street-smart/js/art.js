@@ -173,18 +173,34 @@
         this.limb(g, -2, hipY, -8, -1, 7 + ex, pants);
         this.ellipse(g, 12, -1, 4.5 + ex / 2, 2.5 + ex / 2, shoe);
       } else {
-        const a = Math.sin(ph) * 0.55 * m, b = -a;
-        const legLen = 28;
-        const knee = (ang) => [Math.sin(ang) * 14, hipY + Math.cos(ang) * 14];
-        for (const [ang, shade] of [[b, -0.25], [a, 0]]) {
-          const [kx, ky] = knee(ang);
-          const lift = Math.max(0, -Math.cos(ph + (ang === a ? 0 : Math.PI))) * 4 * m;
-          const fx = Math.sin(ang * 0.7) * legLen, fy = Math.min(-1, hipY + legLen) - lift;
+        // two-joint legs (hip → knee → ankle). Each foot is planted while it moves back
+        // under the body and lifts only while it swings forward; knees bend forward.
+        const L1 = 15.5, L2 = 15.5, stride = 12 * m, groundY = -1;
+        for (const [p, shade] of [[ph + Math.PI, -0.25], [ph, 0]]) {
+          const swing = Math.cos(p);                       // > 0: foot travelling forward
+          const ax = Math.sin(p) * stride;
+          const ay = groundY - Math.max(0, swing) * 4.5 * m; // lift mid-swing
+          const dx = ax, dy = ay - hipY, d = Math.min(Math.hypot(dx, dy), L1 + L2 - 0.01);
+          const base = Math.atan2(dy, dx);
+          const a1 = Math.acos(U.clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+          const kx = Math.cos(base - a1) * L1, ky = hipY + Math.sin(base - a1) * L1;
           const c = oc || (shade ? U.shade(o.pants || '#3a3f4a', shade) : pants);
           this.limb(g, 0, hipY, kx, ky, 8 + ex, c);
-          this.limb(g, kx, ky, fx, fy, 7 + ex, c);
-          if (o.legsBare) this.limb(g, kx, ky + 3, fx, fy, 5.5 + ex, oc || o.skin);
-          this.ellipse(g, fx + 2.5, fy + 0.5, 4.5 + ex / 2, 2.6 + ex / 2, shoe);
+          this.limb(g, kx, ky, ax, ay, 7 + ex, c);
+          if (o.legsBare) this.limb(g, kx, ky + 3, ax, ay, 5.5 + ex, oc || o.skin);
+          // toe points down a little while the foot is lifted
+          const tilt = Math.max(0, swing) * 0.25 * m;
+          if (o.flipflops && !oc) {
+            g.save(); g.translate(ax + 2.5, ay + 0.5); g.rotate(tilt);
+            this.ellipse(g, 0, 1.2, 5.2, 1.6, '#1d1d22');                 // sole
+            this.ellipse(g, 0, -0.3, 4.2, 2.1, shade ? U.shade(o.skin || '#e0b088', -0.18) : (o.skin || '#e0b088')); // bare foot
+            g.strokeStyle = '#2a7bd1'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-2, 0.6); g.lineTo(1.5, -1.6); g.lineTo(2.5, 0.6); g.stroke(); // strap
+            g.restore();
+          } else {
+            g.save(); g.translate(ax + 2.5, ay + 0.5); g.rotate(tilt);
+            this.ellipse(g, 0, 0, 4.5 + ex / 2, 2.6 + ex / 2, shoe);
+            g.restore();
+          }
         }
       }
 
@@ -198,7 +214,17 @@
         if (!oc) {
           g.fillStyle = U.shade(o.courierBox, -0.3); this.rr(g, -31, sh - 12, 7, 30, 3); g.fill();      // side
           g.fillStyle = U.shade(o.courierBox, 0.22); g.fillRect(-30, sh - 11, 24, 4);                  // lid highlight
-          g.fillStyle = '#ffffff'; g.fillRect(-24, sh + 2, 18, 4);                                    // reflective stripe
+          if (o.boxText) {
+            // brand lettering + a little red crab (kept readable when the sprite is flipped)
+            g.save(); g.translate(-17, sh + 1); g.scale(o.face < 0 ? -1 : 1, 1);
+            g.font = SS.font(7.5, 800, true); g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.lineWidth = 2; g.strokeStyle = U.shade(o.courierBox, -0.45); g.strokeText(o.boxText, 0, 0);
+            g.fillStyle = '#ffe9a8'; g.fillText(o.boxText, 0, 0);
+            g.fillStyle = '#e8432d'; g.beginPath(); g.ellipse(0, 9, 3.4, 2.4, 0, 0, Math.PI * 2); g.fill();
+            g.strokeStyle = '#e8432d'; g.lineWidth = 1;
+            for (const s2 of [-1, 1]) { g.beginPath(); g.moveTo(s2 * 3, 9); g.lineTo(s2 * 5.5, 7); g.lineTo(s2 * 6.5, 5.5); g.stroke(); g.beginPath(); g.moveTo(s2 * 2.5, 10.5); g.lineTo(s2 * 5, 12); g.stroke(); }
+            g.restore();
+          } else { g.fillStyle = '#ffffff'; g.fillRect(-24, sh + 2, 18, 4); } // reflective stripe
         }
       } else if (o.backpack) {
         g.fillStyle = col(o.backpack);
@@ -210,7 +236,7 @@
       if (o.pole && !oc) this.poleBaskets(g, o, sh, true);
 
       // ---- back arm ----
-      const armSw = Math.sin(ph) * 0.6 * m;
+      const armSw = -Math.sin(ph) * 0.6 * m;
       const backHand = o.arms === 'carry' ? [13, sh + 10] : o.arms === 'up' ? [10, sh - 12] : o.arms === 'pole' ? [-6, sh - 4]
         : o.arms === 'cards' ? [12, sh + 8] : [Math.sin(-armSw) * 16, sh + Math.cos(armSw) * 16];
       this.limb(g, 2, sh + 3, backHand[0], backHand[1], 5.5 + ex, oc || U.shade(o.skin || '#e0b088', -0.18));
@@ -226,6 +252,9 @@
           for (let i = 0; i < 6; i++) this.circle(g, -6 + hx + (i % 3) * 6, sh + 3 + Math.floor(i / 3) * 9, 1.7, g.fillStyle);
         }
         if (o.jacket) this.jacket(g, o, sh, hipY, hx);
+        if (o.tankTop) { g.fillStyle = skin; this.rr(g, -6 + hx, sh - 2, 5, 8, 2); g.fill(); this.rr(g, 2 + hx, sh - 2, 5, 6, 2); g.fill(); }
+        if (o.zip) { g.strokeStyle = U.shade(o.shirt, -0.35); g.lineWidth = 1.1; g.beginPath(); g.moveTo(4 + hx, sh); g.lineTo(4 + hx, hipY + 2); g.stroke();
+          g.fillStyle = '#ffe9a8'; this.rr(g, -1 + hx, sh + 3, 4, 3, 1); g.fill(); }
         if (o.vest) { g.fillStyle = o.vest; this.rr(g, -9 + hx, sh, 18, 15, 4); g.fill(); }
       }
 
@@ -235,10 +264,7 @@
       if (!oc) {
         g.fillStyle = 'rgba(120,60,30,0.18)'; g.beginPath(); g.arc(hxh, hy, 10.5, Math.PI * 0.6, Math.PI * 1.4); g.fill();
         // hair
-        g.fillStyle = o.hair || '#2a1e18';
-        g.beginPath(); g.arc(hxh - 1, hy - 1, 9.8, Math.PI * 0.95, Math.PI * 2.05); g.fill();
-        g.fillRect(hxh - 10, hy - 3, 6, 6);
-        if (o.hairBun) this.circle(g, hxh - 9, hy - 4, 4, o.hair || '#2a1e18');
+        this.hair(g, o, hxh, hy);
         // face
         if (o.sunglasses) {
           g.fillStyle = '#111'; this.rr(g, hxh + 2, hy - 3, 9, 4, 2); g.fill();
@@ -298,6 +324,46 @@
       if (o.pole && !oc) this.poleBaskets(g, o, sh, false);
     },
 
+    /* Hair styles: short, side (side part + fringe), spiky, long, bun, bald.
+     * If o.hairStyle is not set, one is picked from the character's colours so
+     * crowds get variety without every caller choosing. */
+    hair(g, o, x, y) {
+      let st = o.hairStyle;
+      if (!st) {
+        const k = ((o.shirt || '').length * 7 + ((o.skin || '#0').charCodeAt(2) || 0) + ((o.shirt || '#0').charCodeAt(3) || 0)) % 5;
+        st = o.hairBun ? 'bun' : ['short', 'side', 'spiky', 'long', 'short'][k];
+      }
+      if (st === 'bald') {
+        g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(x - 2, y - 7, 4, 2, -0.3, 0, Math.PI * 2); g.fill();
+        return;
+      }
+      const c = o.hair || '#2a1e18', hi = U.shade(c, 0.35), lo = U.shade(c, -0.25);
+      g.fillStyle = c;
+      // volume over the skull and down the back of the head
+      g.beginPath();
+      g.moveTo(x - 9.5, y + (st === 'long' ? 12 : 3));
+      g.quadraticCurveTo(x - 12.5, y - 6, x - 5, y - 11.5);
+      g.quadraticCurveTo(x + 2, y - 14, x + 8.5, y - 9);
+      if (st === 'spiky') { // a few spikes across the top
+        g.lineTo(x + 10, y - 6); g.lineTo(x + 6.5, y - 7.5); g.lineTo(x + 7.5, y - 4.5); g.lineTo(x + 3.5, y - 6.5);
+      } else if (st === 'side') { // side-swept fringe over the forehead
+        g.quadraticCurveTo(x + 11.5, y - 6, x + 10.5, y - 3.2); g.quadraticCurveTo(x + 6, y - 6.5, x + 1, y - 5.5);
+      } else { // short fringe with a couple of strands
+        g.quadraticCurveTo(x + 10.5, y - 7, x + 9.5, y - 5); g.lineTo(x + 7, y - 6.2); g.lineTo(x + 5.5, y - 4.8); g.lineTo(x + 3, y - 6);
+      }
+      g.quadraticCurveTo(x - 1, y - 6, x - 3, y - 2);  // hairline down to the ear
+      g.lineTo(x - 3.5, y + 2.5);                          // sideburn
+      g.lineTo(x - 6, y + (st === 'long' ? 12 : 4));
+      g.closePath(); g.fill();
+      // shading + highlight strands
+      g.strokeStyle = lo; g.lineWidth = 0.9;
+      g.beginPath(); g.moveTo(x - 9, y - 1); g.quadraticCurveTo(x - 8, y - 7, x - 3, y - 9.5); g.stroke();
+      g.strokeStyle = hi; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x - 4, y - 10.5); g.quadraticCurveTo(x + 1, y - 12, x + 5, y - 9.5); g.stroke();
+      g.beginPath(); g.moveTo(x - 7, y - 7); g.quadraticCurveTo(x - 5, y - 9.5, x - 1, y - 10.2); g.stroke();
+      if (st === 'long') { g.strokeStyle = lo; g.beginPath(); g.moveTo(x - 7.5, y + 2); g.lineTo(x - 7, y + 10); g.stroke(); }
+      if (st === 'bun' || o.hairBun) { this.circle(g, x - 9.5, y - 5, 4.2, c); g.strokeStyle = hi; g.beginPath(); g.arc(x - 9.5, y - 5, 2.6, 3.6, 5.4); g.stroke(); }
+    },
     jacket(g, o, sh, hipY, hx) {
       const open = o.jacketOpen || 0;
       const jc = o.jacket;

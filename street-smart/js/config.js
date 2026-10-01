@@ -12,7 +12,7 @@
 
   /* ---------------- Global game config ---------------- */
   SS.CONFIG = {
-    TITLE: 'STREET SMART',               // change the game's name here
+    TITLE: 'BANH ZAI',                   // change the game's name here
     TAGLINE: 'Frogger taught you to dodge. This teaches you to flow.',
     VERSION: '1.0.0',
 
@@ -57,7 +57,7 @@
   // marker colours chosen to stand out against the warm street palette
   SS.COL_PICK = '#1fd1ff'; // pick up: electric cyan
   SS.COL_DROP = '#ff2e88'; // deliver: hot pink
-  SS.COL_PLAYER = '#00b14f'; // you: delivery-courier green jacket, helmet and box
+  SS.COL_PLAYER = '#2a9a45'; // you: CRAB courier green (jacket, cap, box)
 
   SS.STRINGS = {
     loading: 'Loading…',
@@ -75,19 +75,22 @@
     menu: 'MENU',
     levelSelect: 'CHOOSE A DELIVERY',
     storyBtn: 'STORY',
+    brand: 'CRAB',                       // the courier company on Minh's uniform (parody, no real logos)
+    scamTitle: 'SCAMMED!',
+    scamLine: 'A fake CRAB driver charged you double: −{n} coins',
     skip: 'SKIP',
     scooterFund: 'SCOOTER FUND',
     scooterReady: 'You can afford a new scooter! Riding is coming in Chapter 2.',
     story: {
-      s1: 'Hanoi. Minh was the fastest delivery rider in the Old Quarter.',
+      s1: 'Hanoi. Minh was the fastest CRAB rider in the Old Quarter.',
       vroom: 'VROOOM!',
       s2a: 'One hot afternoon, he ran in to collect an iced coffee...',
-      s2b: '...and left the key in.',
+      s2b: '...and left the key in. A Russian tourist was watching.',
       ting: 'TING!',
       snatch: 'SNATCH!!',
       tourist1: 'Ooh, a souvenir!',
       troiOi: 'TRỜI ƠI!!',
-      tourist2: 'Bye-bye!',
+      tourist2: 'Spasibo!',
       minhWait: 'HEY! WAIT!',
       s5: 'Key gone. Scooter gone. Job... gone.',
       s6: 'No scooter. No job. Just rain.',
@@ -122,7 +125,7 @@
     cancel: 'CANCEL',
     progressReset: 'Progress reset',
     rotate: 'Please rotate your device',
-    rotateSub: 'Street Smart is played in landscape',
+    rotateSub: 'Banh Zai is played in landscape',
 
     hudConfidence: 'CONFIDENCE',
     hudBreath: 'BREATH',
@@ -294,7 +297,7 @@
       fruit: 'Fruit seller',
       watch: 'Watch seller',
       shoe: 'Shoe cleaner',
-      ride: 'Fake ride-hail driver',
+      ride: 'Fake CRAB driver',
     },
 
     creditsLines: [
@@ -350,7 +353,8 @@
                   lines: ['Fruit? Very fresh!', 'Mango? Very sweet!', 'Very fresh!'] },
     watch:      { behaviour: 'chase',  speed: 128, price: 40, hold: 0.3,  escape: 6, giveUp: 7,
                   lines: ['Buy watch! Buy watch!', 'Good price!', 'Buy watch!'] },
-    // Fake ride-hail driver: waves a phone at you. Buying = a wild bike ride further down the street.
+    // Fake CRAB driver: waves a phone at you. Buying = a wild bike ride to your next stop,
+    // but he scams you: you pay double (see Session.buyFrom) and get a SCAMMED alert.
     // NOTE: "Grab" is a trademark of Grab Holdings. Change these lines before release if you want to avoid it.
     ride:       { behaviour: 'follow', speed: 118, price: 120, hold: 0.3, escape: 5, giveUp: 12,
                   lines: ['You want to grab? You want to grab?', 'Moto? Cheap cheap!', 'Very fast! Very safe!'] },

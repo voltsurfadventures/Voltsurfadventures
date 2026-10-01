@@ -588,6 +588,7 @@
     /* ------------------------------------------------------------------ */
     updatePlayer(dt) {
       const p = this.player, In = SS.Input;
+      if (this.scam) { this.scam.t -= dt; if (this.scam.t <= 0) this.scam = null; }
       p.invuln = Math.max(0, p.invuln - dt);
       p.bumpCD = Math.max(0, p.bumpCD - dt);
       p.nudgeCD = Math.max(0, p.nudgeCD - dt);
@@ -1049,7 +1050,12 @@
       else if (s.type === 'fruit') { p.breath = 100; if (p.lives < C.LIVES) p.lives++; this.popup(S.popFruit, p.x, p.y - 124, '#b6f37a', 1.5); }
       else if (s.type === 'watch') { this.slowT = 10; this.slowOn = true; this.slowGlitchT = U.rand(1, 2.5); this.popup(S.popSlowmo, p.x, p.y - 124, '#ffd75a', 1.5); }
       else if (s.type === 'shoe') { p.boostT = 8; this.popup(S.popBoost, p.x, p.y - 124, '#9fe6ff', 1.5); }
-      else if (s.type === 'ride') this.startRide();
+      else if (s.type === 'ride') {
+        // it's a scam: the fake driver charges you double (the ride still happens)
+        // the second charge lands when you arrive (see updateRide)
+        this.pendingScam = price;
+        this.startRide();
+      }
       SS.Audio.sfx('powerup');
     }
 
@@ -1084,7 +1090,17 @@
         this.spill(6, true); // he drives like a maniac
         this.popup(S.popRide, p.x, p.y - 100, '#7fc96b', 1.6, 20);
       }
-      if (R.t >= 1.2) this.ride = null;
+      if (R.t >= 1.2) {
+        this.ride = null;
+        if (this.pendingScam) { // on arrival the fake driver demands the same again
+          const price = this.pendingScam, extra = Math.min(this.coins, price);
+          this.pendingScam = 0; this.coins -= extra;
+          this.scam = { t: 3.6, n: price + extra };
+          SS.Audio.sfx('glitch'); SS.Audio.sfx('nothanks');
+          SS.Haptics.vibrate([40, 60, 40, 60, 80]);
+          this.cam.shake = Math.max(this.cam.shake, 6);
+        }
+      }
     }
 
     /* ------------------------------------------------------------------ */

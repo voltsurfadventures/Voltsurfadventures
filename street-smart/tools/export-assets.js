@@ -78,9 +78,10 @@ function serve() {
     const sess = new SS.Session('vietnam', 0, { demo: true });
 
     // ---- player (courier) ----
-    const P = (extra) => Object.assign({ face: 1, skin: '#f0c9a0', shirt: SS.COL_PLAYER, pants: '#24262e', hair: '#2a1a12', courierBox: SS.COL_PLAYER, shoe: '#11131c',
-      hat: 'helmet', hatColor: SS.COL_PLAYER, helmetStripe: '#ffffff', halo: '#ffffff', legsBare: true, ink: '#24150f' }, extra);
-    add('characters/player_idle.png', personSprite('pl_idle', P({ moving: 0 })), 'Gameplay: the player (Minh)', 'Minh, the courier: green jacket, green helmet with white stripe, big green delivery box, white outline', 'render.js playerLook() + art.js person()');
+    // same values as render.js playerLook() (CRAB courier)
+    const P = (extra) => Object.assign({ face: 1, skin: '#e9b98f', shirt: SS.COL_PLAYER, zip: true, pants: '#4a3426', hair: '#1f140e', hairStyle: 'side', courierBox: SS.COL_PLAYER, boxText: SS.STRINGS.brand, shoe: '#2e3138',
+      hat: 'cap', hatColor: SS.COL_PLAYER, halo: '#ffffff', ink: '#24150f' }, extra);
+    add('characters/player_idle.png', personSprite('pl_idle', P({ moving: 0 })), 'Gameplay: the player (Minh)', 'Minh, the CRAB courier: green zip jacket, green cap, green CRAB box, brown trousers, white outline', 'render.js playerLook() + art.js person()');
     let sh = sheet([0, 1, 2, 3, 4, 5, 6, 7].map((f) => personSprite('pl_walk' + f, P({ moving: 1, phase: f * Math.PI / 4 }))));
     add('characters/player_walk_sheet.png', sh.c, 'Gameplay: player walking (frame from walk phase)', `Walk cycle, 8 frames of ${sh.fw}x${sh.fh} px, left to right`, 'render.js playerLook() + art.js person()');
     sh = sheet([0, 1, 2, 3, 4, 5, 6, 7].map((f) => personSprite('pl_carry' + f, P({ moving: 1, phase: f * Math.PI / 4, carry: 'pho', arms: 'carry', cargoPct: 1 }))));
@@ -94,10 +95,10 @@ function serve() {
       sunglasses: { sunglasses: true, pattern: 'flowers', holding: 'rack', hat: 'cap', hatColor: '#1e1e22', arms: 'up', shirt: '#e05a7a' },
       fruit: { hat: 'cone', pole: true, arms: 'pole', hunch: 1, hairBun: true, hair: '#9a9a9a', fruit: '#7fbf3a', fruit2: '#f0a030', shirt: '#7aa35a' },
       watch: { jacket: '#3b3f4a', jacketOpen: true, arms: 'up', hair: '#111', shirt: '#e8e2d0' },
-      ride: { shirt: '#2f9e4f', hat: 'helmet', hatColor: '#2f9e4f', holding: 'phone', arms: 'up' },
+      ride: { shirt: '#f2f1ec', pants: '#1b1d24', flipflops: true, hairStyle: 'spiky', hair: '#16100c', holding: 'phone', arms: 'up' },
       shoe: { crouch: true, holding: 'brush', hat: 'cap', hatColor: '#3d7fd0', shirt: '#d97a2b' },
     };
-    const sellerWhat = { sunglasses: 'Sunglasses seller with a display rack', fruit: 'Fruit seller with a shoulder pole and baskets, conical hat', watch: 'Watch seller opening his jacket full of watches', ride: 'Fake ride-hail driver in a green helmet waving a phone', shoe: 'Shoe-shine man crouching with a brush' };
+    const sellerWhat = { sunglasses: 'Sunglasses seller with a display rack', fruit: 'Fruit seller with a shoulder pole and baskets, conical hat', watch: 'Watch seller opening his jacket full of watches', ride: 'Fake CRAB driver: white T-shirt, black jeans, flip-flops, waving a phone', shoe: 'Shoe-shine man crouching with a brush' };
     for (const k in sellers) add(`characters/seller_${k}.png`, personSprite('sel_' + k, Object.assign({ face: -1, skin: '#c48b5f', pants: '#33363f', ink: '#24150f', mouth: 0.5 }, sellers[k])), 'Gameplay: street seller (SS.SELLERS.' + k + ')', sellerWhat[k], 'render.js drawSeller()');
 
     // ---- traffic ----

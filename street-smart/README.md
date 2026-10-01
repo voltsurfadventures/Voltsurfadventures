@@ -1,4 +1,6 @@
-# STREET SMART — Hanoi
+# BANH ZAI — Hanoi
+
+*(Formerly "Street Smart". The name is set in one place: `TITLE` in `js/config.js`.)*
 
 *"Frogger taught you to dodge. This teaches you to flow."*
 
@@ -126,6 +128,7 @@ All PNGs have transparent backgrounds except the full-screen screenshots (`stree
 | `assets/backgrounds/street_golden.png` | 2336×1080 | Gameplay background, level 2 | Full street scene at golden: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
 | `assets/backgrounds/street_morning.png` | 2336×1080 | Gameplay background, level 1 | Full street scene at morning: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
 | `assets/backgrounds/street_night.png` | 2336×1080 | Gameplay background, level 3 | Full street scene at night: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
+| `assets/ui/cover.jpg` | 1376×768 | Title screen (loaded by the game) | Banh Zai cover art: Minh in CRAB uniform running from the tourist on his stolen scooter (supplied by the author, made with Gemini) | `ui.js drawCoverTitle()` |
 | `assets/ui/button_primary.png` | 480×140 | Menus: main buttons | Orange rounded button (PLAY) | `ui.js button()` |
 | `assets/ui/logo.png` | 1520×320 | Title screen + loading | "STREET SMART" logo lettering (font: Baloo 2) | `ui.js logo()` |
 | `assets/ui/screen_gameplay_hud.png` | 2336×1080 | Gameplay HUD | HUD: confidence + breath meters, hearts, coins, order chip, touch buttons, PICK UP marker, guide arrow | `render.js drawHUD() + input.js draw()` |
@@ -193,7 +196,7 @@ To re-export after changing the art code: `npm install playwright` then `node to
 
 ## Story
 
-Minh was the fastest delivery rider in Hanoi's Old Quarter, until a rude tourist snatched the key he'd left in his scooter and rode off on it. Now he delivers on foot, saving his tips for a new scooter. The goal is **1,500 coins** (`SCOOTER_PRICE` in `js/config.js`), shown as the **Scooter Fund** on the level screen. Riding the new scooter is planned as Chapter 2.
+Minh was the fastest CRAB delivery rider in Hanoi's Old Quarter (CRAB is the game's parody courier company: green jacket, green cap, green CRAB box), until a bald Russian tourist in a tank top snatched the key he'd left in his scooter and rode off on it. Now he delivers on foot, saving his tips for a new scooter. The goal is **1,500 coins** (`SCOOTER_PRICE` in `js/config.js`), shown as the **Scooter Fund** on the level screen. Riding the new scooter is planned as Chapter 2.
 
 The opening cutscene (`js/story.js`) plays the first time you press PLAY, and again from the **STORY** button. It is drawn like an old black-and-white manga: the game's own street and characters are rendered once, then converted into ink and halftone screentone, with only Minh's courier green kept in colour. The close-ups, speed lines, focus lines and sound-effect lettering are drawn live. The story text is in `SS.STRINGS.story`. Tap to go to the next shot; SKIP ends it.
 
@@ -208,6 +211,8 @@ Each level is a **delivery shift**: 3, 4 or 5 orders, plus an **Endless Rush Hou
 5. Coins earned in a shift are banked when the shift ends; restart or quit and that shift's coins are lost. Spend savings in the **upgrade shop**: sandals, padded box, insulated bag, big lungs, traffic whisperer, lucky charm.
 6. Each dish delivered with 4 or more stars earns a stamp in the **Food Passport**. Complete all 8 for a bonus.
 7. **Street events**: traffic lights at every intersection (cross while the main road is red) and sudden downpours that slow riders' reactions and cool food faster.
+
+**Fake CRAB drivers** (white T-shirt, black jeans, flip-flops) offer you a ride. Buying one takes you straight to your next stop, but it's a scam: when you arrive you're charged the same price again and a **SCAMMED!** alert shows how much you lost.
 
 Food, upgrade and level data are all in `js/config.js` (`SS.FOODS`, `SS.UPGRADES`, levels).
 

@@ -67,6 +67,8 @@
       this.drawWorldUI(ctx, cx, vw);
       ctx.restore();
       this.drawHUD(ctx, vw, vh);
+      // SCAMMED alert (fake CRAB driver charged double), on top of everything
+      if (this.scam) this.drawScam(ctx, vw, vh);
     }
   };
 
@@ -415,9 +417,10 @@
     return {
       x: p.x, y: p.y, s: Art.depth(p.y) * 1.14, face: p.face, phase: p.phase,
       moving: Math.min(1, Math.hypot(p.vx, p.vy) / SS.CONFIG.WALK_SPEED),
-      skin: '#f0c9a0', shirt: SS.COL_PLAYER, pants: '#24262e', hair: '#2a1a12', courierBox: SS.COL_PLAYER, shoe: '#11131c',
-      hat: 'helmet', hatColor: SS.COL_PLAYER, helmetStripe: '#ffffff', halo: '#ffffff', vest: null,
-      legsBare: true, carry: this.cargoDef.carry, carryColor: this.cargoDef.cup, cargoPct: p.cargo / 100, carryTilt: p.carryTilt || 0, arms: this.cargoDef.carry ? 'carry' : null,
+      // CRAB courier (from the Banh Zai cover): green zip jacket, green cap, green CRAB box, brown trousers
+      skin: '#e9b98f', shirt: SS.COL_PLAYER, zip: true, pants: '#4a3426', hair: '#1f140e', hairStyle: 'side', courierBox: SS.COL_PLAYER, boxText: SS.STRINGS.brand, shoe: '#2e3138',
+      hat: 'cap', hatColor: SS.COL_PLAYER, halo: '#ffffff', vest: null,
+      legsBare: false, carry: this.cargoDef.carry, carryColor: this.cargoDef.cup, cargoPct: p.cargo / 100, carryTilt: p.carryTilt || 0, arms: this.cargoDef.carry ? 'carry' : null,
       sunglasses: p.sunglasses > 0, mouth: p.gassed > 0 ? 0.8 : 0, outline: this.L.rim, ink: '#24150f',
     };
   };
@@ -468,7 +471,8 @@
     if (s.type === 'sunglasses') Object.assign(base, { sunglasses: true, pattern: 'flowers', holding: 'rack', hat: 'cap', hatColor: '#1e1e22', arms: pitching ? 'up' : null, crouch: s.state === 'lurk', mouth: pitching ? 0.5 + 0.5 * Math.sin(t * 9) : 0 });
     else if (s.type === 'fruit') Object.assign(base, { hat: 'cone', pole: true, arms: 'pole', hunch: 1, s: base.s * 0.9, hairBun: true, hair: '#9a9a9a', fruit: '#7fbf3a', fruit2: '#f0a030', mouth: pitching ? 0.3 + 0.3 * Math.sin(t * 7) : 0 });
     else if (s.type === 'watch') Object.assign(base, { jacket: '#3b3f4a', jacketOpen: s.jacketOpen, arms: pitching ? 'up' : null, mouth: pitching ? 0.5 + 0.5 * Math.sin(t * 10) : 0, hair: '#111' });
-    else if (s.type === 'ride') Object.assign(base, { shirt: '#2f9e4f', hat: 'helmet', hatColor: '#2f9e4f', holding: 'phone', arms: pitching ? 'up' : null,
+    // fake CRAB drivers: white T-shirt, black jeans, flip-flops, phone out
+    else if (s.type === 'ride') Object.assign(base, { shirt: '#f2f1ec', pants: '#1b1d24', flipflops: true, hairStyle: 'spiky', hair: '#16100c', holding: 'phone', arms: pitching ? 'up' : null,
       mouth: pitching ? 0.5 + 0.5 * Math.sin(t * 9) : 0, phase: pitching && !s.moving ? t * 3 : s.phase });
     else if (s.type === 'shoe') {
       Object.assign(base, { crouch: true, holding: 'brush', hat: 'cap', hatColor: '#3d7fd0', mouth: s.state === 'latched' ? 0.4 : 0, phase: s.state === 'latched' ? t * 10 : s.phase });
@@ -828,6 +832,20 @@
       ctx.fillStyle = 'rgba(255,255,255,0.25)'; Art.rr(ctx, x + 2, y + 1, Math.max(0, w * frac - 4), h * 0.35, h * 0.2); ctx.fill();
     }
     if (flash) { ctx.strokeStyle = 'rgba(255,255,255,' + flash + ')'; ctx.lineWidth = 2; Art.rr(ctx, x - 2, y - 2, w + 4, h + 4, (h + 4) / 2); ctx.stroke(); }
+  };
+  P.drawScam = function (ctx, vw, vh) {
+    const S = SS.STRINGS, k = this.scam, age = 3.6 - k.t;
+    const a = Math.min(1, age * 6, k.t * 2), sc = U.easeOutBack(U.clamp(age / 0.35, 0, 1));
+    const w = Math.min(560, vw - 60), h = 118, x = vw / 2, y = vh * 0.36;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.scale(sc, sc); ctx.rotate(Math.sin(age * 40) * 0.012 * Math.max(0, 1 - age));
+    ctx.fillStyle = 'rgba(20,6,8,0.92)'; Art.rr(ctx, -w / 2, -h / 2, w, h, 18); ctx.fill();
+    ctx.lineWidth = 5; ctx.strokeStyle = '#ff3b3b'; Art.rr(ctx, -w / 2, -h / 2, w, h, 18); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = SS.font(46, 800, true); ctx.lineWidth = 8; ctx.strokeStyle = '#3a0508'; ctx.strokeText(S.scamTitle, 0, -18);
+    ctx.fillStyle = '#ff4b4b'; ctx.fillText(S.scamTitle, 0, -18);
+    ctx.font = SS.font(18, 700, false); ctx.fillStyle = '#ffffff';
+    ctx.fillText(S.scamLine.replace('{n}', k.n), 0, 30);
+    ctx.restore();
   };
   P.drawHUD = function (ctx, vw, vh) {
     const V = SS.View, u = V.unitsPerCss, ins = V.insets, p = this.player, t = this.time;

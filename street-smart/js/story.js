@@ -91,8 +91,8 @@
 
   /* ---------------- characters ---------------- */
   const minhLook = (extra) => Object.assign({
-    x: 0, y: 0, s: 1, face: 1, phase: 0, moving: 0, skin: '#f0c9a0', shirt: SS.COL_PLAYER, pants: '#24262e', hair: '#2a1a12',
-    courierBox: SS.COL_PLAYER, shoe: '#11131c', hat: 'helmet', hatColor: SS.COL_PLAYER, helmetStripe: '#ffffff', ink: '#16141a', legsBare: true,
+    x: 0, y: 0, s: 1, face: 1, phase: 0, moving: 0, skin: '#e9b98f', shirt: SS.COL_PLAYER, zip: true, pants: '#4a3426', hair: '#1f140e', hairStyle: 'side',
+    courierBox: SS.COL_PLAYER, boxText: SS.STRINGS.brand, shoe: '#2e3138', hat: 'cap', hatColor: SS.COL_PLAYER, ink: '#16141a',
   }, extra || {});
   const minhBike = (riding) => ({
     key: 'story_minh_' + (riding ? 'ride' : 'park'), kind: 'delivery', body: '#d8d2c4',
@@ -100,7 +100,7 @@
   });
   const touristBike = () => ({
     key: 'story_tourist_ride', kind: 'single', body: '#d8d2c4',
-    riders: [{ role: 'driver', x: -6, shirt: '#e05a7a', helmet: null, hair: '#d9b45a', skin: '#f2a08c', pants: '#d8c9a0', headY: -60 }],
+    riders: [{ role: 'driver', x: -6, shirt: '#f4f2ec', helmet: null, hair: '#f2a08c', skin: '#f2a08c', pants: '#3b6ea5', headY: -60 }], // bald, tank top, blue cargo shorts
   });
 
   /* ---------------- live drawing helpers ---------------- */
@@ -241,15 +241,14 @@
   function drawTourist(ctx, cx, cy, r, t, keyK) {
     ctx.save(); ctx.translate(cx, cy);
     ctx.strokeStyle = INK; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    // shoulders + loud shirt
-    ctx.fillStyle = '#e9e2d3'; ctx.lineWidth = 5;
+    // sunburnt shoulders + white tank top
+    ctx.fillStyle = '#f2b7a6'; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(-r * 2.2, r * 3.2); ctx.quadraticCurveTo(-r * 2.1, r * 1.35, -r * 0.6, r * 1.15); ctx.lineTo(r * 0.6, r * 1.15);
     ctx.quadraticCurveTo(r * 2.1, r * 1.35, r * 2.2, r * 3.2); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.save(); ctx.clip();
-    for (const [fx, fy, fr] of [[-1.5, 1.8, 0.42], [-0.7, 2.6, 0.36], [1.2, 1.7, 0.4], [1.7, 2.6, 0.34], [0.2, 2.9, 0.3], [-1.9, 2.8, 0.3]]) flower(ctx, fx * r, fy * r, fr * r);
-    ctx.restore();
-    // open collar
-    ctx.fillStyle = '#f2b7a6'; ctx.beginPath(); ctx.moveTo(-r * 0.5, r * 1.12); ctx.lineTo(0, r * 1.9); ctx.lineTo(r * 0.5, r * 1.12); ctx.closePath(); ctx.fill(); ctx.stroke();
+    hatch(ctx, -r * 2.1, r * 1.5, r * 0.6, r * 0.8, 6, 1.1); hatch(ctx, r * 1.5, r * 1.5, r * 0.6, r * 0.8, 6, 1.1);
+    ctx.fillStyle = '#fffdf6';
+    ctx.beginPath(); ctx.moveTo(-r * 1.25, r * 3.2); ctx.lineTo(-r * 1.0, r * 1.3); ctx.lineTo(-r * 0.7, r * 1.25);
+    ctx.quadraticCurveTo(0, r * 2.1, r * 0.7, r * 1.25); ctx.lineTo(r * 1.0, r * 1.3); ctx.lineTo(r * 1.25, r * 3.2); ctx.closePath(); ctx.fill(); ctx.stroke();
     // neck
     ctx.fillStyle = '#f2b7a6'; ctx.fillRect(-r * 0.38, r * 0.7, r * 0.76, r * 0.5); ctx.strokeRect(-r * 0.38, r * 0.7, r * 0.76, r * 0.5);
     // head
@@ -259,11 +258,10 @@
     ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, r * 0.93, r * 1.06, 0, 0, TAU); ctx.clip();
     hatch(ctx, -r * 0.85, r * 0.15, r * 0.45, r * 0.35, 6, 1.1); hatch(ctx, r * 0.4, r * 0.15, r * 0.45, r * 0.35, 6, 1.1);
     ctx.restore();
-    // hair: blond comb-over spikes
-    ctx.fillStyle = '#fffdf6'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(-r * 0.95, -r * 0.2);
-    for (let i = 0; i <= 8; i++) { const a = Math.PI + (i / 8) * Math.PI, rr = i % 2 ? r * 1.12 : r * 1.32; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr * 0.95 - r * 0.15); }
-    ctx.lineTo(r * 0.95, -r * 0.2); ctx.quadraticCurveTo(0, -r * 0.55, -r * 0.95, -r * 0.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // bald and shiny
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.72, r * 0.32, r * 0.12, -0.35, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.18, -r * 0.86, r * 0.1, r * 0.05, -0.2, 0, TAU); ctx.fill();
     // aviators
     ctx.fillStyle = INK;
     for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * r * 0.08, -r * 0.08); ctx.quadraticCurveTo(sx * r * 0.85, -r * 0.2, sx * r * 0.8, r * 0.12); ctx.quadraticCurveTo(sx * r * 0.62, r * 0.45, sx * r * 0.2, r * 0.25); ctx.closePath(); ctx.fill(); }

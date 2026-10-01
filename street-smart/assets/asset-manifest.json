@@ -4,7 +4,7 @@
     "w": 211,
     "h": 317,
     "used": "Gameplay: the player (Minh)",
-    "what": "Minh, the courier: green jacket, green helmet with white stripe, big green delivery box, white outline",
+    "what": "Minh, the CRAB courier: green zip jacket, green cap, green CRAB box, brown trousers, white outline",
     "code": "render.js playerLook() + art.js person()"
   },
   {
@@ -76,7 +76,7 @@
     "w": 211,
     "h": 317,
     "used": "Gameplay: street seller (SS.SELLERS.ride)",
-    "what": "Fake ride-hail driver in a green helmet waving a phone",
+    "what": "Fake CRAB driver: white T-shirt, black jeans, flip-flops, waving a phone",
     "code": "render.js drawSeller()"
   },
   {

@@ -25,6 +25,10 @@
     musicStarted: false,
 
     init() {
+      // cover art (title screen). If it is missing, the old code-drawn title is used.
+      this.cover = new Image();
+      this.cover.onload = () => { this.coverReady = true; };
+      this.cover.src = 'assets/ui/cover.jpg';
       this.demo = new SS.Session(this.worldId, 1, { demo: true });
       this.go('title');
     },
@@ -298,6 +302,7 @@
     },
 
     drawTitle(ctx, vw, vh, u) {
+      if (this.coverReady) { this.drawCoverTitle(ctx, vw, vh, u); return; }
       const ins = SS.View.insets;
       const g = ctx.createLinearGradient(0, 0, vw * 0.7, 0);
       g.addColorStop(0, 'rgba(8,6,16,0.82)'); g.addColorStop(0.6, 'rgba(8,6,16,0.35)'); g.addColorStop(1, 'rgba(8,6,16,0)');
@@ -325,6 +330,39 @@
       this.text(ctx, S.privacy + '   v' + SS.CONFIG.VERSION, vw / 2, vh - ins.b - 14 * u, 11 * u, 'rgba(255,255,255,0.6)', 600);
       if (!SS.Audio.unlocked && Math.floor(this.t * 2) % 2 === 0) this.text(ctx, S.tapToStart, lx, by + 70 * u, 13 * u, '#ffffff', 700);
       // full screen button (browsers that support it) or the iPhone home-screen tip
+      if (SS.Fullscreen.available() && !SS.Fullscreen.isOn()) {
+        this.button(ctx, 'fullscr', vw - ins.r - 150 * u, ins.t + 44 * u, 134 * u, 34 * u, S.fullscreenBtn, { color: '#3fb7a6', size: 12 * u, action: () => SS.Fullscreen.enter() });
+      } else if (SS.Fullscreen.needsHomeScreenTip()) {
+        this.text(ctx, S.iosFullTip, vw / 2, vh - ins.b - 32 * u, 11.5 * u, '#ffd23f', 700);
+      }
+    },
+    // title screen built around the cover art: art on the left, menu column on the right
+    drawCoverTitle(ctx, vw, vh, u) {
+      const ins = SS.View.insets, img = this.cover;
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, vw, vh);
+      const colW = 236 * u, gap = 18 * u;
+      const aw = vw - ins.l - ins.r - colW - gap * 3, ah = vh - ins.t - ins.b - 16 * u;
+      const k = U.easeOutBack(U.clamp(this.t / 0.8, 0, 1));
+      const sc = Math.min(aw / img.width, ah / img.height) * (0.94 + 0.06 * k);
+      const w = img.width * sc, h = img.height * sc;
+      const cx = ins.l + gap + aw / 2, cy = ins.t + 8 * u + ah / 2;
+      ctx.globalAlpha = U.clamp(this.t / 0.5, 0, 1);
+      ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+      ctx.globalAlpha = U.clamp((this.t - 0.3) / 0.5, 0, 1);
+      const bx = vw - ins.r - gap - colW, bw = colW;
+      const total = 56 * u + 12 * u + 40 * u + 10 * u + 40 * u;
+      let by = vh / 2 - total / 2;
+      this.button(ctx, 'play', bx, by, bw, 56 * u, S.play, { size: 26 * u, action: () => { if (!SS.Save.data.storySeen) this.playStory(() => this.go('levels')); else this.go('levels'); } });
+      by += 56 * u + 12 * u;
+      this.button(ctx, 'howto', bx, by, bw / 2 - 5 * u, 40 * u, S.howToPlay, { flat: true, size: 11.5 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
+      this.button(ctx, 'story', bx + bw / 2 + 5 * u, by, bw / 2 - 5 * u, 40 * u, S.storyBtn, { flat: true, size: 12 * u, action: () => this.playStory(() => this.go('title')) });
+      by += 40 * u + 10 * u;
+      this.button(ctx, 'settings', bx, by, bw / 2 - 5 * u, 40 * u, S.settings, { flat: true, size: 12 * u, action: () => this.go('settings') });
+      this.button(ctx, 'credits', bx + bw / 2 + 5 * u, by, bw / 2 - 5 * u, 40 * u, S.credits, { flat: true, size: 12 * u, action: () => this.go('credits') });
+      ctx.globalAlpha = 1;
+      this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 14 * u, u);
+      this.text(ctx, S.privacy + '   v' + SS.CONFIG.VERSION, vw / 2, vh - ins.b - 12 * u, 10 * u, 'rgba(255,255,255,0.45)', 600);
+      if (!SS.Audio.unlocked && Math.floor(this.t * 2) % 2 === 0) this.text(ctx, S.tapToStart, bx + bw / 2, by + 70 * u, 13 * u, '#ffffff', 700);
       if (SS.Fullscreen.available() && !SS.Fullscreen.isOn()) {
         this.button(ctx, 'fullscr', vw - ins.r - 150 * u, ins.t + 44 * u, 134 * u, 34 * u, S.fullscreenBtn, { color: '#3fb7a6', size: 12 * u, action: () => SS.Fullscreen.enter() });
       } else if (SS.Fullscreen.needsHomeScreenTip()) {
