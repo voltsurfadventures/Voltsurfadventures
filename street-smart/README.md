@@ -26,15 +26,21 @@ street-smart/
 
 ---
 
+## Story
+
+Minh was the fastest delivery rider in Hanoi's Old Quarter, until a rude tourist snatched the key he'd left in his scooter and rode off on it. Now he delivers on foot, saving his tips for a new scooter. The goal is **1,500 coins** (`SCOOTER_PRICE` in `js/config.js`), shown as the **Scooter Fund** on the level screen. Riding the new scooter is planned as Chapter 2.
+
+The opening cutscene (`js/story.js`) plays the first time you press PLAY, and again from the **STORY** button. It is drawn like an old black-and-white manga: the game's own street and characters are rendered once, then converted into ink and halftone screentone, with only Minh's courier green kept in colour. The close-ups, speed lines, focus lines and sound-effect lettering are drawn live. The story text is in `SS.STRINGS.story`. Tap to go to the next shot; SKIP ends it.
+
 ## How it plays
 
 Each level is a **delivery shift**: 3, 4 or 5 orders, plus an **Endless Rush Hour** mode that unlocks after level 1.
 
-1. **Pick up** each order at the shop under the **yellow flag** (pho, bánh mì, iced coffee and more).
-2. **Deliver** it to the customer under the **green pin**, often on the other side of the road.
+1. **Pick up** each order at the blue **PICK UP** marker (pho, bánh mì, iced coffee and more).
+2. **Deliver** it to the customer under the pink **DELIVER** marker, often on the other side of the road.
 3. **Hot food cools and iced drinks melt** (the HEAT or ICE bar), and sudden moves spill it (the CONDITION bar).
 4. Speed plus care earns **1 to 5 stars and a tip**. Four-star deliveries in a row build a **streak** bonus.
-5. Spend tips in the **upgrade shop**: sandals, padded box, insulated bag, big lungs, traffic whisperer, lucky charm.
+5. Coins earned in a shift are banked when the shift ends; restart or quit and that shift's coins are lost. Spend savings in the **upgrade shop**: sandals, padded box, insulated bag, big lungs, traffic whisperer, lucky charm.
 6. Each dish delivered with 4 or more stars earns a stamp in the **Food Passport**. Complete all 8 for a bonus.
 7. **Street events**: traffic lights at every intersection (cross while the main road is red) and sudden downpours that slow riders' reactions and cool food faster.
 

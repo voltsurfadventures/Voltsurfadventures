@@ -21,6 +21,7 @@
     // true            = levels flagged `requiresFullGame` are locked until
     //                   SS.Purchases.unlockFullGame() succeeds (save.js).
     IAP_ENABLED: false,
+    SCOOTER_PRICE: 1500,   // the story goal: save this many coins for a new scooter
 
     VIEW_H: 540,          // logical units of screen height; width follows aspect
     MAX_DPR: 2,           // devicePixelRatio cap (performance)
@@ -73,6 +74,30 @@
     retry: 'RETRY',
     menu: 'MENU',
     levelSelect: 'CHOOSE A DELIVERY',
+    storyBtn: 'STORY',
+    skip: 'SKIP',
+    scooterFund: 'SCOOTER FUND',
+    scooterReady: 'You can afford a new scooter! Riding is coming in Chapter 2.',
+    story: {
+      s1: 'Hanoi. Minh was the fastest delivery rider in the Old Quarter.',
+      vroom: 'VROOOM!',
+      s2a: 'One hot afternoon, he ran in to collect an iced coffee...',
+      s2b: '...and left the key in.',
+      ting: 'TING!',
+      snatch: 'SNATCH!!',
+      tourist1: 'Ooh, a souvenir!',
+      troiOi: 'TRỜI ƠI!!',
+      tourist2: 'Bye-bye!',
+      minhWait: 'HEY! WAIT!',
+      s5: 'Key gone. Scooter gone. Job... gone.',
+      s6: 'No scooter. No job. Just rain.',
+      minh2: 'On foot? In THIS traffic?!',
+      baLan: 'No scooter? Then WALK! Deliver on foot and save every tip.',
+      goalTitle: 'YOUR GOAL',
+      goal: 'Save {n} coins for a new scooter',
+      goalSub: 'Then you are back on two wheels!',
+      tapToPlay: 'TAP TO START',
+    },
     level: 'LEVEL',
     best: 'Best',
     locked: 'Locked',

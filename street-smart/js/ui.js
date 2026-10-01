@@ -31,11 +31,16 @@
 
     go(screen) {
       this.screen = screen; this.t = 0; this.overlay = null; this.pressed = null;
-      if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport'].includes(screen)) {
+      if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport', 'story'].includes(screen)) {
         if (this.session) { this.session.destroy(); this.session = null; }
         if (SS.Audio.unlocked) { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); }
         SS.Audio.setIntensity(0); SS.Audio.setTension(0);
       }
+    },
+
+    playStory(then) {
+      this.go('story');
+      SS.Story.start(() => { if (this.screen === 'story') then(); });
     },
 
     startLevel(i) {
@@ -165,6 +170,9 @@
           const want = Math.min(this.res.stars, Math.floor((this.t - 0.5) / 0.45) + 1);
           if (this.t > 0.5 && want > this.starsShown) { this.starsShown = want; SS.Audio.sfx('star'); SS.Haptics.vibrate(15); }
         }
+      } else if (this.screen === 'story') {
+        SS.Story.update(dt);
+        SS.Input.consumeEdges();
       } else {
         this.demo.update(dt);
         SS.Input.consumeEdges();
@@ -251,6 +259,13 @@
         } else if (this.screen === 'results') this.drawResults(ctx, vw, vh, u);
         else this.drawGameOver(ctx, vw, vh, u);
       } else {
+        if (this.screen === 'story') {
+          SS.Story.draw(ctx, vw, vh, u);
+          this.hits.push({ id: 'storynext', x: 0, y: 0, w: vw, h: vh, action: () => SS.Story.next() });
+          const ins = SS.View.insets;
+          this.button(ctx, 'storyskip', vw - ins.r - 104 * u, ins.t + 16 * u, 88 * u, 34 * u, S.skip, { color: '#16141a', text: '#ffffff', size: 13 * u, action: () => SS.Story.finish() });
+          return;
+        }
         this.demo.render(ctx);
         if (this.screen === 'title') this.drawTitle(ctx, vw, vh, u);
         else if (this.screen === 'levels') this.drawLevels(ctx, vw, vh, u);
@@ -297,9 +312,10 @@
       this.text(ctx, w.name + '  ·  ' + w.city.toUpperCase(), lx, vh * 0.3 - size * 0.85, 13 * u, '#7ff0d8', 800);
       const bw = 220 * u, bh = 56 * u, bx = lx - bw / 2;
       let by = vh * 0.3 + size * 0.85 + 34 * u;
-      this.button(ctx, 'play', bx, by, bw, bh, S.play, { size: 26 * u, action: () => this.go('levels') });
+      this.button(ctx, 'play', bx, by, bw, bh, S.play, { size: 26 * u, action: () => { if (!SS.Save.data.storySeen) this.playStory(() => this.go('levels')); else this.go('levels'); } });
       by += bh + 12 * u;
-      this.button(ctx, 'howto', bx, by, bw, 38 * u, S.howToPlay, { flat: true, size: 13 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
+      this.button(ctx, 'howto', bx, by, bw / 2 - 6 * u, 38 * u, S.howToPlay, { flat: true, size: 12 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
+      this.button(ctx, 'story', bx + bw / 2 + 6 * u, by, bw / 2 - 6 * u, 38 * u, S.storyBtn, { flat: true, size: 12 * u, action: () => this.playStory(() => this.go('title')) });
       by += 38 * u + 10 * u;
       this.button(ctx, 'settings', bx, by, bw / 2 - 6 * u, 42 * u, S.settings, { flat: true, size: 13 * u, action: () => this.go('settings') });
       this.button(ctx, 'credits', bx + bw / 2 + 6 * u, by, bw / 2 - 6 * u, 42 * u, S.credits, { flat: true, size: 13 * u, action: () => this.go('credits') });
@@ -314,6 +330,17 @@
       } else if (SS.Fullscreen.needsHomeScreenTip()) {
         this.text(ctx, S.iosFullTip, vw / 2, vh - ins.b - 32 * u, 11.5 * u, '#ffd23f', 700);
       }
+    },
+    // the story goal: savings toward a new scooter
+    scooterFund(ctx, x, y, w, u) {
+      const have = SS.Save.data.coins, need = SS.CONFIG.SCOOTER_PRICE, k = U.clamp(have / need, 0, 1);
+      ctx.fillStyle = 'rgba(15,18,28,0.7)'; Art.rr(ctx, x, y, w, 40 * u, 10 * u); ctx.fill();
+      ctx.strokeStyle = SS.COL_PLAYER; ctx.lineWidth = 2 * u; Art.rr(ctx, x, y, w, 40 * u, 10 * u); ctx.stroke();
+      this.text(ctx, S.scooterFund, x + 10 * u, y + 12 * u, 10.5 * u, '#9ff0c0', 800, false, 'left');
+      this.text(ctx, have.toLocaleString('en-US') + ' / ' + need.toLocaleString('en-US'), x + w - 10 * u, y + 12 * u, 10.5 * u, '#ffffff', 800, false, 'right');
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'; Art.rr(ctx, x + 10 * u, y + 23 * u, w - 20 * u, 9 * u, 4.5 * u); ctx.fill();
+      if (k > 0) { ctx.fillStyle = SS.COL_PLAYER; Art.rr(ctx, x + 10 * u, y + 23 * u, Math.max(9 * u, (w - 20 * u) * k), 9 * u, 4.5 * u); ctx.fill(); }
+      if (k >= 1 && !this.fundToastShown) { this.fundToastShown = true; this.showToast(S.scooterReady); }
     },
     coinBadge(ctx, rx, y, u) {
       ctx.font = SS.font(17 * u, 800, true);
@@ -331,6 +358,7 @@
       this.dim(ctx, 0.55);
       this.backButton(ctx, () => this.go('title'));
       this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 16 * u, u);
+      this.scooterFund(ctx, ins.l + 124 * u, ins.t + 14 * u, 190 * u, u);
       const w = SS.WORLDS[this.worldId];
       this.text(ctx, S.levelSelect, vw / 2, ins.t + 30 * u, 22 * u, '#ffd23f', 800, true);
       this.text(ctx, w.name + '  ·  ' + w.city, vw / 2, ins.t + 54 * u, 12 * u, '#7ff0d8', 800);
