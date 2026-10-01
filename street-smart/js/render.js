@@ -22,7 +22,7 @@
     this.drawT = this.time;
     // zoom frame: scale the world around a point between the player and the middle of the street
     const z = this.demo || !p ? 1 : (this.zoom || 1);
-    const fx = p ? U.clamp(p.x - cx, vw * 0.2, vw * 0.8) : vw / 2, fy = p ? (p.y + 300) / 2 : vh / 2;
+    const fx = p ? U.clamp(p.x - cx, vw * 0.2, vw * 0.8) : vw / 2, fy = p ? U.clamp(p.y * 0.5 + 100, 180, 380) : vh / 2;
     this.zf = { z, x: fx, y: fy };
     ctx.save();
     if (z !== 1) { ctx.translate(fx, fy); ctx.scale(z, z); ctx.translate(-fx, -fy); }
@@ -438,6 +438,15 @@
     ctx.globalAlpha = 1;
   };
   P.drawCustomer = function (ctx, c) {
+    if (c.vendor) {
+      const L = c.look, wave = !c.handed && Math.abs(this.player.x - c.x) < 420;
+      // a little counter with the food on it
+      if (!c.handed) { ctx.fillStyle = '#8a5a32'; Art.rr(ctx, c.x + 12, c.y - 22, 30, 20, 3); ctx.fill(); ctx.fillStyle = '#6a4224'; ctx.fillRect(c.x + 12, c.y - 22, 30, 4);
+        ctx.save(); ctx.translate(c.x + 27, c.y - 22); Art.carryItem(ctx, c.food.carry, 0, 0, 0, 1, c.food.cup); ctx.restore(); }
+      Art.person(ctx, { ink: '#24150f', x: c.x, y: c.y, s: Art.depth(c.y), face: c.leaveT != null ? c.leaveDir : 1, phase: c.phase, moving: c.moving || 0,
+        skin: L.skin, shirt: L.shirt, pants: L.pants, hair: L.hair, hat: L.hat, arms: wave ? 'up' : null, mouth: wave ? 0.5 + 0.5 * Math.sin(this.time * 8) : 0, vest: '#c84b3a' });
+      return;
+    }
     const L = c.look, o = this.order, waiting = o && o.cust === c && o.state === 'carrying';
     const near = waiting && Math.abs(this.player.x - c.x) < 300;
     Art.person(ctx, { ink: '#24150f', x: c.x, y: c.y, s: Art.depth(c.y), face: c.leaveT != null ? c.leaveDir : (this.player.x > c.x ? 1 : -1), phase: c.phase, moving: c.moving || 0,
@@ -668,27 +677,32 @@
   P.drawWorldUI = function (ctx, cx, vw) {
     const p = this.player, t = this.time;
     placed.length = 0;
-    // order markers: yellow flag over the pick-up shop, green pin over the customer
+    // order beacons: a column of light + a big food badge, easy to spot from far away
     const o = this.order;
+    const beacon = (x, yFoot, col, food, label) => {
+      const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+      const gr = ctx.createLinearGradient(0, yFoot, 0, 40);
+      gr.addColorStop(0, U.rgba(col, 0.45)); gr.addColorStop(1, U.rgba(col, 0));
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = gr; ctx.fillRect(x - 24, 40, 48, yFoot - 40);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = U.rgba(col, 0.6 + 0.4 * pulse); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(x, yFoot, 30 + pulse * 6, 10 + pulse * 2, 0, 0, TAU); ctx.stroke();
+      const by = yFoot - 108 - Math.sin(t * 3) * 5;
+      ctx.fillStyle = 'rgba(15,15,22,0.85)'; ctx.beginPath(); ctx.arc(x, by, 25, 0, TAU); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, by, 25, 0, TAU); ctx.stroke();
+      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x - 9, by + 23); ctx.lineTo(x + 9, by + 23); ctx.lineTo(x, by + 36); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.translate(x, by + 2); ctx.scale(1.35, 1.35); Art.carryItem(ctx, food.carry, 0, 7, 0, 1, food.cup); ctx.restore();
+      ctx.font = SS.font(13, 800, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(15,12,20,0.9)'; ctx.strokeText(label, x, by - 36); ctx.fillStyle = col; ctx.fillText(label, x, by - 36);
+    };
     if (o && o.state === 'waiting') {
-      const sh = o.shop, dx = sh.x + sh.w / 2;
-      if (dx > cx - 200 && dx < cx + vw + 200) {
-        ctx.fillStyle = U.rgba('#ffd75a', 0.22 + 0.12 * Math.sin(t * 5));
-        ctx.fillRect(sh.x + 8, G.FACADE_BOT + 2, sh.w - 16, G.ROAD_TOP - G.FACADE_BOT + 8);
-        const by = 118 + Math.sin(t * 4) * 5;
-        ctx.fillStyle = '#5a4026'; ctx.fillRect(dx - 2, by - 40, 4, 44);
-        ctx.fillStyle = '#ffd75a'; ctx.beginPath(); ctx.moveTo(dx + 2, by - 40); ctx.lineTo(dx + 34, by - 30); ctx.lineTo(dx + 2, by - 20); ctx.closePath(); ctx.fill();
-        ctx.save(); ctx.translate(dx - 26, by - 26); ctx.scale(1.2, 1.2); Art.carryItem(ctx, o.food.carry, 0, 6, 0, 1, o.food.cup); ctx.restore();
-      }
+      const sh = o.shop;
+      ctx.fillStyle = U.rgba('#ffd75a', 0.16 + 0.1 * Math.sin(t * 5));
+      ctx.fillRect(sh.x + 6, G.FACADE_BOT - 86, sh.w - 12, 86 + G.ROAD_TOP - G.FACADE_BOT + 6); // light up the whole shop front
+      beacon(o.vendor.x, o.vendor.y, '#ffd75a', o.food, S.pickUpTag);
     }
-    if (o && o.state === 'carrying') {
-      const d = o.drop, bounce = Math.sin(t * 5) * 4, hy = d.y - 108 + bounce;
-      ctx.strokeStyle = U.rgba('#7fc96b', 0.6 + 0.3 * Math.sin(t * 6)); ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.ellipse(d.x, d.y, 26, 9, 0, 0, TAU); ctx.stroke();
-      if (d.kind === 'shop') { ctx.fillStyle = U.rgba('#7fc96b', 0.18 + 0.1 * Math.sin(t * 5)); ctx.fillRect(d.shop.x + 8, G.FACADE_BOT + 2, d.shop.w - 16, G.ROAD_TOP - G.FACADE_BOT + 8); }
-      ctx.fillStyle = '#7fc96b'; ctx.beginPath(); ctx.arc(d.x, hy, 13, Math.PI, 0); ctx.lineTo(d.x, hy + 22); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(d.x, hy, 5, 0, TAU); ctx.fill();
-    }
+    if (o && o.state === 'carrying') beacon(o.drop.x, o.drop.y, '#7fc96b', o.food, S.deliverTag);
     // delivery rating pops up over the customer
     if (this.ratingFx && this.ratingFx.x != null) {
       const R = this.ratingFx, k = U.easeOutBack(U.clamp((2.4 - R.t) / 0.35, 0, 1)), a = U.clamp(R.t / 0.4, 0, 1);

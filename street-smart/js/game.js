@@ -1088,8 +1088,8 @@
         // across the side street to the footpath beyond it. A timeout makes sure nobody is ever stuck.
         I.t = (I.t || 0) + dt;
         const acrossRoad = I.goal === 'far' ? p.y < G.ROAD_TOP - 2 : p.y > G.ROAD_BOT + 4;
-        const acrossSide = p.x > I.x + G.CROSS_HALF + 12 && (p.y < G.ROAD_TOP - 2 || p.y > G.ROAD_BOT + 4);
-        const done = acrossRoad || acrossSide || I.t > 45;
+        const pastIt = p.x > I.x + G.CROSS_HALF + 24; // walked on past the side street (footpath OR road)
+        const done = acrossRoad || pastIt || I.t > 30;
         if (done && !p.tumble) {
           I.done = true; I.active = false; this.inter = null;
           const avg = I.n ? I.confSum / I.n : 50;
@@ -1248,13 +1248,13 @@
       const vw = this.viewW, p = this.player;
       // dynamic zoom: close in when you slow down, pull back as you speed up
       const sp = Math.hypot(p.vx, p.vy);
-      let zt = U.lerp(1.22, 1.05, U.clamp((sp - 12) / 90, 0, 1));
+      let zt = U.lerp(1.24, 1.05, U.clamp((sp - 10) / 85, 0, 1));
       if (p.sprinting) zt = 1.0;
       if (this.inter && this.inter.active) zt = Math.min(zt, 1.04);
       if (p.tumble) zt = 1.12;
       if (this.state === 'intro' || this.state === 'won' || this.state === 'lost') zt = 1.0;
       if (SS.Save.data.settings.zoom === false) zt = 1;
-      this.zoom = U.approach(this.zoom || 1, zt, dt * (zt < (this.zoom || 1) ? 0.7 : 0.22));
+      this.zoom = U.approach(this.zoom || 1, zt, dt * (zt < (this.zoom || 1) ? 1.3 : 0.5));
       const maxX = this.W.length + 380 - vw;
       if (this.inter && this.inter.active) {
         this.cam.x += (this.inter.lockX - this.cam.x) * Math.min(1, dt * 3);
@@ -1302,7 +1302,12 @@
       }
       const cust = { x: drop.x, y: drop.y, look, phase: Math.random() * 6, bubble: null, bubbleT: 0, mood: 0, moving: 0, face: drop.x > shop.x ? -1 : 1 };
       this.customers.push(cust);
-      const o = { id: idx, food, shop, drop, cust, state: 'waiting', heat: 100, dist: 0 };
+      // the shopkeeper waits outside the shop holding your order
+      const vs = this.freeSpot(shop.x + shop.w / 2, 'far', shop);
+      const vendor = { vendor: true, food, x: vs.x, y: vs.y, look: { skin: U.pick(pal.skin), shirt: U.pick(['#f4f1ea', '#e8e2d0', '#c84b3a']), pants: '#2f2f35', hair: '#1d1611', hat: Math.random() < 0.4 ? 'cone' : null },
+        phase: Math.random() * 6, bubble: null, bubbleT: 0, mood: 1, moving: 0, face: 1 };
+      this.customers.push(vendor);
+      const o = { id: idx, food, shop, drop, cust, vendor, state: 'waiting', heat: 100, dist: 0 };
       this.orders.push(o); this.order = o;
       if (!lvl.endless && remaining === 1) this.tutorial('deliver');
     }
@@ -1364,6 +1369,7 @@
       const allowed = o.dist / 68 + 9;
       o.coolRate = 100 / (allowed * 2.2) * F.cool * (F.temp === 'warm' ? 0.5 : 1) * (1 - 0.2 * SS.Save.up('bag'));
       this.popup(S.orderUp + ' ' + F.name, p.x, p.y - 104, '#ffd75a', 1.6, 20);
+      const v = o.vendor; v.handed = true; v.bubble = U.pick(S.vendorLines); v.bubbleT = 2.2; v.leaveT = 3.5; v.leaveDir = Math.random() < 0.5 ? -1 : 1;
       SS.Audio.sfx('pickup');
       SS.Haptics.vibrate(20);
       for (let i = 0; i < 10; i++) this.particle('spark', p.x, p.y - 60, U.rand(-80, 80), U.rand(-110, 0), 0.6);
