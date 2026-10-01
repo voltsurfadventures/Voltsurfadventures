@@ -40,6 +40,12 @@
       window.addEventListener('keydown', (e) => this.onKey(e, true));
       window.addEventListener('keyup', (e) => this.onKey(e, false));
       window.addEventListener('blur', () => { this.keys = {}; this.releaseAll(); });
+      // switching full screen / rotating can swallow the finger-up event
+      const reset = () => this.releaseAll();
+      document.addEventListener('fullscreenchange', reset);
+      document.addEventListener('webkitfullscreenchange', reset);
+      window.addEventListener('orientationchange', reset);
+      canvas.addEventListener('touchend', (e) => { if (e.touches && e.touches.length === 0) this.releaseAll(); }, { passive: true });
     },
 
     toView(e) {
@@ -79,7 +85,9 @@
             }
             return;
           }
-          if (p.x < SS.View.w * 0.5 && this.joy.id === null) {
+          if (p.x < SS.View.w * 0.5) {
+            // a new thumb on the left always takes over (a lost touch can never lock the stick)
+            if (this.joy.id !== null) delete this.ptrOwner[this.joy.id];
             this.joy.id = e.pointerId; this.joy.bx = p.x; this.joy.by = p.y; this.joy.x = p.x; this.joy.y = p.y;
             this.ptrOwner[e.pointerId] = 'joy';
             return;

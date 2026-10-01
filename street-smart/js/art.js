@@ -191,7 +191,16 @@
       const sh = hipY - 22 + hunch * 2; // shoulder line
       const hx = hunch * 4;
       // ---- backpack (behind) ----
-      if (o.backpack) {
+      if (o.courierBox) {
+        // big square delivery box (courier bag), the player's signature silhouette
+        g.fillStyle = col(o.courierBox);
+        this.rr(g, -31 - ex / 2, sh - 12 - ex / 2, 26 + ex, 30 + ex, 4); g.fill();
+        if (!oc) {
+          g.fillStyle = U.shade(o.courierBox, -0.3); this.rr(g, -31, sh - 12, 7, 30, 3); g.fill();      // side
+          g.fillStyle = U.shade(o.courierBox, 0.22); g.fillRect(-30, sh - 11, 24, 4);                  // lid highlight
+          g.fillStyle = '#ffffff'; g.fillRect(-24, sh + 2, 18, 4);                                    // reflective stripe
+        }
+      } else if (o.backpack) {
         g.fillStyle = col(o.backpack);
         this.rr(g, -19 - ex / 2, sh - 4 - ex / 2, 12 + ex, 26 + ex, 5); g.fill();
         if (!oc) { g.fillStyle = U.shade(o.backpack, -0.25); this.rr(g, -19, sh + 12, 12, 9, 3); g.fill();
@@ -258,6 +267,7 @@
         } else if (o.hat === 'helmet') {
           g.fillStyle = o.hatColor || '#e14b3b';
           g.beginPath(); g.arc(hxh, hy - 1, 11, Math.PI * 0.92, TAU + 0.1); g.fill();
+          if (o.helmetStripe) { g.fillStyle = o.helmetStripe; g.fillRect(hxh - 2, hy - 12, 4, 10); }
         }
       } else if (o.hat === 'cone') {
         g.fillStyle = oc; g.beginPath(); g.moveTo(hxh - 20, hy - 3); g.lineTo(hxh + 1, hy - 23); g.lineTo(hxh + 22, hy - 3); g.closePath(); g.fill();

@@ -56,7 +56,7 @@
   // marker colours chosen to stand out against the warm street palette
   SS.COL_PICK = '#1fd1ff'; // pick up: electric cyan
   SS.COL_DROP = '#ff2e88'; // deliver: hot pink
-  SS.COL_PLAYER = '#b6ff1a'; // you: hi-vis lime (no one else wears it)
+  SS.COL_PLAYER = '#00b14f'; // you: delivery-courier green jacket, helmet and box
 
   SS.STRINGS = {
     loading: 'Loading…',
@@ -156,6 +156,8 @@
     popConfidenceLow: 'Riders can\'t read you!',
 
     now: 'NOW!',
+    bbBonus: 'BONUS',
+    bbStepIn: 'STEP IN!',
     // orders, tips & ratings
     orderPickup: 'Pick up {food} at {shop}',
     orderDeliver: 'Deliver {food} to the customer',
@@ -223,7 +225,7 @@
       ['WATCH OUT', 'Sellers grab you: tap NO THANKS or BUY. Durian stink clouds: hold your breath. Bumps and sudden moves spill your cargo.'],
       ['TIPS & UPGRADES', 'Fast, clean deliveries earn big tips and 5 stars. Spend tips on upgrades. Step in front of the bánh bao bike at the right moment for a power-up.'],
     ],
-    howtoFooter: 'You wear the lime-green shirt. 3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
+    howtoFooter: 'You are Minh, the courier in green with the big box. 3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
     purchaseUnavailable: 'Purchases are not available yet',
     controlsTouch: 'Drag on the left: walk   ·   SPRINT   ·   HOLD BREATH   ·   NO THANKS   ·   BUY',
     controlsKeys: 'WASD / Arrows: walk   ·   Shift: sprint   ·   Space: hold breath   ·   E: no thanks (hold E: buy)   ·   Esc: pause',
@@ -408,9 +410,9 @@
           id: 'vn-1', name: 'Old Quarter Morning', time: 'morning', music: 'morning',
           cargo: 'pho', destination: 'TẠP HÓA', orders: 3, foods: ['pho', 'banhmi', 'caphe', 'banhbao'],
           brief: 'Bà Lan: “Your first shift! Collect each order at the blue PICK UP marker, then get it to the customer while it is still hot.”',
-          length: 11200, density: 0.62, speedMul: 0.9, wildRiders: 0.03,
+          length: 11200, density: 0.38, speedMul: 0.85, wildRiders: 0.0,
           intersections: [3400, 8000],
-          durianEvery: 2200, durianFirst: 1500, cars: 13,
+          durianEvery: 2200, durianFirst: 1500, cars: 5,
           sellerTypes: ['sunglasses', 'ride', 'fruit'], sellerFirst: 1100, sellerEvery: 1300,
           banhbaoFirst: 900, banhbaoEvery: 20,
           coinGroups: 26, obstacleDensity: 0.65,
@@ -420,9 +422,9 @@
           id: 'vn-2', name: 'Golden-Hour Market', time: 'golden', music: 'market',
           cargo: 'cake', destination: 'BIA HƠI', orders: 4, foods: ['buncha', 'comtam', 'nuocmia', 'trada', 'pho'], rain: true,
           brief: 'Bà Lan: “Market rush! Hot food cools and iced drinks melt. Keep moving, but keep it steady.”',
-          length: 13200, density: 0.95, speedMul: 1.0, wildRiders: 0.06,
+          length: 13200, density: 0.72, speedMul: 0.95, wildRiders: 0.04,
           intersections: [3000, 7000, 10600],
-          durianEvery: 1500, durianFirst: 1200, cars: 14,
+          durianEvery: 1500, durianFirst: 1200, cars: 9,
           sellerTypes: ['sunglasses', 'ride', 'fruit', 'watch', 'shoe'], sellerFirst: 900, sellerEvery: 1050,
           banhbaoFirst: 700, banhbaoEvery: 17,
           coinGroups: 34, obstacleDensity: 0.8,
@@ -432,9 +434,9 @@
           id: 'vn-3', name: 'Neon Rush Hour', time: 'night', music: 'night',
           cargo: 'eggs', destination: 'BÁNH MÌ', orders: 5, foods: ['pho', 'banhbao', 'buncha', 'caphe', 'comtam', 'banhmi'], rain: true,
           brief: 'Bà Lan: “Night shift in rush hour. Five orders. Do not spill my bún chả.”',
-          length: 14400, density: 1.12, speedMul: 1.14, wildRiders: 0.09,
+          length: 14400, density: 0.95, speedMul: 1.08, wildRiders: 0.08,
           intersections: [2800, 7000, 11400],
-          durianEvery: 1800, durianFirst: 1300, cars: 15,
+          durianEvery: 1800, durianFirst: 1300, cars: 12,
           sellerTypes: ['ride', 'sunglasses', 'fruit', 'watch', 'ride', 'shoe'], sellerFirst: 800, sellerEvery: 950,
           banhbaoFirst: 600, banhbaoEvery: 15,
           coinGroups: 40, obstacleDensity: 0.9,
@@ -445,9 +447,9 @@
           id: 'vn-endless', name: 'Endless Rush Hour', time: 'golden', music: 'market', endless: true,
           cargo: 'pho', destination: 'TẠP HÓA', orders: 9999, foods: ['pho', 'buncha', 'comtam', 'banhbao', 'banhmi', 'caphe', 'trada', 'nuocmia'], rain: true,
           brief: 'Bà Lan: “Endless orders, endless traffic. How long can you last?”',
-          length: 90000, density: 0.75, speedMul: 1.0, wildRiders: 0.06,
+          length: 90000, density: 0.65, speedMul: 1.0, wildRiders: 0.05,
           intersections: Array.from({ length: 21 }, (_, i) => 3200 + i * 4000),
-          durianEvery: 1900, durianFirst: 1500, cars: 13,
+          durianEvery: 1900, durianFirst: 1500, cars: 10,
           sellerTypes: ['sunglasses', 'ride', 'fruit', 'watch', 'shoe'], sellerFirst: 900, sellerEvery: 1100,
           banhbaoFirst: 700, banhbaoEvery: 18,
           coinGroups: 220, obstacleDensity: 0.8,

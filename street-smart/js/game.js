@@ -49,8 +49,11 @@
       this.variants = this.makeVariants();
       this.grid = new Map();
       this.score = 0;
-      this.coins = SS.Save.data.coins;
-      this.coinsStart = this.coins;
+      // coins in a shift start at 0; they go into your savings only when the shift ends
+      // (restart or quit mid-shift and they are lost)
+      this.coins = 0;
+      this.coinsStart = 0;
+      this.banked = false;
       this.stats = { coins: 0, nearMiss: 0, crossings: 0, banhbao: 0, sellers: 0, hits: 0 };
       this.freezeT = 0; this.slowT = 0; this.slowOn = true; this.slowGlitchT = 0;
       this.glare = 0; this.glareX = 0; this.glareY = 0;
@@ -390,6 +393,46 @@
         if (s.speed > 120 && Math.random() < dt * 2.2 * this.L.dust * SS.Main.quality) this.particle('dust', s.x - ax * s.len, s.y - 2, -ax * 20, -ay * 20, 0.7);
       }
       if (p) this.tension = tension;
+      this.separateTraffic();
+    }
+
+    // hard separation: bikes and cars never sit inside each other. Same-direction
+    // overlaps are pushed apart sideways when there is room, otherwise the one
+    // behind drops back and matches speed.
+    separateTraffic() {
+      this.buildGrid();
+      const seen = new Set();
+      for (const s of this.scooters) {
+        if (s.crashed > 0) continue;
+        const k = Math.floor(s.x / 80);
+        for (let kk = k - 1; kk <= k + 1; kk++) {
+          const cell = this.grid.get(kk); if (!cell) continue;
+          for (const n of cell) {
+            if (n === s || n.crashed > 0 || n.vertical !== s.vertical) continue;
+            const key = s.id < n.id ? s.id + ':' + n.id : n.id + ':' + s.id;
+            if (seen.has(key)) continue; seen.add(key);
+            const ax = s.ax, ay = s.ay;
+            const rx = n.x - s.x, ry = n.y - s.y;
+            const along = rx * ax + ry * ay, lat = rx * -ay + ry * ax;
+            const needAlong = (s.len + n.len) * 0.92, needLat = (s.halfW + n.halfW) * 1.5 + 6;
+            const oa = needAlong - Math.abs(along), ol = needLat - Math.abs(lat);
+            if (oa <= 0 || ol <= 0) continue;
+            const sameDir = ax * n.ax + ay * n.ay > 0;
+            const lo = s.vertical ? s.ix - G.CROSS_HALF + 14 : G.ROAD_TOP + 10, hi = s.vertical ? s.ix + G.CROSS_HALF - 14 : G.ROAD_BOT - 4;
+            if (ol / needLat < oa / needAlong || !sameDir) {
+              // sideways: split the push, respecting the kerbs
+              const dir = lat >= 0 ? 1 : -1, push = ol * 0.5 + 0.5;
+              if (s.vertical) { s.x = U.clamp(s.x + dir * push * ay, lo, hi); n.x = U.clamp(n.x - dir * push * ay, lo, hi); }
+              else { s.y = U.clamp(s.y - dir * push * ax, lo + s.halfW, hi - s.halfW); n.y = U.clamp(n.y + dir * push * ax, lo + n.halfW, hi - n.halfW); }
+            } else {
+              // nose-to-tail: the one behind backs off and matches speed
+              const back = along > 0 ? s : n, front = back === s ? n : s;
+              back.x -= back.ax * oa; back.y -= back.ay * oa;
+              back.speed = Math.min(back.speed, front.speed);
+            }
+          }
+        }
+      }
     }
 
     scooterVsPlayer(s, along, lat) {
@@ -521,9 +564,10 @@
     }
     banhBaoGrab(s, along, lat) {
       const p = this.player;
-      const inLane = Math.abs(lat) < 22;
-      s.window = !s.grabbed && along > 40 && along < 160 && p.onRoad;
-      if (inLane && !s.wasInLane && s.window) {
+      // the big yellow zone in front of his bike (drawn in render.js): stand in it as he arrives
+      const inLane = Math.abs(lat) < 36;
+      s.window = !s.grabbed && along > 28 && along < 200 && p.onRoad;
+      if (inLane && s.window) {
         s.grabbed = true; s.grabT = 0.9; s.speed = Math.min(s.speed, 90);
         this.stats.banhbao++;
         this.addScore(250, S.popGrab, p.x, p.y - 90, '#ffd75a');
@@ -578,8 +622,17 @@
       nx = U.clamp(nx, camL, Math.min(camR, this.W.length + 320));
       ny = U.clamp(ny, G.WALK_MIN, G.WALK_MAX);
       let blockedX = false, blockedY = false;
-      if (this.collides(nx, p.y)) { nx = p.x; blockedX = true; }
-      if (this.collides(nx, ny)) { ny = p.y; blockedY = true; }
+      if (this.collides(p.x, p.y)) {
+        // already inside something (pushed by the screen edge, a knock-back or a ride drop):
+        // never trap the player; let them walk out and ease them toward the road
+        p.stuckT = (p.stuckT || 0) + dt;
+        if (p.stuckT > 0.25) ny += (p.y < (G.ROAD_TOP + G.ROAD_BOT) / 2 ? 1 : -1) * 90 * dt;
+        ny = U.clamp(ny, G.WALK_MIN, G.WALK_MAX);
+      } else {
+        p.stuckT = 0;
+        if (this.collides(nx, p.y)) { nx = p.x; blockedX = true; }
+        if (this.collides(nx, ny)) { ny = p.y; blockedY = true; }
+      }
       p.x = nx; p.y = ny;
       if (blockedX) p.vx *= 0.2;
       if (blockedY) p.vy *= 0.2;
@@ -1513,13 +1566,14 @@
     }
 
     commitCoins() {
-      SS.Save.data.coins = Math.max(0, this.coins);
+      if (this.banked) return;
+      this.banked = true;
+      SS.Save.data.coins = Math.max(0, SS.Save.data.coins + Math.max(0, this.coins));
       SS.Save.save();
     }
 
     destroy() {
       SS.Audio.bbStop();
-      this.commitCoins();
     }
   }
 

@@ -269,8 +269,12 @@
     this.drawEntityList(ctx);
     // x-ray ghost: if anything is drawn over the player, a faint silhouette still shows through
     const p = this.player;
-    if (p && !(this.state === 'won' && this.stateT > 1.2)) {
+    // only when something in front actually covers them (otherwise it just washes the colours out)
+    const covered = p && (this.scooters.some((s) => s.y > p.y && s.y - p.y < 95 && Math.abs(s.x - p.x) < s.len + 26) ||
+      this.W.obstacles.some((ob) => ob.y > p.y && ob.y - p.y < 70 && Math.abs(ob.x - p.x) < ob.w / 2 + 20));
+    if (covered && !(this.state === 'won' && this.stateT > 1.2)) {
       const o = this.playerLook();
+      o.ink = null; o.outline = null;
       if (p.tumble) { o.rot = p.tumble.rot; o.lift = p.tumble.z + 18; o.moving = 0; o.carry = null; o.arms = 'up'; }
       o.halo = null; ctx.globalAlpha = 0.32; Art.person(ctx, o); ctx.globalAlpha = 1;
     }
@@ -409,10 +413,10 @@
   P.playerLook = function () {
     const p = this.player;
     return {
-      x: p.x, y: p.y, s: Art.depth(p.y) * 1.06, face: p.face, phase: p.phase,
+      x: p.x, y: p.y, s: Art.depth(p.y) * 1.14, face: p.face, phase: p.phase,
       moving: Math.min(1, Math.hypot(p.vx, p.vy) / SS.CONFIG.WALK_SPEED),
-      skin: '#f0c9a0', shirt: SS.COL_PLAYER, pants: '#1d2747', hair: '#6b3e1f', backpack: '#ff5a14', shoe: '#11131c',
-      hat: 'cap', hatColor: SS.COL_PLAYER, halo: '#ffffff',
+      skin: '#f0c9a0', shirt: SS.COL_PLAYER, pants: '#24262e', hair: '#2a1a12', courierBox: SS.COL_PLAYER, shoe: '#11131c',
+      hat: 'helmet', hatColor: SS.COL_PLAYER, helmetStripe: '#ffffff', halo: '#ffffff', vest: null,
       legsBare: true, carry: this.cargoDef.carry, carryColor: this.cargoDef.cup, cargoPct: p.cargo / 100, carryTilt: p.carryTilt || 0, arms: this.cargoDef.carry ? 'carry' : null,
       sunglasses: p.sunglasses > 0, mouth: p.gassed > 0 ? 0.8 : 0, outline: this.L.rim, ink: '#24150f',
     };
@@ -708,6 +712,14 @@
       beacon(o.vendor.x, o.vendor.y, SS.COL_PICK, o.food, S.pickUpTag);
     }
     if (o && o.state === 'carrying') beacon(o.drop.x, o.drop.y, SS.COL_DROP, o.food, S.deliverTag);
+    // "that's you" marker: a bobbing pointer above your head
+    if (p && !p.tumble && !(this.state === 'won' && this.stateT > 1.2)) {
+      const sc = Art.depth(p.y) * 1.14, mx = p.x, my = p.y - 92 * sc + Math.sin(t * 5) * 3;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.moveTo(mx - 11, my - 9); ctx.lineTo(mx + 11, my - 9); ctx.lineTo(mx, my + 6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = SS.COL_PLAYER;
+      ctx.beginPath(); ctx.moveTo(mx - 7, my - 6.5); ctx.lineTo(mx + 7, my - 6.5); ctx.lineTo(mx, my + 2.5); ctx.closePath(); ctx.fill();
+    }
     // guide arrow at your feet, always pointing to where you need to go
     if (o && (o.state === 'waiting' || o.state === 'carrying') && p && !p.tumble) {
       const tx = o.state === 'waiting' ? o.vendor.x : o.drop.x, ty = o.state === 'waiting' ? o.vendor.y : o.drop.y;
@@ -757,12 +769,19 @@
     }
     // bánh bao timing window
     const b = this.bb;
-    if (b && b.window && !b.grabbed && p && p.onRoad) {
-      const pulse = 0.5 + 0.5 * Math.sin(t * 14);
-      ctx.strokeStyle = U.rgba('#ffd75a', 0.5 + pulse * 0.5); ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.ellipse(p.x, b.y, 24 + pulse * 5, 8 + pulse * 2, 0, 0, TAU); ctx.stroke();
-      ctx.font = SS.font(15, 800, true); ctx.fillStyle = '#ffd75a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(S.now, p.x, b.y - 18);
+    if (b && !b.grabbed && !b.vertical && b.speed > 20 && Math.abs(b.x - (this.cam.x + this.viewW / 2)) < this.viewW * 0.7) {
+      // big yellow bonus zone rolling just ahead of his bike: step into it
+      const live = b.window, pulse = 0.5 + 0.5 * Math.sin(t * (live ? 14 : 5));
+      const zx = b.x + b.ax * 114, zy = b.y, rx = 86 + pulse * 6, ry = 34 + pulse * 3;
+      ctx.fillStyle = U.rgba('#ffd23f', live ? 0.34 + pulse * 0.16 : 0.18);
+      ctx.beginPath(); ctx.ellipse(zx, zy, rx, ry, 0, 0, TAU); ctx.fill();
+      ctx.lineWidth = live ? 5 : 3.5; ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath(); ctx.ellipse(zx, zy, rx + 3, ry + 2, 0, 0, TAU); ctx.stroke();
+      ctx.lineWidth = live ? 4 : 2.5; ctx.strokeStyle = '#ffd23f';
+      ctx.beginPath(); ctx.ellipse(zx, zy, rx, ry, 0, 0, TAU); ctx.stroke();
+      ctx.font = SS.font(live ? 20 : 15, 800, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,15,25,0.85)'; const zt = live ? S.bbStepIn : S.bbBonus; ctx.strokeText(zt, zx, zy);
+      ctx.fillStyle = '#ffd23f'; ctx.fillText(zt, zx, zy);
     }
     // seller escape meter / prompts
     for (const s of this.sellers) {
