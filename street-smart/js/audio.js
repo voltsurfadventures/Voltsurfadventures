@@ -125,7 +125,7 @@
      * Drop MP3s into assets/audio/ with these names and they replace the
      * synthesised versions automatically (see README). Missing files are fine. */
     SAMPLES: ['horn_1', 'horn_2', 'horn_3', 'horn_4', 'horn_5', 'horn_6', 'car_horn_1', 'car_horn_2', 'car_horn_3',
-      'music_menu', 'music_morning', 'music_market', 'music_night', 'street_ambience', 'rain'],
+      'music_main', 'music_menu', 'music_morning', 'music_market', 'music_night', 'street_ambience', 'rain'],
     samples: {},
     loadSamples() {
       if (!window.fetch || location.protocol === 'file:') return;
@@ -139,7 +139,7 @@
       }
     },
     onSample(name) {
-      if (name === 'music_' + this.wantMusic) { const w = this.wantMusic; this.trackId = null; this.playMusic(w); }
+      if (this.wantMusic && (name === 'music_' + this.wantMusic || (name === 'music_main' && !this.musicSrc))) { const w = this.wantMusic; this.trackId = null; this.playMusic(w); }
       if (name === 'street_ambience' && !this.ambSrc) this.startLoop('street_ambience', this.ambBus, 0.55, (s) => { this.ambSrc = s; });
       if (name === 'rain' && this.rainGain) { this.startLoop('rain', this.rainGain, 2.5, () => {}); if (this.rainNoise) { try { this.rainNoise.stop(); } catch (e) { /* */ } } }
     },
@@ -296,7 +296,8 @@
       this.musicDuck.gain.cancelScheduledValues(t0);
       this.musicDuck.gain.setValueAtTime(0.0001, t0);
       this.musicDuck.gain.linearRampToValueAtTime(1, t0 + 0.8);
-      const file = this.samples['music_' + id] || (id === 'menu' && this.samples.music_morning);
+      // a level's own track if there is one, otherwise the main track (music_main.mp3) everywhere
+      const file = this.samples['music_' + id] || this.samples.music_main;
       if (file) { // a real recorded track
         const s = this.ctx.createBufferSource(); s.buffer = file; s.loop = true;
         s.connect(this.musicDuck); s.start(); this.musicSrc = s;
