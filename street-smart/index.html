@@ -17,16 +17,15 @@
   @font-face { font-family: 'Be Vietnam Pro'; font-weight: 800; font-style: normal; font-display: swap; src: url('assets/fonts/BeVietnamPro-ExtraBold.ttf') format('truetype'); }
   @font-face { font-family: 'Baloo 2'; font-weight: 700; font-style: normal; font-display: swap; src: url('assets/fonts/Baloo2-Bold.ttf') format('truetype'); }
   @font-face { font-family: 'Baloo 2'; font-weight: 800; font-style: normal; font-display: swap; src: url('assets/fonts/Baloo2-ExtraBold.ttf') format('truetype'); }
-  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0a12; color: #fff; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif; }
-  #game { position: fixed; left: 0; top: 0; display: block; touch-action: none; outline: none; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0a12; color: #fff; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; font-family: 'Be Vietnam Pro', system-ui, sans-serif; }
+  #game { position: fixed; left: 0; top: 0; display: block; touch-action: none; }
   #safe-probe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); }
-  #loading { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 60%, #3a2030 0%, #120c18 70%); transition: opacity .5s ease; }
+  #loading { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #120c18; }
   #loading.done { opacity: 0; pointer-events: none; }
-  #loading .logo { font-family: 'Baloo 2', 'Be Vietnam Pro', system-ui, sans-serif; font-weight: 800; font-size: clamp(34px, 8vw, 72px); letter-spacing: 1px; color: #ffd23f; text-shadow: 3px 3px 0 #ff4fa3; transform: rotate(-2deg); }
+  #loading .logo { font-weight: 800; font-size: 42px; color: #ffd23f; }
   #loading .bar { width: 180px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); margin-top: 22px; overflow: hidden; }
-  #loading .bar i { display: block; height: 100%; width: 40%; border-radius: 3px; background: #f0a33a; animation: load 1.1s ease-in-out infinite; }
+  #loading .bar i { display: block; height: 100%; width: 40%; background: #f0a33a; }
   #loading .sub { margin-top: 12px; font-size: 13px; opacity: .7; }
-  @keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
   #rotate { display: none !important; }
 </style>
 </head>
@@ -52,6 +51,7 @@
 <script src="js/world.js"></script>
 <script src="js/game.js"></script>
 <script src="js/render.js"></script>
+<script src="js/story.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 <script src="js/phone.js"></script>
