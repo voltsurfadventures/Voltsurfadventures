@@ -114,10 +114,44 @@
       for (let i = 0; i < bd.length; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; bd[i] = last * 3.5; }
 
       this.applyVolumes();
+      this.loadSamples();
       this.buildBanhBaoChain();
       this.decodeBanhBao();
       this.startAmbience();
       if (this.pendingMusic) { const p = this.pendingMusic; this.pendingMusic = null; this.playMusic(p); }
+    },
+
+    /* ---------- optional recorded sounds ----------
+     * Drop MP3s into assets/audio/ with these names and they replace the
+     * synthesised versions automatically (see README). Missing files are fine. */
+    SAMPLES: ['horn_1', 'horn_2', 'horn_3', 'horn_4', 'horn_5', 'horn_6', 'car_horn_1', 'car_horn_2', 'car_horn_3',
+      'music_menu', 'music_morning', 'music_market', 'music_night', 'street_ambience', 'rain'],
+    samples: {},
+    loadSamples() {
+      if (!window.fetch || location.protocol === 'file:') return;
+      for (const name of this.SAMPLES) {
+        fetch('assets/audio/' + name + '.mp3').then((r) => (r.ok ? r.arrayBuffer() : null)).then((ab) => {
+          if (!ab) return;
+          const ok = (buf) => { this.samples[name] = buf; this.onSample(name); };
+          const pr = this.ctx.decodeAudioData(ab, ok, () => {});
+          if (pr && pr.catch) pr.catch(() => {});
+        }).catch(() => {});
+      }
+    },
+    onSample(name) {
+      if (name === 'music_' + this.wantMusic) { const w = this.wantMusic; this.trackId = null; this.playMusic(w); }
+      if (name === 'street_ambience' && !this.ambSrc) this.startLoop('street_ambience', this.ambBus, 0.55, (s) => { this.ambSrc = s; });
+      if (name === 'rain' && this.rainGain) { this.startLoop('rain', this.rainGain, 2.5, () => {}); if (this.rainNoise) { try { this.rainNoise.stop(); } catch (e) { /* */ } } }
+    },
+    startLoop(name, dest, gain, cb) {
+      const s = this.ctx.createBufferSource(); s.buffer = this.samples[name]; s.loop = true;
+      const g = this.ctx.createGain(); g.gain.value = gain; s.connect(g); g.connect(dest); s.start(); cb(s);
+      return s;
+    },
+    hornSamples(car) {
+      const list = [];
+      for (let i = 1; i <= 6; i++) { const b = this.samples[(car ? 'car_horn_' : 'horn_') + i]; if (b) list.push(b); }
+      return list;
     },
 
     setVolumes(music, sfx) { this.vol.music = music; this.vol.sfx = sfx; this.applyVolumes(); },
@@ -253,21 +287,32 @@
 
     /* ---------- music sequencer ---------- */
     playMusic(id) {
+      this.wantMusic = id;
       if (!this.ctx) { this.pendingMusic = id; return; }
-      if (this.trackId === id && this.timer) return;
+      if (this.trackId === id && (this.timer || this.musicSrc)) return;
       this.stopMusic();
-      const tr = TRACKS[id]; if (!tr) return;
-      this.track = tr; this.trackId = id; this.step = 0;
-      this.nextTime = this.ctx.currentTime + 0.08;
-      this.musicDuck.gain.cancelScheduledValues(this.ctx.currentTime);
-      this.musicDuck.gain.setValueAtTime(0.0001, this.ctx.currentTime);
-      this.musicDuck.gain.linearRampToValueAtTime(1, this.ctx.currentTime + 0.6);
+      this.trackId = id;
+      const t0 = this.ctx.currentTime;
+      this.musicDuck.gain.cancelScheduledValues(t0);
+      this.musicDuck.gain.setValueAtTime(0.0001, t0);
+      this.musicDuck.gain.linearRampToValueAtTime(1, t0 + 0.8);
+      const file = this.samples['music_' + id] || (id === 'menu' && this.samples.music_morning);
+      if (file) { // a real recorded track
+        const s = this.ctx.createBufferSource(); s.buffer = file; s.loop = true;
+        s.connect(this.musicDuck); s.start(); this.musicSrc = s;
+        return;
+      }
+      if (!SS.Save.data.settings.synthMusic) return; // built-in music is off by default
+      const tr = TRACKS[id] || TRACKS.morning;
+      this.track = tr; this.step = 0;
+      this.nextTime = t0 + 0.08;
       this.startPad(tr);
       this.timer = setInterval(() => this.schedule(), 25);
     },
     stopMusic(fade) {
       if (this.timer) clearInterval(this.timer);
       this.timer = null; this.trackId = null;
+      if (this.musicSrc) { try { this.musicSrc.stop(); } catch (e) { /* */ } this.musicSrc = null; }
       this.stopPad();
     },
     schedule() {
@@ -380,7 +425,7 @@
       const rn = this.noiseSrc(), rhp = c.createBiquadFilter(), rlp = c.createBiquadFilter();
       rhp.type = 'highpass'; rhp.frequency.value = 900; rlp.type = 'lowpass'; rlp.frequency.value = 7000;
       this.rainGain = c.createGain(); this.rainGain.gain.value = 0.0001;
-      rn.connect(rhp); rhp.connect(rlp); rlp.connect(this.rainGain); this.rainGain.connect(this.sfxBus); rn.start();
+      rn.connect(rhp); rhp.connect(rlp); rlp.connect(this.rainGain); this.rainGain.connect(this.sfxBus); rn.start(); this.rainNoise = rn;
       // four positional engine voices, assigned each frame to the nearest bikes (see Session.audioTick)
       this.engines = [];
       for (let i = 0; i < 4; i++) {
@@ -498,18 +543,44 @@
     // Scooter horns are cheap electric buzzers ("meep"); car horns are lower two-tone blasts.
     horn(pan, type, vol, t, car) {
       const c = this.ctx; t = t || c.currentTime + 0.005;
-      const f = car ? [360, 390, 340][type % 3] : [760, 820, 880, 940, 1000, 720][type % 6]; // scooter horns: thin, high 'meep'
-      const patterns = [[[0, 0.1]], [[0, 0.08], [0.13, 0.08]], [[0, 0.34]], [[0, 0.06], [0.1, 0.06], [0.2, 0.12]], [[0, 0.16]], [[0, 0.08], [0.12, 0.22]]];
+      const smp = this.hornSamples(car);
+      if (smp.length) {
+        const s = c.createBufferSource(); s.buffer = smp[type % smp.length];
+        s.playbackRate.value = U.rand(0.94, 1.08);
+        const g = c.createGain(); g.gain.value = 0.55 * vol;
+        const p = this.panNode(pan); s.connect(g); g.connect(p); p.connect(this.sfxBus); s.start(t);
+        return;
+      }
+      // Electric disc horn model: a nasal buzz (strong 3rd-7th harmonics), hard-clipped,
+      // shaped by two resonances, with a tiny pitch sag at the end of each beep.
+      if (!this.hornWave) {
+        const n = 24, re = new Float32Array(n), im = new Float32Array(n);
+        for (let k = 1; k < n; k++) im[k] = (k === 1 ? 0.35 : k <= 7 ? 1.0 / Math.sqrt(k) : 0.9 / k) * (k % 2 ? 1 : 0.7);
+        this.hornWave = c.createPeriodicWave(re, im);
+        const cv = new Float32Array(512);
+        for (let i = 0; i < 512; i++) { const x = i / 255.5 - 1; cv[i] = Math.max(-0.6, Math.min(0.6, x * 1.8)); }
+        this.hornClip = cv;
+      }
+      const f = car ? [330, 370, 310][type % 3] : [420, 455, 480, 510, 440, 465][type % 6];
+      const patterns = [[[0, 0.11]], [[0, 0.08], [0.13, 0.08]], [[0, 0.3]], [[0, 0.06], [0.1, 0.06], [0.2, 0.1]], [[0, 0.15]], [[0, 0.07], [0.11, 0.2]]];
       const pat = patterns[(type * 7 + (car ? 2 : 0)) % patterns.length];
-      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = car ? 900 : 2600; bp.Q.value = car ? 0.8 : 0.7;
-      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = car ? 250 : 550;
+      const end = t + pat[pat.length - 1][0] + pat[pat.length - 1][1] + 0.08;
+      const ws = c.createWaveShaper(); ws.curve = this.hornClip;
+      const f1 = c.createBiquadFilter(); f1.type = 'peaking'; f1.frequency.value = car ? 900 : 2000; f1.Q.value = 3; f1.gain.value = 9;
+      const f2 = c.createBiquadFilter(); f2.type = 'peaking'; f2.frequency.value = car ? 1600 : 3100; f2.Q.value = 4; f2.gain.value = 7;
+      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = car ? 200 : 320;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200;
       const g = c.createGain(); g.gain.value = 0.0001;
-      const p = this.panNode(pan); bp.connect(hp); hp.connect(g); g.connect(p); p.connect(this.sfxBus);
-      const end = t + pat[pat.length - 1][0] + pat[pat.length - 1][1] + 0.1;
-      const freqs = car ? [f, f * 1.25] : [f, f * 1.008, f * 2.01];
-      freqs.forEach((fr, i) => { const o = c.createOscillator(); o.type = i === 2 ? 'sawtooth' : 'square'; o.frequency.value = fr; const og = c.createGain(); og.gain.value = i === 2 ? 0.3 : 1; o.connect(og); og.connect(bp); o.start(t); o.stop(end); });
-      const pk = (car ? 0.16 : 0.13) * vol;
-      for (const [st, d] of pat) { g.gain.setValueAtTime(0.0001, t + st); g.gain.linearRampToValueAtTime(pk, t + st + 0.008); g.gain.setValueAtTime(pk * 0.85, t + st + d); g.gain.linearRampToValueAtTime(0.0001, t + st + d + 0.025); }
+      const p = this.panNode(pan);
+      ws.connect(f1); f1.connect(f2); f2.connect(hp); hp.connect(lp); lp.connect(g); g.connect(p); p.connect(this.sfxBus);
+      const freqs = car ? [f, f * 1.26] : [f, f * 1.006];
+      for (const fr of freqs) {
+        const o = c.createOscillator(); o.setPeriodicWave(this.hornWave); o.frequency.setValueAtTime(fr, t);
+        for (const [st, d] of pat) { o.frequency.setValueAtTime(fr, t + st); o.frequency.linearRampToValueAtTime(fr * 0.97, t + st + d); }
+        const og = c.createGain(); og.gain.value = 0.7; o.connect(og); og.connect(ws); o.start(t); o.stop(end);
+      }
+      const pk = (car ? 0.12 : 0.1) * vol;
+      for (const [st, d] of pat) { g.gain.setValueAtTime(0.0001, t + st); g.gain.linearRampToValueAtTime(pk, t + st + 0.006); g.gain.setValueAtTime(pk * 0.9, t + st + d); g.gain.linearRampToValueAtTime(0.0001, t + st + d + 0.02); }
     },
     sfx_horn(t, o) { if (this.rate('horn', 60)) this.horn(o.pan || 0, o.type != null ? o.type : U.randi(0, 5), o.vol || 1, t, o.car); },
     sfx_crash(t, o) {

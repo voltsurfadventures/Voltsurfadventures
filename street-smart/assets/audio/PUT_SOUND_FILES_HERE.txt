@@ -1,0 +1,13 @@
+Optional recorded sounds. Any file you add here replaces the built-in synthesised version.
+All MP3. Missing files are fine.
+
+  horn_1.mp3 ... horn_6.mp3      scooter horns (short beeps, 0.1 - 0.5 s, trimmed tight)
+  car_horn_1.mp3 ... car_horn_3.mp3
+  music_menu.mp3                 title / menus (loops)
+  music_morning.mp3              level 1 (loops)
+  music_market.mp3               level 2 + endless (loops)
+  music_night.mp3                level 3 (loops)
+  street_ambience.mp3            Hanoi street bed: engines, chatter (loops)
+  rain.mp3                       rain loop
+
+See README.md for free, commercially usable sources.

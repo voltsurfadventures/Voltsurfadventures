@@ -1158,7 +1158,7 @@
     }
     popup(text, x, y, color, life, size) {
       if (this.demo) return;
-      this.popups.push({ text, x, y, color: color || '#fff', life: life || 1, t: 0, size: size || 19 });
+      this.popups.push({ text, x, y, color: color || '#fff', life: life || 1, t: 0, size: Math.min(size || 15, 20) });
     }
     addScore(n, text, x, y, color, size) {
       if (this.demo) return;
@@ -1246,6 +1246,15 @@
 
     updateCamera(dt) {
       const vw = this.viewW, p = this.player;
+      // dynamic zoom: close in when you slow down, pull back as you speed up
+      const sp = Math.hypot(p.vx, p.vy);
+      let zt = U.lerp(1.22, 1.05, U.clamp((sp - 12) / 90, 0, 1));
+      if (p.sprinting) zt = 1.0;
+      if (this.inter && this.inter.active) zt = Math.min(zt, 1.04);
+      if (p.tumble) zt = 1.12;
+      if (this.state === 'intro' || this.state === 'won' || this.state === 'lost') zt = 1.0;
+      if (SS.Save.data.settings.zoom === false) zt = 1;
+      this.zoom = U.approach(this.zoom || 1, zt, dt * (zt < (this.zoom || 1) ? 0.7 : 0.22));
       const maxX = this.W.length + 380 - vw;
       if (this.inter && this.inter.active) {
         this.cam.x += (this.inter.lockX - this.cam.x) * Math.min(1, dt * 3);
@@ -1375,7 +1384,7 @@
       this.score += tip * 10 + stars * 60;
       const lines = (F.temp === 'cold' ? S.reactionsCold : S.reactions)[stars - 1];
       const c = o.cust; c.bubble = U.pick(lines); c.bubbleT = 2.8; c.mood = stars >= 4 ? 1 : stars <= 2 ? -1 : 0; c.leaveT = 3.2; c.leaveDir = Math.random() < 0.5 ? -1 : 1;
-      this.ratingFx = { stars, tip, t: 2.4, streak: this.streak };
+      this.ratingFx = { stars, tip, t: 2.4, streak: this.streak, x: c.x, y: c.y };
       SS.Audio.sfx('buy'); if (stars >= 4) SS.Audio.sfx('star');
       SS.Haptics.vibrate(stars >= 4 ? [20, 30, 40] : 20);
       for (let i = 0; i < 6 + stars * 3; i++) this.particle(stars >= 4 ? 'confetti' : 'spark', c.x, c.y - 70, U.rand(-110, 110), U.rand(-120, 0), 1.2, 0, U.pick(['#ff5c8a', '#ffd23f', '#3ff0ff', '#7fc96b']));

@@ -20,7 +20,12 @@
     const V = SS.View, vw = V.w, vh = V.h, L = this.L, p = this.player;
     const cx = this.cam.x - this.cam.sx, cy = -this.cam.sy;
     this.drawT = this.time;
+    // zoom frame: scale the world around a point between the player and the middle of the street
+    const z = this.demo || !p ? 1 : (this.zoom || 1);
+    const fx = p ? U.clamp(p.x - cx, vw * 0.2, vw * 0.8) : vw / 2, fy = p ? (p.y + 300) / 2 : vh / 2;
+    this.zf = { z, x: fx, y: fy };
     ctx.save();
+    if (z !== 1) { ctx.translate(fx, fy); ctx.scale(z, z); ctx.translate(-fx, -fy); }
     // dizzy wobble when out of breath
     if (p && p.gassed > 0) {
       const k = Math.min(1, p.gassed);
@@ -56,7 +61,9 @@
     ctx.restore();
 
     if (!this.demo) {
-      ctx.save(); ctx.translate(-cx, cy);
+      ctx.save();
+      if (z !== 1) { ctx.translate(fx, fy); ctx.scale(z, z); ctx.translate(-fx, -fy); }
+      ctx.translate(-cx, cy);
       this.drawWorldUI(ctx, cx, vw);
       ctx.restore();
       this.drawHUD(ctx, vw, vh);
@@ -682,6 +689,18 @@
       ctx.fillStyle = '#7fc96b'; ctx.beginPath(); ctx.arc(d.x, hy, 13, Math.PI, 0); ctx.lineTo(d.x, hy + 22); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(d.x, hy, 5, 0, TAU); ctx.fill();
     }
+    // delivery rating pops up over the customer
+    if (this.ratingFx && this.ratingFx.x != null) {
+      const R = this.ratingFx, k = U.easeOutBack(U.clamp((2.4 - R.t) / 0.35, 0, 1)), a = U.clamp(R.t / 0.4, 0, 1);
+      ctx.globalAlpha = a;
+      ctx.save(); ctx.translate(R.x, R.y - 150 - (2.4 - R.t) * 10); ctx.scale(k, k);
+      for (let i = 0; i < 5; i++) SS.UI.starShape(ctx, (i - 2) * 17, 0, 7, i < R.stars);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = SS.font(15, 800, true);
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,15,25,0.85)';
+      const tt = S.tipLine.replace('{tip}', R.tip) + (R.streak >= 2 ? '  ' + S.streak.replace('{n}', R.streak) : '');
+      ctx.strokeText(tt, 0, 18); ctx.fillStyle = '#ffd75a'; ctx.fillText(tt, 0, 18);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
     // customer reactions
     for (const c of this.customers) if (c.bubble && c.bubbleT > 0) this.bubble(ctx, c.x, c.y - 96 * Art.depth(c.y), c.bubble, { size: 14, color: c.mood > 0 ? '#2f7a2f' : c.mood < 0 ? '#b5261e' : '#1f1a17' });
     // intersection goal: glowing target footpath + chevrons
@@ -799,150 +818,83 @@
     if (p.boostT > 0) chip(S.chipBoost + ' ' + Math.ceil(p.boostT) + 's', '#7fc96b');
     if (this.streak >= 2) chip(S.streak.replace('{n}', this.streak), '#ff8fb0');
 
-    // top-right: coins, cargo, lives (left of the pause button)
+    // ---- top-right: lives + coins on one row, compact order chip underneath ----
     const pb = SS.Input.btns.pause;
-    let rx = (pb ? pb.x - pb.r : vw - ins.r) - 10 * u;
-    ctx.textAlign = 'right';
-    const pill = (y, w, h) => { ctx.fillStyle = 'rgba(10,12,20,0.72)'; Art.rr(ctx, rx - w, y, w, h, h / 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1 * u; Art.rr(ctx, rx - w, y, w, h, h / 2); ctx.stroke(); };
-    ctx.font = SS.font(17 * u, 800, true);
+    const rx = (pb ? pb.x - pb.r : vw - ins.r) - 10 * u;
+    ctx.font = SS.font(15 * u, 800, true); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     const coinTxt = String(this.coins);
-    const cw = ctx.measureText(coinTxt).width + 46 * u;
-    pill(y0, cw, 28 * u);
-    ctx.fillStyle = '#fff'; ctx.fillText(coinTxt, rx - 34 * u, y0 + 15 * u);
-    Art.coin(ctx, rx - 17 * u, y0 + 14 * u, 9 * u, 0);
-    // order card: what you are carrying, how hot (or iced) it still is, and its condition
+    const cw = ctx.measureText(coinTxt).width + 38 * u;
+    ctx.fillStyle = 'rgba(10,12,20,0.6)'; Art.rr(ctx, rx - cw, y0, cw, 24 * u, 12 * u); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(coinTxt, rx - 28 * u, y0 + 12.5 * u);
+    Art.coin(ctx, rx - 14 * u, y0 + 12 * u, 7.5 * u, 0);
+    const nl = Math.max(SS.CONFIG.LIVES, p.lives);
+    for (let i = 0; i < nl; i++) Art.heart(ctx, rx - cw - 14 * u - i * 20 * u, y0 + 12 * u, 7.5 * u, i < p.lives ? '#ff4d5e' : 'rgba(255,255,255,0.22)');
+    if (SS.Save.up('charm') && !this.charmUsed) Art.circle(ctx, rx - cw - 14 * u - nl * 20 * u, y0 + 12 * u, 5 * u, '#ffd75a');
     const o = this.order;
-    const cardW = 206 * u, cardH = o && o.state === 'carrying' ? 72 * u : 58 * u, cardY = y0 + 34 * u, cardX = rx - cardW;
-    ctx.fillStyle = 'rgba(10,12,20,0.78)'; Art.rr(ctx, cardX, cardY, cardW, cardH, 12 * u); ctx.fill();
-    ctx.strokeStyle = o && o.state === 'carrying' ? '#7fc96b' : '#ffd75a'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, cardX, cardY, cardW, cardH, 12 * u); ctx.stroke();
-    ctx.textAlign = 'left';
     if (o) {
-      const F = o.food;
-      ctx.save(); ctx.translate(cardX + 24 * u, cardY + 28 * u); ctx.scale(1.15 * u, 1.15 * u);
-      Art.carryItem(ctx, F.carry, 0, F.carry === 'cup' ? 8 : 5, 0, o.state === 'carrying' ? p.cargo / 100 : 1, F.cup);
+      const F = o.food, carrying = o.state === 'carrying';
+      const chW = 132 * u, chH = 38 * u, chX = rx - chW, chY = y0 + 30 * u;
+      ctx.fillStyle = 'rgba(10,12,20,0.6)'; Art.rr(ctx, chX, chY, chW, chH, 10 * u); ctx.fill();
+      ctx.strokeStyle = carrying ? '#7fc96b' : '#ffd75a'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, chX, chY, chW, chH, 10 * u); ctx.stroke();
+      ctx.save(); ctx.translate(chX + 19 * u, chY + 22 * u); ctx.scale(0.95 * u, 0.95 * u);
+      Art.carryItem(ctx, F.carry, 0, F.carry === 'cup' ? 8 : 5, 0, carrying ? p.cargo / 100 : 1, F.cup);
       ctx.restore();
-      ctx.font = SS.font(10 * u, 800); ctx.fillStyle = 'rgba(255,255,255,0.65)';
-      ctx.fillText(this.level.endless ? S.orderOf.replace('{i}', o.id + 1).replace(' of {n}', '') : S.orderOf.replace('{i}', o.id + 1).replace('{n}', this.level.orders), cardX + 48 * u, cardY + 12 * u);
-      ctx.font = SS.font(14 * u, 800, true); ctx.fillStyle = '#fff';
-      ctx.fillText(F.name, cardX + 48 * u, cardY + 28 * u);
-      if (o.state === 'carrying') {
+      ctx.textAlign = 'left';
+      if (carrying) {
         const cold = F.temp === 'cold';
-        const lab = (cold ? S.ice : S.heat), lab2 = S.condition;
-        ctx.font = SS.font(8.5 * u, 800);
-        ctx.fillStyle = cold ? '#9fe6ff' : '#ffb07a'; ctx.fillText(lab, cardX + 48 * u, cardY + 47 * u);
-        this.meter(ctx, cardX + 112 * u, cardY + 43 * u, 82 * u, 7 * u, o.heat / 100, cold ? '#3f7fd0' : '#c8321e', cold ? '#bff2ff' : '#ffcf5a', o.heat < 25 ? 0.5 + 0.5 * Math.sin(t * 10) : 0);
-        ctx.fillStyle = '#f4e2a0'; ctx.fillText(lab2, cardX + 48 * u, cardY + 62 * u);
+        this.meter(ctx, chX + 40 * u, chY + 10 * u, chW - 52 * u, 6 * u, o.heat / 100, cold ? '#3f7fd0' : '#c8321e', cold ? '#bff2ff' : '#ffcf5a', o.heat < 25 ? 0.5 + 0.5 * Math.sin(t * 10) : 0);
         const cg = p.cargo / 100;
-        this.meter(ctx, cardX + 112 * u, cardY + 58 * u, 82 * u, 7 * u, cg, cg < 0.3 ? '#c8321e' : '#d9a84a', cg < 0.3 ? '#ff6a3a' : '#f4e2a0', 0);
+        this.meter(ctx, chX + 40 * u, chY + 24 * u, chW - 52 * u, 6 * u, cg, cg < 0.3 ? '#c8321e' : '#d9a84a', cg < 0.3 ? '#ff6a3a' : '#f4e2a0', 0);
       } else {
-        ctx.font = SS.font(10.5 * u, 700); ctx.fillStyle = '#ffd75a';
-        ctx.fillText(o.shop.word, cardX + 48 * u, cardY + 46 * u);
+        ctx.font = SS.font(10.5 * u, 800); ctx.fillStyle = '#ffd75a';
+        ctx.fillText(o.shop.word, chX + 40 * u, chY + 19.5 * u);
       }
-    }
-    // lives
-    for (let i = 0; i < Math.max(SS.CONFIG.LIVES, p.lives); i++) {
-      const alive = i < p.lives;
-      Art.heart(ctx, rx - 12 * u - i * 24 * u, cardY + cardH + 16 * u, 9 * u, alive ? '#ff4d5e' : 'rgba(255,255,255,0.22)');
-    }
-    if (SS.Save.up('charm') && !this.charmUsed) { ctx.fillStyle = '#ffd75a'; ctx.beginPath(); ctx.arc(rx - 12 * u - Math.max(SS.CONFIG.LIVES, p.lives) * 24 * u, cardY + cardH + 16 * u, 6 * u, 0, TAU); ctx.fill(); }
-    ctx.textAlign = 'right';
-
-    // top-centre progress bar
-    const pw = Math.min(240 * u, vw * 0.26), px = vw / 2 - pw / 2, py = ins.t + 14 * u;
-    ctx.fillStyle = 'rgba(10,12,20,0.6)'; Art.rr(ctx, px - 4 * u, py - 4 * u, pw + 8 * u, 12 * u, 6 * u); ctx.fill();
-    const prog = U.clamp(p.x / this.W.length, 0, 1);
-    ctx.fillStyle = '#f0a33a'; Art.rr(ctx, px, py, Math.max(4 * u, pw * prog), 4 * u, 2 * u); ctx.fill();
-    for (const I of this.W.intersections) {
-      const ix = px + pw * I.x / this.W.length;
-      ctx.fillStyle = I.done ? '#7ff0d8' : '#ffffff'; ctx.fillRect(ix - 1.5 * u, py - 3 * u, 3 * u, 10 * u);
-    }
-    if (o) {
+      // off-screen target: small arrow at the screen edge, level with the target
       const tx = o.state === 'waiting' ? o.shop.x + o.shop.w / 2 : o.drop.x;
-      ctx.fillStyle = o.state === 'waiting' ? '#ffd75a' : '#7fc96b';
-      ctx.beginPath(); ctx.arc(px + pw * U.clamp(tx / this.W.length, 0, 1), py + 2 * u, 5 * u, 0, TAU); ctx.fill();
-    }
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px + pw * prog, py + 2 * u, 4.5 * u, 0, TAU); ctx.fill();
-    ctx.textAlign = 'center'; ctx.font = SS.font(11 * u, 800); ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    const scoreTxt = S.score + ' ' + this.score;
-    ctx.strokeText(scoreTxt, vw / 2, py + 20 * u); ctx.fillText(scoreTxt, vw / 2, py + 20 * u);
-    // objective: what to do next, and how far it is
-    if (o) {
-      const tx = o.state === 'waiting' ? o.shop.x + o.shop.w / 2 : o.drop.x;
-      const m = Math.round(Math.abs(tx - p.x) / 10);
-      const base = o.state === 'waiting' ? S.orderPickup.replace('{food}', o.food.name).replace('{shop}', o.shop.word)
-        : o.drop.kind === 'shop' ? S.orderDeliverShop.replace('{food}', o.food.name).replace('{shop}', o.drop.shop.word) : S.orderDeliver.replace('{food}', o.food.name);
-      const objTxt = base + (m > 4 ? '  ·  ' + m + ' m ' + (tx > p.x ? '→' : '←') : '');
-      ctx.font = SS.font(12 * u, 800); ctx.textAlign = 'center';
-      const ow = ctx.measureText(objTxt).width + 22 * u;
-      ctx.fillStyle = 'rgba(10,12,20,0.78)'; Art.rr(ctx, vw / 2 - ow / 2, py + 30 * u, ow, 22 * u, 11 * u); ctx.fill();
-      ctx.fillStyle = o.state === 'waiting' ? '#ffd75a' : '#7fc96b'; ctx.fillText(objTxt, vw / 2, py + 41.5 * u);
-      // off-screen target marker on the screen edge
-      const sx = tx - this.cam.x;
+      const sx = (tx - this.cam.x - this.zf.x) * this.zf.z + this.zf.x;
       if (sx < 0 || sx > vw) {
-        const left = sx < 0, ex = left ? ins.l + 70 * u : vw - ins.r - 70 * u, ey = vh * 0.3;
-        ctx.fillStyle = o.state === 'waiting' ? '#ffd75a' : '#7fc96b';
-        ctx.beginPath(); const d2 = left ? -1 : 1;
-        ctx.moveTo(ex + d2 * 22 * u, ey); ctx.lineTo(ex - d2 * 2 * u, ey - 16 * u); ctx.lineTo(ex - d2 * 2 * u, ey + 16 * u); ctx.closePath(); ctx.fill();
-        ctx.font = SS.font(11 * u, 800); ctx.fillText(m + ' m', ex - d2 * 18 * u, ey + 30 * u);
+        const left = sx < 0, d2 = left ? -1 : 1;
+        const ex = left ? ins.l + 64 * u : vw - ins.r - 64 * u, ey = vh * 0.42;
+        ctx.globalAlpha = 0.85 + 0.15 * Math.sin(t * 6);
+        ctx.fillStyle = carrying ? '#7fc96b' : '#ffd75a';
+        ctx.beginPath(); ctx.moveTo(ex + d2 * 16 * u, ey); ctx.lineTo(ex - d2 * 2 * u, ey - 12 * u); ctx.lineTo(ex - d2 * 2 * u, ey + 12 * u); ctx.closePath(); ctx.fill();
+        ctx.font = SS.font(10.5 * u, 800); ctx.textAlign = 'center';
+        ctx.fillText(Math.round(Math.abs(tx - p.x) / 10) + ' m', ex, ey + 22 * u);
+        ctx.globalAlpha = 1;
       }
     }
-    // the bánh bao bike is coming: edge-of-screen marker on the side his call comes from
+
+    // the bánh bao bike is coming: small marker on the side his call comes from
     const b = this.bb;
     if (b) {
       const sx = b.x - this.cam.x;
       if (sx < -10 || sx > vw + 10) {
-        const left = sx < 0, ex = left ? ins.l + 14 * u : vw - ins.r - 14 * u, ey = U.clamp(b.y - 40, vh * 0.35, vh * 0.75);
-        const pulse = 0.85 + 0.15 * Math.sin(t * 8);
-        ctx.font = SS.font(13 * u * pulse, 800, true);
-        const tw = ctx.measureText(S.banhbaoIndicator).width + 34 * u;
+        const left = sx < 0, ex = left ? ins.l + 12 * u : vw - ins.r - 12 * u, ey = vh * 0.56;
+        ctx.font = SS.font(11 * u, 800, true);
+        const tw = ctx.measureText(S.banhbaoIndicator).width + 16 * u;
         const bx = left ? ex : ex - tw;
-        ctx.fillStyle = 'rgba(255,253,246,0.95)'; Art.rr(ctx, bx, ey - 13 * u, tw, 26 * u, 13 * u); ctx.fill();
-        ctx.strokeStyle = '#c8241e'; ctx.lineWidth = 2 * u; Art.rr(ctx, bx, ey - 13 * u, tw, 26 * u, 13 * u); ctx.stroke();
-        ctx.fillStyle = '#c8241e'; ctx.textAlign = left ? 'left' : 'right';
-        ctx.fillText(S.banhbaoIndicator, left ? bx + 26 * u : bx + tw - 26 * u, ey + 1 * u);
-        const ax0 = left ? bx + 13 * u : bx + tw - 13 * u, dir = left ? -1 : 1;
-        ctx.beginPath(); ctx.moveTo(ax0 + dir * 7 * u, ey); ctx.lineTo(ax0 - dir * 4 * u, ey - 7 * u); ctx.lineTo(ax0 - dir * 4 * u, ey + 7 * u); ctx.closePath(); ctx.fill();
-        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.8 + 0.2 * Math.sin(t * 8);
+        ctx.fillStyle = 'rgba(255,253,246,0.9)'; Art.rr(ctx, bx, ey - 10 * u, tw, 20 * u, 10 * u); ctx.fill();
+        ctx.fillStyle = '#c8241e'; ctx.textAlign = 'center';
+        ctx.fillText(S.banhbaoIndicator, bx + tw / 2, ey + 1 * u);
+        ctx.globalAlpha = 1;
       }
     }
 
-    // banners
-    let bannerY = py + 60 * u;
+    // ---- top-centre: at most ONE short message at a time ----
     const T = this.tut.cur;
-    if (T) this.panelText(ctx, T.text, vw / 2, bannerY, Math.min(440 * u, vw * 0.44), 13 * u, '#ffffff', 'rgba(15,18,30,0.82)', '#f0a33a', Math.min(1, (this.tut.t) * 3)), bannerY += 64 * u;
-    if (this.banner) {
-      const k = U.clamp(this.banner.t, 0, 1);
-      ctx.globalAlpha = k;
-      ctx.textAlign = 'center';
-      ctx.font = SS.font(26 * u, 800, true);
-      const by = vh * 0.36;
-      ctx.lineWidth = 6 * u; ctx.strokeStyle = 'rgba(15,10,25,0.85)';
-      ctx.strokeText(this.banner.text, vw / 2, by); ctx.fillStyle = '#7ff0d8'; ctx.fillText(this.banner.text, vw / 2, by);
-      ctx.font = SS.font(14 * u, 700);
-      ctx.lineWidth = 4 * u; ctx.strokeText(this.banner.sub, vw / 2, by + 28 * u); ctx.fillStyle = '#fff'; ctx.fillText(this.banner.sub, vw / 2, by + 28 * u);
+    const topY = ins.t + 8 * u;
+    const pillMsg = (text, col, alpha) => {
+      ctx.globalAlpha = alpha; ctx.font = SS.font(12 * u, 800); ctx.textAlign = 'center';
+      const tw = Math.min(ctx.measureText(text).width + 24 * u, vw * 0.46);
+      ctx.fillStyle = 'rgba(10,12,20,0.7)'; Art.rr(ctx, vw / 2 - tw / 2, topY, tw, 24 * u, 12 * u); ctx.fill();
+      ctx.fillStyle = col; ctx.fillText(text, vw / 2, topY + 12.5 * u);
       ctx.globalAlpha = 1;
-    }
-    // while an intersection is locked, keep a small reminder of the way out on screen
-    if (this.inter && this.inter.active && !this.banner) {
-      ctx.font = SS.font(13 * u, 800); ctx.textAlign = 'center';
-      const tw = ctx.measureText(S.crossHintShort).width + 26 * u, hy = py + 66 * u;
-      ctx.fillStyle = 'rgba(10,12,20,0.78)'; Art.rr(ctx, vw / 2 - tw / 2, hy, tw, 26 * u, 13 * u); ctx.fill();
-      ctx.strokeStyle = '#7ff0d8'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, vw / 2 - tw / 2, hy, tw, 26 * u, 13 * u); ctx.stroke();
-      ctx.fillStyle = '#7ff0d8'; ctx.fillText(S.crossHintShort, vw / 2, hy + 13.5 * u);
-    }
-    // delivery rating: stars and tip
-    if (this.ratingFx) {
-      const R = this.ratingFx, k = U.easeOutBack(U.clamp((2.4 - R.t) / 0.35, 0, 1)), a = U.clamp(R.t / 0.4, 0, 1);
-      ctx.globalAlpha = a;
-      const cyR = vh * 0.32;
-      ctx.save(); ctx.translate(vw / 2, cyR); ctx.scale(k, k);
-      ctx.fillStyle = 'rgba(12,14,24,0.85)'; Art.rr(ctx, -130 * u, -34 * u, 260 * u, 76 * u, 16 * u); ctx.fill();
-      for (let i = 0; i < 5; i++) SS.UI.starShape(ctx, (i - 2) * 30 * u, -10 * u, 12 * u, i < R.stars);
-      ctx.textAlign = 'center'; ctx.font = SS.font(18 * u, 800, true); ctx.fillStyle = '#ffd75a';
-      ctx.fillText(S.tipLine.replace('{tip}', R.tip) + (R.streak >= 2 ? '   ' + S.streak.replace('{n}', R.streak) : ''), 0, 24 * u);
-      ctx.restore(); ctx.globalAlpha = 1;
-    }
+    };
+    if (T) this.panelText(ctx, T.text, vw / 2, topY, Math.min(380 * u, vw * 0.42), 11.5 * u, '#ffffff', 'rgba(15,18,30,0.72)', '#f0a33a', Math.min(1, this.tut.t * 3));
+    else if (this.banner) pillMsg(this.banner.text, '#7ff0d8', U.clamp(this.banner.t * 2, 0, 1));
+    else if (this.inter && this.inter.active) pillMsg(S.crossHintShort, '#7ff0d8', 0.9);
+
     // level intro card
     if (this.state === 'intro') this.drawIntroCard(ctx, vw, vh, u);
     // fake ride-hail lift: quick fade with motion streaks

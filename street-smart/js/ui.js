@@ -33,7 +33,7 @@
       this.screen = screen; this.t = 0; this.overlay = null; this.pressed = null;
       if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport'].includes(screen)) {
         if (this.session) { this.session.destroy(); this.session = null; }
-        if (SS.Audio.unlocked) { SS.Audio.playMusic('morning'); SS.Audio.duckMusic(0.8); }
+        if (SS.Audio.unlocked) { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); }
         SS.Audio.setIntensity(0); SS.Audio.setTension(0);
       }
     },
@@ -152,7 +152,7 @@
       // start menu music on the first tap (browsers block audio before that)
       if (SS.Audio.unlocked && !this.musicStarted) {
         this.musicStarted = true;
-        if (this.screen !== 'game') { SS.Audio.playJingle('title'); setTimeout(() => { if (this.screen !== 'game') { SS.Audio.playMusic('morning'); SS.Audio.duckMusic(0.8); } }, 1600); }
+        if (this.screen !== 'game') { if (SS.Save.data.settings.synthMusic) SS.Audio.playJingle('title'); setTimeout(() => { if (this.screen !== 'game') { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); } }, 1600); }
       }
       if (this.screen === 'game') {
         const s = this.session;
@@ -453,10 +453,10 @@
     },
 
     drawSettings(ctx, vw, vh, u, fromPause) {
-      u = Math.min(u, vh * 0.96 / 470);
+      u = Math.min(u, vh * 0.96 / 520);
       this.dim(ctx, fromPause ? 0.7 : 0.6);
       const st = SS.Save.data.settings;
-      const pw = Math.min(460 * u, vw * 0.8), ph = Math.min(430 * u, vh * 0.96), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
+      const pw = Math.min(460 * u, vw * 0.8), ph = Math.min(478 * u, vh * 0.96), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
       this.panel(ctx, px, py, pw, ph);
       this.text(ctx, S.settings, vw / 2, py + 30 * u, 22 * u, '#ffd23f', 800, true);
       let y = py + 70 * u;
@@ -474,10 +474,17 @@
       };
       slider('music', S.musicVolume);
       slider('sfx', S.sfxVolume);
-      // vibration toggle
-      this.text(ctx, S.vibration, lx, y + 4 * u, 13 * u, '#fff', 700, false, 'left');
-      this.button(ctx, 'vib', lx + cw - 90 * u, y - 14 * u, 90 * u, 36 * u, st.vibration ? S.on : S.off, { flat: !st.vibration, color: '#7fc96b', size: 13 * u, action: () => { SS.Save.setSetting('vibration', !st.vibration); SS.Haptics.vibrate(20); } });
-      y += 48 * u;
+      // on/off toggles, two per row
+      const toggle = (id, label, val, half, act) => {
+        const ox = half ? lx + cw / 2 + 8 * u : lx, w2 = cw / 2 - 8 * u;
+        this.text(ctx, label, ox, y + 4 * u, 12.5 * u, '#fff', 700, false, 'left');
+        this.button(ctx, id, ox + w2 - 64 * u, y - 13 * u, 64 * u, 34 * u, val ? S.on : S.off, { flat: !val, color: '#7fc96b', size: 12 * u, action: act });
+      };
+      toggle('vib', S.vibration, st.vibration, false, () => { SS.Save.setSetting('vibration', !st.vibration); SS.Haptics.vibrate(20); });
+      toggle('zoom', S.zoomSetting, st.zoom !== false, true, () => SS.Save.setSetting('zoom', st.zoom === false));
+      y += 46 * u;
+      toggle('synth', S.synthMusic, !!st.synthMusic, false, () => { SS.Save.setSetting('synthMusic', !st.synthMusic); const w = SS.Audio.wantMusic; SS.Audio.stopMusic(); if (w) SS.Audio.playMusic(w); });
+      y += 46 * u;
       this.text(ctx, S.graphics, lx, y + 4 * u, 13 * u, '#fff', 700, false, 'left');
       const opts = [['auto', S.gfxAuto], ['high', S.gfxHigh], ['low', S.gfxLow]];
       opts.forEach(([k, lab], i) => {

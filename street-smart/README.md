@@ -40,6 +40,32 @@ Each level is a **delivery shift**: 3, 4 or 5 orders, plus an **Endless Rush Hou
 
 Food, upgrade and level data are all in `js/config.js` (`SS.FOODS`, `SS.UPGRADES`, levels).
 
+## Real sound files (recommended)
+
+Recorded sound beats anything synthesised in code. Put MP3 files in `assets/audio/` with the names below, and the game uses them in place of the built-in sounds. Missing files are fine. Built-in synthesised music is **off** by default (Settings → Built-in music), so until you add music the street ambience is the soundtrack.
+
+| File | What it is |
+|---|---|
+| `horn_1.mp3` … `horn_6.mp3` | Scooter horns. Short beeps, 0.1–0.5 s, trimmed tight. Different horns sound more natural. |
+| `car_horn_1.mp3` … `car_horn_3.mp3` | Car horns |
+| `music_menu.mp3` | Title and menus (loops) |
+| `music_morning.mp3` | Level 1 (loops) |
+| `music_market.mp3` | Level 2 and Endless (loops) |
+| `music_night.mp3` | Level 3 (loops) |
+| `street_ambience.mp3` | Hanoi street bed: engines, voices, distant horns (loops) |
+| `rain.mp3` | Rain loop |
+
+Where to get sounds you can legally sell in a paid app:
+
+- **Pixabay** (pixabay.com/sound-effects and /music). The Pixabay Content License allows commercial use without attribution. Search "scooter horn", "motorbike horn", "Vietnam street", "Hanoi traffic", "rain".
+- **Freesound** (freesound.org). Filter by licence **Creative Commons 0** only. There are field recordings of Hanoi and Saigon traffic.
+- **Your own recordings.** A phone recording of real Hanoi traffic, horns and rain is the best option, and you own it outright.
+- **A composer** (Fiverr, SoundBetter) for an original soundtrack with a đàn tranh or đàn bầu flavour, with full commercial rights.
+
+Keep each licence (screenshot or download receipt) with your project files.
+
+Note: the files load over HTTP, so they work in Capacitor and on a local server, but not when you open `index.html` straight from disk.
+
 ## 1. Run it locally
 
 Browsers block some features on `file://`, so serve the folder over HTTP:
