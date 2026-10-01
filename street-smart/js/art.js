@@ -26,11 +26,12 @@
     /* ---------- sprite cache ---------- */
     // drawFn(ctx) draws in local units with origin at (ox, oy) of a w*h box.
     frame: 0,
-    sprite(key, w, h, ox, oy, drawFn) {
+    // opts.outline: add an illustrated ink outline around the sprite's silhouette
+    sprite(key, w, h, ox, oy, drawFn, opts) {
       let s = this.cache.get(key);
       if (s) { s.used = this.frame; return s; }
-      const sc = this.scale * 1.08; // slight oversample for depth scaling
-      const c = document.createElement('canvas');
+      const sc = this.scale * 1.08 * (opts && opts.ent ? this.ENT : 1); // oversample for depth & entity scaling
+      let c = document.createElement('canvas');
       c.width = Math.max(1, Math.ceil(w * sc));
       c.height = Math.max(1, Math.ceil(h * sc));
       const g = c.getContext('2d');
@@ -38,10 +39,23 @@
       g.translate(ox, oy);
       g.lineCap = 'round'; g.lineJoin = 'round';
       drawFn(g);
+      if (opts && opts.outline) c = this.inkOutline(c, Math.max(1, Math.round(1.25 * sc)), opts.outline === true ? '#24150f' : opts.outline);
       s = { c, w, h, ox, oy, key, used: this.frame };
       this.cache.set(key, s);
       this.cacheBytes += c.width * c.height * 4;
       return s;
+    },
+    entSprite(key, w, h, ox, oy, fn) { return this.sprite(key, w, h, ox, oy, fn, { outline: true, ent: true }); },
+    propSprite(key, w, h, ox, oy, fn) { return this.sprite(key, w, h, ox, oy, fn, { outline: true }); },
+    inkOutline(src, d, col) {
+      const o = document.createElement('canvas');
+      o.width = src.width; o.height = src.height;
+      const g = o.getContext('2d');
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]]) g.drawImage(src, Math.round(dx * d), Math.round(dy * d));
+      g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, o.width, o.height);
+      g.globalCompositeOperation = 'source-over'; g.drawImage(src, 0, 0);
+      src.width = src.height = 0;
+      return o;
     },
     // evict sprites that haven't been drawn for a few seconds (keeps memory flat on long levels)
     gc() {
@@ -65,7 +79,8 @@
     },
 
     // perspective scale by depth (feet y)
-    depth(y) { return U.lerp(0.86, 1.06, U.clamp((y - 176) / (540 - 176), 0, 1)); },
+    ENT: 1.22, // characters & vehicles are drawn bigger than the street grid (closer to the reference art)
+    depth(y) { return this.ENT * U.lerp(0.86, 1.06, U.clamp((y - 176) / (540 - 176), 0, 1)); },
 
     /* ---------- primitive helpers ---------- */
     rr(g, x, y, w, h, r) {
@@ -126,7 +141,8 @@
       if (o.rot) ctx.rotate(o.rot);
       ctx.scale(s * (o.face || 1), s);
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      if (o.outline) this.personPass(ctx, o, o.outline, 3.2);
+      if (o.ink) this.personPass(ctx, o, o.ink, 5.2);
+      if (o.outline) this.personPass(ctx, o, o.outline, 3.0);
       this.personPass(ctx, o, null, 0);
       ctx.restore();
     },
@@ -205,8 +221,9 @@
 
       // ---- head ----
       const hy = sh - 11 + hunch * 3, hxh = 1 + hx * 1.3;
-      this.circle(g, hxh, hy, 9.5 + ex / 2, skin);
+      this.circle(g, hxh, hy, 10.5 + ex / 2, skin);
       if (!oc) {
+        g.fillStyle = 'rgba(120,60,30,0.18)'; g.beginPath(); g.arc(hxh, hy, 10.5, Math.PI * 0.6, Math.PI * 1.4); g.fill();
         // hair
         g.fillStyle = o.hair || '#2a1e18';
         g.beginPath(); g.arc(hxh - 1, hy - 1, 9.8, Math.PI * 0.95, Math.PI * 2.05); g.fill();
@@ -217,7 +234,10 @@
           g.fillStyle = '#111'; this.rr(g, hxh + 2, hy - 3, 9, 4, 2); g.fill();
           g.fillStyle = 'rgba(120,200,255,0.6)'; g.fillRect(hxh + 4, hy - 2.5, 3, 1.2);
         } else {
-          this.circle(g, hxh + 5.5, hy - 1, 1.3, '#1b1410');
+          this.circle(g, hxh + 5.6, hy - 1, 1.9, '#fff');
+          this.circle(g, hxh + 6.1, hy - 0.8, 1.2, '#1b1410');
+          g.strokeStyle = '#2a1a12'; g.lineWidth = 1.1; g.beginPath(); g.moveTo(hxh + 3.5, hy - 4.6); g.lineTo(hxh + 8, hy - 4.1); g.stroke();
+          g.fillStyle = U.shade(o.skin || '#e0b088', -0.12); g.beginPath(); g.moveTo(hxh + 9.6, hy - 0.5); g.lineTo(hxh + 12, hy + 2.5); g.lineTo(hxh + 9.6, hy + 2.6); g.fill();
         }
         if (o.mouth) { this.ellipse(g, hxh + 6.5, hy + 4.5, 2.4, 2.6 * o.mouth, '#5a1a14'); }
         else { g.strokeStyle = 'rgba(90,40,30,0.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(hxh + 4.5, hy + 4.3); g.lineTo(hxh + 7.5, hy + 4); g.stroke(); }
@@ -344,16 +364,59 @@
     scooterSprite(v, lookIdx) {
       const live = v.kind === 'banhbao';
       const key = 'sc_' + v.key + (live ? '' : '_' + lookIdx);
-      return this.sprite(key, 150, 120, 75, 104, (g) => {
+      return this.entSprite(key, 150, 120, 75, 104, (g) => {
         this.drawScooterBody(g, v);
         if (!live) for (const r of v.riders) this.riderHead(g, r.x + 3 + (r.small ? 0 : 1), r.headY, r, lookIdx ? -0.8 : 0.25, 0);
+      });
+    },
+    // cars: side view facing right, origin on the ground (no lettering anywhere)
+    carSprite(v) {
+      return this.entSprite('car_' + v.key, 150, 100, 75, 92, (g) => {
+        const b = v.body, dark = U.shade(b, -0.38), light = U.shade(b, 0.3), van = v.sub === 'van';
+        const top = van ? -72 : -58;
+        // cabin
+        g.fillStyle = b;
+        g.beginPath();
+        if (van) { g.moveTo(-58, -34); g.lineTo(-56, top); g.lineTo(30, top); g.lineTo(48, -40); g.lineTo(58, -34); }
+        else { g.moveTo(-44, -34); g.lineTo(-28, top); g.lineTo(18, top); g.lineTo(40, -36); }
+        g.closePath(); g.fill();
+        // windows
+        const glass = g.createLinearGradient(0, top, 0, -36);
+        glass.addColorStop(0, '#9fc3d8'); glass.addColorStop(0.5, '#4a6478'); glass.addColorStop(1, '#2b3a48');
+        g.fillStyle = glass;
+        if (van) { this.rr(g, -50, top + 6, 30, 22, 3); g.fill(); this.rr(g, -16, top + 6, 30, 22, 3); g.fill();
+          g.beginPath(); g.moveTo(18, top + 6); g.lineTo(29, top + 6); g.lineTo(44, -42); g.lineTo(18, -42); g.closePath(); g.fill(); }
+        else {
+          g.beginPath(); g.moveTo(-38, -38); g.lineTo(-25, top + 4); g.lineTo(-6, top + 4); g.lineTo(-6, -38); g.closePath(); g.fill();
+          g.beginPath(); g.moveTo(-2, -38); g.lineTo(-2, top + 4); g.lineTo(15, top + 4); g.lineTo(33, -38); g.closePath(); g.fill();
+        }
+        g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.moveTo(-20, top + 6); g.lineTo(-14, top + 6); g.lineTo(-24, -40); g.lineTo(-30, -40); g.closePath(); g.fill();
+        this.circle(g, 8, -45, 5, 'rgba(25,20,30,0.55)'); // driver
+        // lower body
+        g.fillStyle = b; this.rr(g, -60, -38, 120, 26, 9); g.fill();
+        g.fillStyle = light; this.rr(g, -56, -37, 112, 5, 3); g.fill();
+        g.fillStyle = dark; this.rr(g, -60, -18, 120, 7, 4); g.fill();
+        g.strokeStyle = U.shade(b, -0.25); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(-4, -37); g.lineTo(-4, -16); g.moveTo(van ? -20 : 30, -37); g.lineTo(van ? -20 : 30, -16); g.stroke();
+        g.fillStyle = dark; g.fillRect(4, -30, 7, 2); g.fillRect(-14, -30, 7, 2);
+        // wheel arches + wheels
+        for (const wx of [-36, 37]) {
+          g.fillStyle = '#1d1a1a'; g.beginPath(); g.arc(wx, -12, 14, Math.PI, Math.PI * 2); g.fill();
+          this.circle(g, wx, -11, 11, '#141416'); this.circle(g, wx, -11, 6, '#b5bac0'); this.circle(g, wx, -11, 2, '#555');
+        }
+        // lights, mirror, bumpers
+        g.fillStyle = '#fff4c8'; this.rr(g, 52, -34, 8, 6, 2); g.fill();
+        g.fillStyle = '#d4252a'; this.rr(g, -61, -34, 6, 7, 2); g.fill();
+        g.fillStyle = dark; this.rr(g, 24, -42, 7, 5, 2); g.fill();
+        g.fillStyle = '#9aa0a6'; this.rr(g, 54, -16, 8, 5, 2); g.fill(); this.rr(g, -62, -16, 8, 5, 2); g.fill();
+        if (v.sub === 'taxi') { g.fillStyle = '#fff6c8'; this.rr(g, -12, top - 6, 16, 6, 2); g.fill(); g.strokeStyle = dark; g.strokeRect(-12, top - 6, 16, 6); }
       });
     },
     // animated characters that don't move around (diners, vendors) are cached per animation frame
     personCached(ctx, o, key, frames) {
       const f = Math.floor((((o.phase % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * frames);
       const sc = o.s || 1;
-      const spr = this.sprite('pp_' + key + '_' + f, 80, 110, 40, 100, (g) => {
+      const spr = this.entSprite('pp_' + key + '_' + f, 80, 120, 40, 108, (g) => {
         const oo = Object.assign({}, o, { x: 0, y: 0, s: 1, phase: f / frames * Math.PI * 2 });
         this.person(g, oo);
       });
@@ -505,7 +568,7 @@
     },
     // vertical (cross-street) scooter: front view (dir=1, coming down) or rear view (dir=-1)
     scooterVSprite(v, dir) {
-      return this.sprite('scv_' + v.key + '_' + dir, 70, 110, 35, 100, (g) => {
+      return this.entSprite('scv_' + v.key + '_' + dir, 70, 110, 35, 100, (g) => {
         const body = v.body, dark = U.shade(body, -0.35);
         const r = v.riders[0];
         if (dir < 0) { // seen from behind
@@ -612,13 +675,12 @@
 
       // ground floor shop opening
       const oy = -86, oh = 86;
-      const inner = L.windowGlow > 0.4 ? '#5a3a22' : '#3a2c22';
       const gr = g.createLinearGradient(0, oy, 0, 0);
-      gr.addColorStop(0, '#1e1712'); gr.addColorStop(1, inner);
+      gr.addColorStop(0, '#4a2c18'); gr.addColorStop(0.5, '#8a5a32'); gr.addColorStop(1, '#c98a4a');
       g.fillStyle = gr; g.fillRect(8, oy, w - 16, oh);
       // interior warm light
       const lg = g.createRadialGradient(w / 2, oy + 30, 5, w / 2, oy + 30, w * 0.6);
-      lg.addColorStop(0, 'rgba(255,200,120,' + (0.25 + L.windowGlow * 0.4) + ')'); lg.addColorStop(1, 'rgba(255,200,120,0)');
+      lg.addColorStop(0, 'rgba(255,214,140,' + (0.55 + L.windowGlow * 0.35) + ')'); lg.addColorStop(1, 'rgba(255,190,110,0.05)');
       g.fillStyle = lg; g.fillRect(8, oy, w - 16, oh);
       this.shopInterior(g, shop, w, oy, rng);
       // pillars
@@ -804,36 +866,26 @@
       g.beginPath(); g.moveTo(x - 7, y); g.lineTo(x - 5, y - h); g.lineTo(x + 5, y - h); g.lineTo(x + 7, y); g.lineTo(x + 4, y); g.lineTo(x + 3, y - h + 4); g.lineTo(x - 3, y - h + 4); g.lineTo(x - 4, y); g.closePath(); g.fill();
       g.fillStyle = col; this.rr(g, x - 7, y - h - 3, 14, 4, 1.5); g.fill();
     },
+    // a row of parked scooters (side view, overlapping, two rows deep)
     parkedSprite(o) {
-      return this.sprite('pk_' + o.seed + '_' + o.n, o.w + 40, 110, o.w / 2 + 20, 100, (g) => {
+      return this.propSprite('pk_' + o.seed + '_' + o.n, o.w + 60, 120, o.w / 2 + 30, 108, (g) => {
         const rng = U.rng(o.seed);
-        const cols = SS.WORLDS.vietnam.palette.scooters;
-        // two rows of angled parked scooters
+        const cols = SS.WORLDS.vietnam.palette.scooters, helm = SS.WORLDS.vietnam.palette.helmets;
         for (let row = 0; row < 2; row++) {
-          for (let i = 0; i < o.n; i++) {
-            const x = -o.w / 2 + 18 + i * ((o.w - 36) / Math.max(1, o.n - 1)) + row * 9;
-            const y = row === 0 ? -o.d + 22 : -6;
-            g.save(); g.translate(x, y); g.scale(1.05, 1.05);
-            this.parkedScooter(g, cols[Math.floor(rng() * cols.length)], rng);
+          const n = Math.max(2, Math.round(o.w / 34));
+          for (let i = 0; i < n; i++) {
+            const x = -o.w / 2 + 16 + i * ((o.w - 32) / Math.max(1, n - 1)) + (row ? 12 : 0);
+            const y = row === 0 ? -o.d + 30 : -4;
+            g.save(); g.translate(x, y); g.scale(rng() < 0.5 ? -0.78 : 0.78, 0.78);
+            this.drawScooterBody(g, { kind: 'parked', body: cols[Math.floor(rng() * cols.length)], riders: [] });
+            if (rng() < 0.45) { g.fillStyle = helm[Math.floor(rng() * helm.length)]; g.beginPath(); g.arc(-14, -38, 9, Math.PI, Math.PI * 2); g.fill(); g.fillRect(-23, -38, 18, 2); }
             g.restore();
           }
         }
       });
     },
-    parkedScooter(g, body, rng) {
-      // angled 3/4 parked scooter (no rider)
-      g.save(); g.scale(0.62, 1); g.transform(1, 0, -0.5, 1, 0, 0);
-      for (const wx of [-21, 22]) { this.circle(g, wx, -9, 9.5, '#18181b'); this.circle(g, wx, -9, 4, '#8d939b'); }
-      g.fillStyle = body;
-      g.beginPath(); g.moveTo(-33, -15); g.quadraticCurveTo(-34, -27, -22, -29); g.lineTo(-2, -28); g.quadraticCurveTo(3, -17, 9, -16);
-      g.lineTo(14, -18); g.lineTo(19, -40); g.lineTo(24, -41); g.lineTo(26, -20); g.quadraticCurveTo(24, -13, 14, -12); g.lineTo(-12, -12); g.closePath(); g.fill();
-      g.fillStyle = '#26221f'; this.rr(g, -27, -33, 26, 6, 3); g.fill();
-      this.limb(g, 20, -41, 14, -48, 3, '#2b2b2f');
-      if (rng() < 0.5) { g.fillStyle = SS.U.pick(['#e14b3b', '#f2c230', '#3d7fd0', '#f4f4f0']); g.beginPath(); g.arc(-14, -36, 9, Math.PI, TAU); g.fill(); }
-      g.restore();
-    },
     cartSprite(o) {
-      return this.sprite('cart_' + o.seed, 120, 130, 60, 120, (g) => {
+      return this.propSprite('cart_' + o.seed, 120, 130, 60, 120, (g) => {
         const rng = U.rng(o.seed);
         // wheels
         this.circle(g, -26, -8, 8, '#2a2a2a'); this.circle(g, 26, -8, 8, '#2a2a2a');
@@ -857,7 +909,7 @@
       });
     },
     durianStallSprite(o, word) {
-      return this.sprite('durian_' + o.seed, 150, 160, 75, 150, (g) => {
+      return this.propSprite('durian_' + o.seed, 150, 160, 75, 150, (g) => {
         // table
         g.fillStyle = '#7a5a36'; g.fillRect(-56, -30, 112, 8);
         this.limb(g, -50, -22, -50, -2, 3, '#5a4026'); this.limb(g, 50, -22, 50, -2, 3, '#5a4026');
@@ -888,7 +940,7 @@
       this.circle(g, x - r * 0.3, y - r * 0.3, r * 0.3, 'rgba(255,255,200,0.25)');
     },
     potsSprite(o) {
-      return this.sprite('pots_' + o.seed, o.w + 30, 110, o.w / 2 + 15, 100, (g) => {
+      return this.propSprite('pots_' + o.seed, o.w + 30, 110, o.w / 2 + 15, 100, (g) => {
         const rng = U.rng(o.seed);
         const n = Math.max(2, Math.round(o.w / 26));
         for (let i = 0; i < n; i++) {
@@ -922,7 +974,7 @@
       });
     },
     tableSprite(o) {
-      return this.sprite('tbl_' + o.seed, o.w + 30, 70, o.w / 2 + 15, 60, (g) => {
+      return this.propSprite('tbl_' + o.seed, o.w + 30, 70, o.w / 2 + 15, 60, (g) => {
         const rng = U.rng(o.seed);
         const cols = ['#d6382c', '#2c78c2', '#3f9a4a', '#e9a23b'];
         // low table

@@ -10,6 +10,7 @@
   'use strict';
   const SS = window.SS;
   const U = SS.U;
+  const Art = SS.Art;
 
   const I = (SS.Input = {
     keys: {},
@@ -70,7 +71,15 @@
               return;
             }
           }
-          if (p.x < SS.View.w * 0.55 && this.joy.id === null) {
+          const pad = this.pad;
+          if (this.mode() === 'dpad') {
+            if (pad && this.joy.id === null && Math.hypot(p.x - pad.x, p.y - pad.y) < pad.r * 1.35) {
+              this.joy.id = e.pointerId; this.joy.x = p.x; this.joy.y = p.y;
+              this.ptrOwner[e.pointerId] = 'joy';
+            }
+            return;
+          }
+          if (p.x < SS.View.w * 0.5 && this.joy.id === null) {
             this.joy.id = e.pointerId; this.joy.bx = p.x; this.joy.by = p.y; this.joy.x = p.x; this.joy.y = p.y;
             this.ptrOwner[e.pointerId] = 'joy';
             return;
@@ -87,7 +96,8 @@
       if (!owner) return;
       if (e.cancelable) e.preventDefault();
       const p = this.toView(e);
-      if (owner === 'joy') {
+      if (owner === 'joy' && this.mode() === 'dpad') { this.joy.x = p.x; this.joy.y = p.y; }
+      else if (owner === 'joy') {
         const j = this.joy, R = j.r;
         let dx = p.x - j.bx, dy = p.y - j.by;
         const d = Math.hypot(dx, dy);
@@ -136,7 +146,15 @@
       if (kx && ky) { kx *= Math.SQRT1_2; ky *= Math.SQRT1_2; }
       let ax = kx, ay = ky;
       const j = this.joy;
-      if (j.id !== null) {
+      if (j.id !== null && this.mode() === 'dpad' && this.pad) {
+        // 8-way arrow pad: direction from where your thumb is on the pad
+        const dx = j.x - this.pad.x, dy = j.y - this.pad.y, d = Math.hypot(dx, dy);
+        if (d > this.pad.r * 0.18) {
+          let sx = Math.abs(dx) > d * 0.38 ? Math.sign(dx) : 0, sy = Math.abs(dy) > d * 0.38 ? Math.sign(dy) : 0;
+          if (sx && sy) { sx *= Math.SQRT1_2; sy *= Math.SQRT1_2; }
+          ax = sx; ay = sy;
+        }
+      } else if (j.id !== null) {
         let dx = (j.x - j.bx) / j.r, dy = (j.y - j.by) / j.r;
         let m = Math.hypot(dx, dy);
         if (m < 0.18) { dx = 0; dy = 0; m = 0; }
@@ -157,25 +175,29 @@
       } else this.buyHoldT = 0;
     },
 
+    mode() { return (SS.Save.data.settings.controls || 'dpad') === 'joystick' ? 'joystick' : 'dpad'; },
+
     consumeEdges() { this.noThanks = false; this.buy = false; this.pause = false; },
 
     /* ---------- layout (in view units, sized from CSS pixels) ---------- */
     layout() {
       const V = SS.View, u = V.unitsPerCss, ins = V.insets;
-      const R = 42 * u, r = 34 * u, gap = 14 * u;
-      const right = V.w - ins.r - 18 * u, bottom = V.h - ins.b - 16 * u;
+      const R = 33 * u, r = 27 * u, gap = 10 * u;
+      const right = V.w - ins.r - 12 * u, bottom = V.h - ins.b - 10 * u;
       const S = SS.STRINGS;
       const mk = (id, x, y, rad, label, color) => {
         const old = this.btns[id] || {};
         this.btns[id] = { x, y, r: rad, label, color, down: old.down || false, flash: 0 };
       };
+      // compact cluster tucked into the bottom-right corner
       mk('sprint', right - R, bottom - R, R, S.btnSprint, '#e2574c');
-      mk('breath', right - 2 * R - r - gap, bottom - r - 2 * u, r, S.btnBreath, '#3fb7a6');
-      mk('nothanks', right - R + 2 * u, bottom - 2 * R - r - gap, r, S.btnNoThanks, '#f0b43c');
-      mk('buy', right - 2 * R - r - gap - 6 * u, bottom - 2 * R - r - gap - 14 * u, r * 0.9, S.btnBuy, '#7fc96b');
+      mk('breath', right - 2 * R - r - gap, bottom - r, r, S.btnBreath, '#3fb7a6');
+      mk('nothanks', right - R, bottom - 2 * R - r - gap, r, S.btnNoThanks, '#f0b43c');
+      mk('buy', right - 2 * R - r - gap, bottom - 2 * R - r - gap + 4 * u, r * 0.92, S.btnBuy, '#7fc96b');
       mk('pause', V.w - ins.r - 30 * u, ins.t + 30 * u, 22 * u, '', '#ffffff');
-      this.joy.r = 56 * u;
-      this.joyHome = { x: ins.l + 30 * u + 70 * u, y: V.h - ins.b - 30 * u - 62 * u };
+      this.joy.r = 46 * u;
+      const pr = 50 * u; // arrow pad: ~100 CSS px across, tucked into the bottom-left corner
+      this.pad = { x: ins.l + 10 * u + pr, y: V.h - ins.b - 8 * u - pr, r: pr };
     },
 
     /* ---------- drawing the touch controls ---------- */
@@ -192,22 +214,36 @@
         ctx.fillRect(pb.x + 2 * u, pb.y - 8 * u, 5 * u, 16 * u);
       }
       if (!this.touchMode) return;
-      // joystick
       const j = this.joy, active = j.id !== null;
-      const bx = active ? j.bx : this.joyHome.x, by = active ? j.by : this.joyHome.y;
-      ctx.globalAlpha = active ? 0.9 : 0.45;
-      ctx.fillStyle = 'rgba(15,18,28,0.35)';
-      ctx.beginPath(); ctx.arc(bx, by, j.r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 2 * u; ctx.stroke();
-      let kx = bx, ky = by;
-      if (active) {
+      if (this.mode() === 'dpad') {
+        const P = this.pad, arm = P.r * 0.68, w = P.r * 0.62;
+        let dx = 0, dy = 0;
+        if (active) { dx = this.ax; dy = this.ay; }
+        ctx.globalAlpha = active ? 0.9 : 0.7;
+        ctx.fillStyle = 'rgba(15,18,28,0.5)';
+        Art.rr(ctx, P.x - w / 2, P.y - P.r, w, P.r * 2, w * 0.3); ctx.fill();
+        Art.rr(ctx, P.x - P.r, P.y - w / 2, P.r * 2, w, w * 0.3); ctx.fill();
+        for (const [ux, uy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+          const on = (ux && Math.sign(dx) === ux) || (uy && Math.sign(dy) === uy);
+          const cx = P.x + ux * arm, cy = P.y + uy * arm, sz = w * 0.32;
+          ctx.fillStyle = on ? '#ffd23f' : 'rgba(255,255,255,0.85)';
+          ctx.beginPath();
+          ctx.moveTo(cx + ux * sz, cy + uy * sz);
+          ctx.lineTo(cx - ux * sz * 0.6 + uy * sz, cy - uy * sz * 0.6 + ux * sz);
+          ctx.lineTo(cx - ux * sz * 0.6 - uy * sz, cy - uy * sz * 0.6 - ux * sz);
+          ctx.closePath(); ctx.fill();
+        }
+      } else if (active) {
+        // floating joystick: only visible while your thumb is down
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = 'rgba(15,18,28,0.3)';
+        ctx.beginPath(); ctx.arc(j.bx, j.by, j.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2 * u; ctx.stroke();
         const dx = j.x - j.bx, dy = j.y - j.by, d = Math.hypot(dx, dy), m = Math.min(d, j.r);
-        if (d > 0) { kx = bx + (dx / d) * m; ky = by + (dy / d) * m; }
+        const kx = d > 0 ? j.bx + dx / d * m : j.bx, ky = d > 0 ? j.by + dy / d * m : j.by;
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.arc(kx, ky, 20 * u, 0, Math.PI * 2); ctx.fill();
       }
-      const g = ctx.createRadialGradient(kx - 6 * u, ky - 6 * u, 2 * u, kx, ky, 26 * u);
-      g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(200,210,225,0.7)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(kx, ky, 25 * u, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
       // action buttons
       const info = ctxInfo || {};
@@ -215,7 +251,7 @@
         const b = this.btns[id];
         const highlight = info.highlight && info.highlight[id];
         const dim = info.dim && info.dim[id];
-        ctx.globalAlpha = dim ? 0.38 : 0.92;
+        ctx.globalAlpha = dim ? 0.3 : b.down || highlight ? 0.92 : 0.62;
         ctx.fillStyle = b.down ? U.shade(b.color, -0.25) : 'rgba(15,18,28,0.55)';
         ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
         ctx.lineWidth = (highlight ? 4 : 2.5) * u;
@@ -230,7 +266,7 @@
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         const words = b.label.split(' ');
-        const fs = (words.length > 1 ? 10.5 : 12) * u;
+        const fs = (words.length > 1 ? 8.5 : 10) * u;
         ctx.font = SS.font(fs, 800);
         if (words.length > 1) {
           ctx.fillText(words[0], b.x, b.y - fs * 0.55);

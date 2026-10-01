@@ -31,7 +31,7 @@
 
     go(screen) {
       this.screen = screen; this.t = 0; this.overlay = null; this.pressed = null;
-      if (['title', 'levels', 'settings', 'credits'].includes(screen)) {
+      if (['title', 'levels', 'settings', 'credits', 'howto'].includes(screen)) {
         if (this.session) { this.session.destroy(); this.session = null; }
         if (SS.Audio.unlocked) { SS.Audio.playMusic('morning'); SS.Audio.duckMusic(0.8); }
         SS.Audio.setIntensity(0); SS.Audio.setTension(0);
@@ -39,6 +39,7 @@
     },
 
     startLevel(i) {
+      if (!SS.Save.data.howtoSeen && this.screen !== 'howto') { this.howtoNext = () => this.startLevel(i); this.go('howto'); return; }
       if (this.session) this.session.destroy();
       const world = SS.WORLDS[this.worldId];
       SS.Audio.bbStop();
@@ -122,6 +123,7 @@
         if (this.overlay === 'pause' && this.t > 0.1) this.resume();
         else if (this.overlay === 'settings') this.overlay = 'pause';
         else if (this.overlay === 'confirmReset') this.overlay = null;
+        else if (this.overlay === 'howto') this.overlay = 'pause';
         else if (['levels', 'settings', 'credits'].includes(this.screen)) this.go('title');
       }
     },
@@ -240,6 +242,7 @@
           if (!this.overlay) SS.Input.draw(ctx, this.controlsInfo());
           if (this.overlay === 'pause') this.drawPause(ctx, vw, vh, u);
           if (this.overlay === 'settings') this.drawSettings(ctx, vw, vh, u, true);
+          if (this.overlay === 'howto') this.drawHowto(ctx, vw, vh, u, () => { this.overlay = 'pause'; });
         } else if (this.screen === 'results') this.drawResults(ctx, vw, vh, u);
         else this.drawGameOver(ctx, vw, vh, u);
       } else {
@@ -248,6 +251,7 @@
         else if (this.screen === 'levels') this.drawLevels(ctx, vw, vh, u);
         else if (this.screen === 'settings') this.drawSettings(ctx, vw, vh, u, false);
         else if (this.screen === 'credits') this.drawCredits(ctx, vw, vh, u);
+        else if (this.screen === 'howto') this.drawHowto(ctx, vw, vh, u, () => { SS.Save.data.howtoSeen = true; SS.Save.save(); const n = this.howtoNext || (() => this.go('title')); this.howtoNext = null; n(); });
       }
       if (this.overlay === 'confirmReset') this.drawConfirm(ctx, vw, vh, u);
       if (this.toast) {
@@ -287,7 +291,9 @@
       const bw = 220 * u, bh = 56 * u, bx = lx - bw / 2;
       let by = vh * 0.3 + size * 0.85 + 34 * u;
       this.button(ctx, 'play', bx, by, bw, bh, S.play, { size: 26 * u, action: () => this.go('levels') });
-      by += bh + 16 * u;
+      by += bh + 12 * u;
+      this.button(ctx, 'howto', bx, by, bw, 38 * u, S.howToPlay, { flat: true, size: 13 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
+      by += 38 * u + 10 * u;
       this.button(ctx, 'settings', bx, by, bw / 2 - 6 * u, 42 * u, S.settings, { flat: true, size: 13 * u, action: () => this.go('settings') });
       this.button(ctx, 'credits', bx + bw / 2 + 6 * u, by, bw / 2 - 6 * u, 42 * u, S.credits, { flat: true, size: 13 * u, action: () => this.go('credits') });
       ctx.globalAlpha = 1;
@@ -368,10 +374,10 @@
     },
 
     drawSettings(ctx, vw, vh, u, fromPause) {
-      u = Math.min(u, vh * 0.96 / 420);
+      u = Math.min(u, vh * 0.96 / 470);
       this.dim(ctx, fromPause ? 0.7 : 0.6);
       const st = SS.Save.data.settings;
-      const pw = Math.min(460 * u, vw * 0.8), ph = Math.min(380 * u, vh * 0.94), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
+      const pw = Math.min(460 * u, vw * 0.8), ph = Math.min(430 * u, vh * 0.96), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
       this.panel(ctx, px, py, pw, ph);
       this.text(ctx, S.settings, vw / 2, py + 30 * u, 22 * u, '#ffd23f', 800, true);
       let y = py + 70 * u;
@@ -398,6 +404,12 @@
       opts.forEach(([k, lab], i) => {
         const bw = 70 * u;
         this.button(ctx, 'gfx' + k, lx + cw - (3 - i) * (bw + 6 * u) + 6 * u, y - 14 * u, bw, 36 * u, lab, { flat: st.graphics !== k, color: '#3fb7a6', size: 12 * u, action: () => { SS.Save.setSetting('graphics', k); SS.Main.applySettings(true); } });
+      });
+      y += 48 * u;
+      this.text(ctx, S.controlsSetting, lx, y + 4 * u, 13 * u, '#fff', 700, false, 'left');
+      [['dpad', S.ctrlDpad], ['joystick', S.ctrlJoystick]].forEach(([k, lab], i) => {
+        const bw = 96 * u, cur = (st.controls || 'dpad') === k;
+        this.button(ctx, 'ctl' + k, lx + cw - (2 - i) * (bw + 6 * u) + 6 * u, y - 14 * u, bw, 36 * u, lab, { flat: !cur, color: '#f0a33a', size: 12 * u, action: () => { SS.Save.setSetting('controls', k); SS.Input.layout(); } });
       });
       y += 54 * u;
       if (!fromPause) this.button(ctx, 'reset', vw / 2 - 110 * u, y - 6 * u, 220 * u, 38 * u, S.resetProgress, { color: '#e2574c', size: 13 * u, action: () => { this.overlay = 'confirmReset'; } });
@@ -431,18 +443,54 @@
       this.text(ctx, S.privacy, vw / 2, py + ph - 18 * u, 11 * u, 'rgba(255,255,255,0.6)', 600);
     },
     drawPause(ctx, vw, vh, u) {
-      u = Math.min(u, vh * 0.96 / 330);
+      u = Math.min(u, vh * 0.96 / 380);
       this.dim(ctx, 0.62);
-      const pw = Math.min(360 * u, vw * 0.7), ph = 300 * u, px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
+      const pw = Math.min(360 * u, vw * 0.7), ph = 350 * u, px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
       this.panel(ctx, px, py, pw, ph);
       this.text(ctx, S.paused, vw / 2, py + 34 * u, 26 * u, '#ffd23f', 800, true);
       const bw = pw - 70 * u, bx = vw / 2 - bw / 2;
       let y = py + 64 * u;
       this.button(ctx, 'resume', bx, y, bw, 48 * u, S.resume, { size: 20 * u, action: () => this.resume() }); y += 60 * u;
       this.button(ctx, 'restart', bx, y, bw, 40 * u, S.restart, { flat: true, size: 14 * u, action: () => this.startLevel(this.session.levelIndex) }); y += 50 * u;
+      this.button(ctx, 'phowto', bx, y, bw, 40 * u, S.howToPlay, { flat: true, size: 14 * u, action: () => { this.overlay = 'howto'; } }); y += 50 * u;
       this.button(ctx, 'psettings', bx, y, bw, 40 * u, S.settings, { flat: true, size: 14 * u, action: () => { this.overlay = 'settings'; } }); y += 50 * u;
       this.button(ctx, 'quit', bx, y, bw, 40 * u, S.quit, { flat: true, size: 14 * u, action: () => this.go('levels') });
       this.text(ctx, SS.Input.touchMode ? S.controlsTouch : S.controlsKeys, vw / 2, vh - SS.View.insets.b - 18 * u, 11 * u, 'rgba(255,255,255,0.75)', 600);
+    },
+
+    // word-wrap helper for the rules screen
+    wrap(ctx, text, maxW) {
+      const words = text.split(' '), lines = []; let line = '';
+      for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+      if (line) lines.push(line);
+      return lines;
+    },
+    drawHowto(ctx, vw, vh, u, done) {
+      u = Math.min(u, vh * 0.97 / 400);
+      this.dim(ctx, 0.78);
+      const ins = SS.View.insets;
+      const pw = Math.min(vw - ins.l - ins.r - 24 * u, 860 * u), ph = Math.min(vh * 0.95, 390 * u), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
+      this.panel(ctx, px, py, pw, ph);
+      this.text(ctx, S.howToPlay, vw / 2, py + 28 * u, 22 * u, '#ffd23f', 800, true);
+      const cards = S.howto, n = cards.length, gap = 12 * u;
+      const cw = (pw - 32 * u - gap * (n - 1)) / n, cy = py + 52 * u, ch = ph - 130 * u;
+      const icons = [
+        (x, y) => { ctx.save(); ctx.translate(x - 14 * u, y + 6 * u); ctx.scale(1.4 * u, 1.4 * u); Art.carryItem(ctx, 'pho', 0, 0, 0, 1); ctx.restore();
+          ctx.fillStyle = '#ffd75a'; ctx.beginPath(); ctx.moveTo(x + 16 * u, y - 14 * u); ctx.lineTo(x + 36 * u, y - 6 * u); ctx.lineTo(x + 16 * u, y + 2 * u); ctx.fill(); ctx.fillRect(x + 14 * u, y - 14 * u, 3 * u, 30 * u); },
+        (x, y) => Art.hudIcon(ctx, 'conf', x, y, 18 * u),
+        (x, y) => { Art.hudIcon(ctx, 'breath', x - 14 * u, y, 15 * u); Art.coin(ctx, x + 18 * u, y, 10 * u, 0); },
+        (x, y) => { ctx.save(); ctx.translate(x, y + 16 * u); ctx.scale(0.9 * u, 0.9 * u); Art.silverBox(ctx, -21, -36, 42, 36, false); ctx.restore(); },
+      ];
+      cards.forEach(([title, body], i) => {
+        const x = px + 16 * u + i * (cw + gap);
+        ctx.fillStyle = 'rgba(255,255,255,0.06)'; Art.rr(ctx, x, cy, cw, ch, 12 * u); ctx.fill();
+        icons[i](x + cw / 2, cy + 34 * u);
+        this.text(ctx, title, x + cw / 2, cy + 72 * u, 13 * u, '#f0a33a', 800);
+        ctx.font = SS.font(11.5 * u, 600); ctx.fillStyle = '#f2ece0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        this.wrap(ctx, body, cw - 18 * u).forEach((ln, k) => ctx.fillText(ln, x + cw / 2, cy + 94 * u + k * 15.5 * u));
+      });
+      this.text(ctx, S.howtoFooter, vw / 2, py + ph - 66 * u, 12 * u, '#9fe6ff', 700);
+      this.button(ctx, 'howtogo', vw / 2 - 90 * u, py + ph - 50 * u, 180 * u, 40 * u, this.screen === 'howto' ? S.letsGo : S.back, { size: 16 * u, action: done });
     },
 
     statsLines(res) {

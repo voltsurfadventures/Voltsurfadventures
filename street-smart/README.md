@@ -41,7 +41,7 @@ To test on your phone, open `http://<your-computer-ip>:8080` while both devices 
 
 **Desktop controls:** WASD or the arrow keys to walk, Shift to sprint, Space to hold your breath, E to say "No thanks" (hold E to buy), Esc or P to pause.
 
-**Mobile controls:** joystick on the left. On the right are SPRINT, HOLD BREATH, NO THANKS and BUY.
+**Mobile controls:** a compact arrow pad in the bottom-left corner (or a floating joystick that only appears where you touch; switch in Settings → Touch controls). On the right are SPRINT, HOLD BREATH, NO THANKS and BUY.
 
 ---
 

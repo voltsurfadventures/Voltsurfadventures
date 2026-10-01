@@ -15,7 +15,8 @@
     levels: {},            // levelId -> { stars, best, completed }
     fullGame: false,       // set by the in-app purchase hook
     tutorialDone: false,
-    settings: { music: 0.7, sfx: 0.9, vibration: true, graphics: 'auto' },
+    settings: { music: 0.45, sfx: 0.9, vibration: true, graphics: 'auto', controls: 'dpad' },
+    howtoSeen: false,
   });
 
   const Save = (SS.Save = {
@@ -39,6 +40,7 @@
             d.levels = p.levels && typeof p.levels === 'object' ? p.levels : {};
             d.fullGame = !!p.fullGame;
             d.tutorialDone = !!p.tutorialDone;
+            d.howtoSeen = !!p.howtoSeen;
             if (p.settings) Object.assign(d.settings, p.settings);
           }
         } catch (e) { /* corrupt save: start fresh */ }

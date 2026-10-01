@@ -81,7 +81,7 @@
 
     makeVariants() {
       const pal = this.world.palette;
-      const kinds = [['single', 30], ['couple', 14], ['family', 9], ['crates', 8], ['flowers', 8], ['chickens', 7], ['boxes', 7], ['delivery', 8], ['ridehail', 12]];
+      const kinds = [['single', 30], ['couple', 14], ['family', 9], ['crates', 8], ['flowers', 8], ['chickens', 7], ['boxes', 7], ['delivery', 8], ['ridehail', 6], ['car', this.level.cars || 6]];
       const rng = U.rng(77 + this.levelIndex);
       const pickK = () => { let t = 0; for (const k of kinds) t += k[1]; let r = rng() * t; for (const k of kinds) { r -= k[1]; if (r <= 0) return k[0]; } return 'single'; };
       const out = [];
@@ -100,6 +100,10 @@
       const v = { key, kind, body: P(pal.scooters), riders: [] };
       if (kind === 'couple') v.riders = [rider('driver', -6), rider('hold', -22)];
       else if (kind === 'family') v.riders = [rider('pass', 8, true), rider('driver', -6), rider('pass', -18, true), rider('hold', -28)];
+      else if (kind === 'car') { // sedans, taxis (no lettering) and vans
+        v.sub = P(['sedan', 'sedan', 'taxi', 'van']);
+        v.body = v.sub === 'taxi' ? P(['#f4f1ea', '#2f9a5a', '#f2c230']) : v.sub === 'van' ? P(['#ecebe6', '#cfd3d6', '#8fb3c9']) : P(['#c7ccd1', '#f4f1ea', '#2a2c33', '#b8322a', '#2f5f9a', '#7a7f86']);
+      }
       else if (kind === 'ridehail') { // ride-hail bike: green jacket + helmet, passenger in the spare helmet
         const g = this.world.rideHailColor || '#2fa84f';
         const d = rider('driver', -6); d.shirt = g; d.helmet = g; d.stripe = true; d.mask = null;
@@ -127,7 +131,12 @@
       s.desired = o.speed; s.speed = o.speed * U.rand(0.85, 1);
       s.homeLat = s.vertical ? o.x : o.y;
       s.latV = 0; s.variant = o.variant || U.pick(this.variants);
-      s.skill = o.skill != null ? o.skill : (U.chance(this.level.wildRiders) ? U.rand(0.3, 0.46) : U.rand(0.82, 1.05));
+      if (s.vertical) while (s.variant.kind === 'car') s.variant = U.pick(this.variants); // cars stay on the main road
+      s.plan = null; s.replanT = 0;
+      const isCar = s.variant.kind === 'car';
+      s.len = isCar ? 64 : 34; s.halfW = isCar ? 14 : 7; // footprint (half length along travel, half width)
+      if (isCar) { s.desired *= 0.95; s.speed *= 0.95; if (!s.vertical) s.homeLat = U.clamp(s.homeLat, G.ROAD_TOP + 40, G.ROAD_BOT - 30); }
+      s.skill = o.skill != null ? o.skill : (U.chance(this.level.wildRiders) && s.variant.kind !== 'car' ? U.rand(0.3, 0.46) : U.rand(0.82, 1.05));
       s.evx = 0; s.evy = 0; s.prevAlong = null; s.nearMissed = false; s.whooshed = false;
       s.panic = 0; s.panicLat = 0; s.crashed = 0; s.honkCD = U.rand(0, 1); s.look = 0; s.lookT = 0;
       s.bubble = null; s.isBB = !!o.isBB; s.grabbed = false; s.wasInLane = false; s.bbPassed = false;
@@ -158,7 +167,7 @@
     baseSpeed() { return U.rand(165, 235) * this.level.speedMul; }
 
     spotFree(x, y) {
-      for (const s of this.scooters) if (Math.abs(s.x - x) < 70 && Math.abs(s.y - y) < 16) return false;
+      for (const s of this.scooters) if (Math.abs(s.x - x) < s.len + 60 && Math.abs(s.y - y) < s.halfW + 14) return false;
       return true;
     }
 
@@ -219,13 +228,16 @@
     updateScooters(dt) {
       const p = this.player;
       const ts = (this.freezeT > 0 ? 0 : 1) * (this.slowT > 0 && this.slowOn ? 0.42 : 1);
-      const pActive = p && !p.tumble && this.state === 'play';
+      // riders only react to a pedestrian who is on (or stepping into) the road
+      const pActive = p && !p.tumble && this.state === 'play' && (p.onRoad || p.y > G.ROAD_BOT - 4 && p.y < G.ROAD_BOT + 14 || p.y < G.ROAD_TOP + 4 && p.y > G.ROAD_TOP - 14);
       const conf = p ? p.conf / 100 : 1;
       this.buildGrid();
       let tension = 0;
       for (const s of this.scooters) {
         const ax = s.ax, ay = s.ay, px_ = -ay, py_ = ax; // perpendicular
+        const dirSign = s.vertical ? px_ : py_;           // perp coord -> absolute lateral axis
         const curLat = s.vertical ? s.x : s.y;
+        const lo = s.vertical ? s.ix - G.CROSS_HALF + 14 : G.ROAD_TOP + 10 + s.halfW, hi = s.vertical ? s.ix + G.CROSS_HALF - 14 : G.ROAD_BOT - 4 - s.halfW;
         let target = s.desired;
         let latPush = 0;
         let avoidLat = null;
@@ -236,78 +248,103 @@
           s.x += ax * s.speed * dt * ts; s.y += ay * s.speed * dt * ts;
           continue;
         }
-        // ---- neighbours: follow / overtake / separate ----
+        // ---- neighbours: overtake slower bikes, weave through cross traffic ----
         const k = Math.floor(s.x / 80);
-        for (let kk = k - 1; kk <= k + 1; kk++) {
+        for (let kk = k - 2; kk <= k + 2; kk++) {
           const cell = this.grid.get(kk); if (!cell) continue;
           for (const n of cell) {
             if (n === s) continue;
             const rx = n.x - s.x, ry = n.y - s.y;
             const along = rx * ax + ry * ay, lat = rx * px_ + ry * py_;
             const crossing = n.vertical !== s.vertical;
-            if (along > 0 && along < 78 && Math.abs(lat) < 18) {
-              const nAlong = crossing ? 0 : n.speed * (n.ax * ax + n.ay * ay);
-              target = Math.min(target, Math.max(nAlong, 0) + (along - 44) * 2.4);
-              latPush += -(lat >= 0 ? 1 : -1) * (18 - Math.abs(lat)) * 2.2; // slip past
+            const gapAlong = (s.len + n.len) * 0.85, gapLat = s.halfW + n.halfW + 3; // Hanoi riders squeeze close
+            if (along > 0 && along < gapAlong + 50 && Math.abs(lat) < gapLat) {
+              if (crossing) {
+                // horizontal traffic has priority; cross traffic slips through the gaps
+                if (s.vertical && along < gapAlong + 20) target = Math.min(target, s.desired * 0.35);
+                latPush += -(lat >= 0 ? 1 : -1) * 40;
+              } else {
+                const nAlong = n.speed * (n.ax * ax + n.ay * ay);
+                // pick the overtaking side with more room
+                let side = lat >= 0 ? -1 : 1;
+                const dest = curLat + side * gapLat * dirSign;
+                if (dest < lo || dest > hi) side = -side;
+                latPush += side * 95 * (1 - along / (gapAlong + 50));
+                // only tuck in behind when really close
+                if (along < gapAlong + 8) target = Math.min(target, Math.max(nAlong, s.desired * 0.25) + (along - gapAlong) * 2);
+                else if (nAlong < s.speed) target = Math.min(target, s.desired * 0.85); // ease off while going round
+              }
             }
-            if (Math.abs(along) < 44 && Math.abs(lat) < 20) latPush -= (lat >= 0 ? 1 : -1) * (20 - Math.abs(lat)) * 1.4;
+            if (!crossing && Math.abs(along) < gapAlong * 0.8 && Math.abs(lat) < gapLat) latPush -= (lat >= 0 ? 1 : -1) * (gapLat - Math.abs(lat)) * 1.6;
             // panicking riders can tangle with each other
-            if ((s.panic > 0 || n.panic > 0) && Math.abs(along) < 26 && Math.abs(lat) < 11 && s.speed > 60 && !crossing && pActive) {
-              this.scooterCrash(s, n);
-            }
+            if ((s.panic > 0 || n.panic > 0) && Math.abs(along) < s.len * 0.8 && Math.abs(lat) < gapLat * 0.6 && s.speed > 60 && !crossing && pActive) this.scooterCrash(s, n);
           }
         }
-        // ---- flow: predict and avoid the player ----
+        // ---- flow: predict the player and commit to a passing line ----
         let sees = false;
         if (pActive) {
           const rx = p.x - s.x, ry = p.y - s.y;
           const along = rx * ax + ry * ay, lat = rx * px_ + ry * py_;
-          // the rider's read of you: quality depends on confidence (and their own skill)
-          // 10% confidence = unreadable, 70%+ = perfectly readable
+          // the rider's read of you: 10% confidence = unreadable, 70%+ = perfectly readable
           const q = U.clamp(U.clamp((conf - 0.1) / 0.6, 0, 1) * s.skill * (s.isBB ? 0.35 : 1), 0, 1);
           const readRate = U.lerp(0.8, 8, q);
           const jitter = conf < 0.4 ? (0.4 - conf) * 260 : 0;
           s.evx += (p.vx + U.rand(-jitter, jitter) - s.evx) * Math.min(1, readRate * dt);
           s.evy += (p.vy + U.rand(-jitter, jitter) - s.evy) * Math.min(1, readRate * dt);
-          const notice = U.lerp(80, 340, q);
-          if (along > -24 && along < notice && Math.abs(lat) < 150) {
+          const notice = U.lerp(80, 320, q);
+          const CLR = 28 + s.halfW * 1.6;
+          if (along < -s.len) s.plan = null; // passed: forget the plan, drift back home
+          if (along > -s.len && along < notice && Math.abs(lat) < CLR + 70) {
             sees = true;
-            const closing = s.speed - (s.evx * ax + s.evy * ay); // you may be walking with or against the flow
-            // predict where you'll be when the FRONT of the bike reaches your line
-            const t = Math.max(0.05, (along - 28) / Math.max(closing, 30));
+            const closing = s.speed - (s.evx * ax + s.evy * ay);
+            const t = Math.max(0.05, (along - s.len) / Math.max(closing, 30)); // when the FRONT reaches your line
             const plv = s.evx * px_ + s.evy * py_;
             const predLat = lat + plv * t;
-            const CLR = 31;
-            if (Math.abs(predLat) < CLR + 8 && !(s.isBB && s.grabbed)) {
-              // pass behind the player's line of travel (or around the far side if they're still)
-              let side = Math.abs(plv) > 10 ? -Math.sign(plv) : (predLat >= 0 ? -1 : 1);
-              let need = predLat + side * CLR; // lateral displacement required
-              // no room behind you (e.g. you just stepped off the kerb)? go round the front instead
-              const lo = s.vertical ? s.ix - G.CROSS_HALF + 14 : G.ROAD_TOP + 10, hi = s.vertical ? s.ix + G.CROSS_HALF - 14 : G.ROAD_BOT - 5;
-              const dest = curLat + need * (s.vertical ? px_ : py_);
-              if (dest < lo || dest > hi) { side = -side; need = predLat + side * CLR; }
-              const latMax = U.lerp(30, 110, q);
-              avoidLat = U.clamp(need / Math.max(t * 0.75, 0.12), -latMax, latMax);
-              if (Math.abs(need) / latMax > t * 0.85) {
-                if (q > 0.35) target = Math.min(target, Math.max(0, (along - 36) * 2.4)); // smooth yield
+            s.replanT = (s.replanT || 0) - dt;
+            if (Math.abs(predLat) < CLR + 6 && !(s.isBB && s.grabbed) && (!s.plan || s.replanT <= 0)) {
+              // choose a line once (riders commit; they don't shadow you): behind your direction of travel first
+              const sides = Math.abs(plv) > 12 ? [-Math.sign(plv), Math.sign(plv)] : (predLat >= 0 ? [-1, 1] : [1, -1]);
+              let plan = null;
+              for (const side of sides) {
+                const destAbs = curLat + (predLat + side * CLR) * dirSign;
+                if (destAbs >= lo && destAbs <= hi) { plan = { dest: destAbs }; break; }
+              }
+              // squeeze along the kerb if that still leaves enough room
+              if (!plan) for (const side of sides) {
+                const destAbs = U.clamp(curLat + (predLat + side * CLR) * dirSign, lo, hi);
+                if (Math.abs(predLat - (destAbs - curLat) * dirSign) > s.halfW + 22) { plan = { dest: destAbs }; break; }
+              }
+              s.plan = plan || { dest: curLat, brake: true };
+              s.replanT = U.lerp(0.9, 0.35, q);
+            }
+            if (s.plan) {
+              const need = (s.plan.dest - curLat) * dirSign; // perp-coord displacement still to do
+              const latMax = U.lerp(30, 140, q);
+              avoidLat = U.clamp(need / Math.max(t * 0.7, 0.15), -latMax, latMax);
+              const late = s.plan.brake || Math.abs(need) / latMax > t * 1.15;
+              if (late && Math.abs(predLat) < CLR) {
+                if (q > 0.35) target = Math.min(target, Math.max(0, (along - s.len - 8) * 2.4)); // smooth yield
                 else if (q > 0.15 && along < 120 && Math.random() < dt * 4) { target = 0; s.panic = 0.4; }
-                if (s.honkCD <= 0 && q < 0.6) { s.honkCD = U.rand(1.2, 3); SS.Audio.sfx('horn', { pan: this.pan(s.x), vol: 0.8 }); }
-              } else if (q > 0.5) target = Math.min(target, s.desired * 0.82);
+                if (s.honkCD <= 0) { s.honkCD = U.rand(1.0, 2.5); SS.Audio.sfx('horn', { pan: this.pan(s.x), vol: 1, car: s.variant.kind === 'car' }); }
+              }
               s.look = Math.sign(lat || 1); s.lookT = 0.8;
             }
             // a rider who can read you never ploughs straight into you: emergency stop
-            if (q > 0.6 && along > 0 && along < 95 && Math.abs(lat) < 24) { target = 0; s.panic = 0; s.emergency = true; }
+            if (q > 0.6 && along > 0 && along < s.len + 70 && Math.abs(lat) < s.halfW + 22) { target = 0; s.panic = 0; s.emergency = true; }
             // low confidence: riders panic and swerve unpredictably
             if (conf < 0.3 && along < 180 && Math.abs(lat) < 70 && s.panic <= 0 && Math.random() < dt * (0.9 - conf * 2)) {
               s.panic = U.rand(0.4, 0.8); s.panicLat = U.rand(-1, 1) * 95;
               if (Math.random() < 0.5) this.shout(s);
-              if (s.honkCD <= 0) { s.honkCD = 1; SS.Audio.sfx('horn', { pan: this.pan(s.x) }); }
+              if (s.honkCD <= 0) { s.honkCD = 1; SS.Audio.sfx('horn', { pan: this.pan(s.x), car: s.variant.kind === 'car' }); }
             }
             if (along > 0 && along < 140 && Math.abs(lat) < 40) tension = Math.max(tension, 1 - along / 140);
-            // distracted riders lean on the horn when they finally notice you: a warning to step aside
+            // distracted riders lean on the horn when they finally notice you
             if (s.skill < 0.5 && along > 0 && along < 170 && Math.abs(lat) < 45 && s.honkCD <= 0) { s.honkCD = 2.5; SS.Audio.sfx('horn', { pan: this.pan(s.x), type: 2, vol: 1.2 }); this.shout(s); }
           }
-          this.scooterVsPlayer(s, along, lat);
+        } else s.plan = null;
+        if (p && p.tumble === null && this.state === 'play') {
+          const rx = p.x - s.x, ry = p.y - s.y;
+          this.scooterVsPlayer(s, rx * ax + ry * ay, rx * px_ + ry * py_);
         }
         s.honkCD -= dt;
         if (s.lookT > 0) s.lookT -= dt; else s.look *= 0.9;
@@ -316,51 +353,49 @@
         s.wander = U.clamp(s.wander, -1, 1);
         let latT;
         if (s.panic > 0) { s.panic -= dt; latT = s.panicLat; target = Math.min(target, s.desired * 0.45); }
-        else if (avoidLat !== null) latT = avoidLat + latPush * 0.12;
-        else latT = (s.homeLat - curLat) * 0.7 + s.wander * 10 + latPush + Math.sin(s.wob) * 4;
-        s.latV = U.approach(s.latV, latT, (s.panic > 0 ? 420 : 260) * dt);
+        else if (avoidLat !== null) latT = avoidLat + latPush * 0.15;
+        else latT = (s.homeLat - curLat) * dirSign * 0.6 + s.wander * 10 + latPush + Math.sin(s.wob) * 4;
+        s.latV = U.approach(s.latV, U.clamp(latT, -130, 130), (s.panic > 0 ? 420 : 240) * dt);
         // ---- speed ----
-        const acc = target < s.speed ? (s.panic > 0 || s.emergency ? 950 : sees ? 650 : 420) : 160;
+        const acc = target < s.speed ? (s.panic > 0 || s.emergency ? 950 : sees ? 650 : 420) : 300;
         s.emergency = false;
         s.speed = U.approach(s.speed, Math.max(target, 0), acc * dt);
-        if (!sees && !this.demo && s.speed < s.desired * 0.3 && target > s.desired * 0.5) s.speed += 40 * dt;
         // ---- integrate ----
         s.x += (ax * s.speed + px_ * s.latV) * dt * ts;
         s.y += (ay * s.speed + py_ * s.latV) * dt * ts;
         if (s.vertical) {
-          s.x = U.clamp(s.x, s.ix - G.CROSS_HALF + 14, s.ix + G.CROSS_HALF - 14);
+          s.x = U.clamp(s.x, lo, hi);
         } else {
-          s.y = U.clamp(s.y, G.ROAD_TOP + 10, G.ROAD_BOT - 5);
-          // slowly re-home into the matching flow if pushed across
+          s.y = U.clamp(s.y, lo, hi);
+          // keep (or slowly return) to the matching side of the road
           if (s.ax > 0 && s.homeLat < G.LOWER_BAND[0] - 30) s.homeLat += 10 * dt;
           if (s.ax < 0 && s.homeLat > G.UPPER_BAND[1] + 30) s.homeLat -= 10 * dt;
         }
         if (s.bubble) { s.bubble.t -= dt; if (s.bubble.t <= 0) s.bubble = null; }
-        // dust kicked up
-        if (s.speed > 120 && Math.random() < dt * 2.2 * this.L.dust * SS.Main.quality) this.particle('dust', s.x - ax * 30, s.y - 2, -ax * 20, -ay * 20, 0.7);
+        if (s.speed > 120 && Math.random() < dt * 2.2 * this.L.dust * SS.Main.quality) this.particle('dust', s.x - ax * s.len, s.y - 2, -ax * 20, -ay * 20, 0.7);
       }
       if (p) this.tension = tension;
     }
 
     scooterVsPlayer(s, along, lat) {
       const p = this.player;
-      const hitAlong = s.vertical ? 20 : 30, hitLat = s.vertical ? 15 : 14;
+      const hitAlong = s.vertical ? 20 : s.len - 2, hitLat = s.vertical ? 13 : s.halfW + 6;
       // bánh bao guy: step in front of him at the right moment
       if (s.isBB) this.banhBaoGrab(s, along, lat);
       if (Math.abs(along) < hitAlong && Math.abs(lat) < hitLat && p.invuln <= 0 && !(s.isBB && s.grabbed) && this.freezeT <= 0) {
         // full hit only from the front half of the bike; walking into the back of one is a nudge
-        if (s.speed > 70 && along > -8) { this.playerHit(s); return; }
+        if (s.speed > 70 && (s.vertical ? along > -6 : along > s.len * 0.35)) { this.playerHit(s); return; }
         // a rider creeping at walking pace just nudges you (no life lost)
-        if (p.nudgeCD <= 0 && s.speed > 8 && !(s.speed > 70 && along > -8)) {
+        if (p.nudgeCD <= 0 && s.speed > 8) {
           p.nudgeCD = 0.8; s.speed = 0;
           p.vx += (s.vertical ? Math.sign(lat || 1) * -60 : s.ax * 70); p.vy += s.vertical ? s.ay * 70 : -Math.sign(lat || 1) * 60;
-          this.spill(4, true); p.conf = Math.max(0, p.conf - 8);
+          this.spill(2.5, true); p.conf = Math.max(0, p.conf - 8);
           SS.Audio.sfx('horn', { pan: this.pan(s.x), type: 3 }); SS.Audio.sfx('bump');
           this.shout(s);
         }
       }
       // near miss: passed close without hitting you
-      if (s.prevAlong !== null && s.prevAlong > 0 && along <= 0 && Math.abs(lat) < 40 && s.speed > 90 && p.invuln <= 0 && p.onRoad) {
+      if (s.prevAlong !== null && s.prevAlong > 0 && along <= 0 && Math.abs(lat) < s.halfW + 34 && s.speed > 90 && p.invuln <= 0 && p.onRoad) {
         if (s.isBB) {
           if (!s.grabbed && !s.bbPassed) { s.bbPassed = true; this.addScore(100, S.popBanhBaoClose, p.x, p.y - 80, '#ffd75a'); }
         } else if (!s.nearMissed) {
@@ -372,7 +407,7 @@
           SS.Audio.sfx('nearmiss', { pan: this.pan(p.x) });
         }
       }
-      if (!s.whooshed && Math.abs(along) < 60 && Math.abs(lat) < 70 && s.speed > 80) {
+      if (!s.whooshed && Math.abs(along) < s.len + 30 && Math.abs(lat) < 70 && s.speed > 80) {
         s.whooshed = true;
         SS.Audio.sfx('whoosh', { dir: s.vertical ? (lat > 0 ? 1 : -1) : s.ax, vol: U.clamp(1.4 - Math.abs(lat) / 70, 0.3, 1) });
         // glare: sun glinting off a mirror / high-beam headlights
@@ -404,6 +439,39 @@
 
     triggerGlare(x, y) {
       this.glare = 1; this.glareX = x; this.glareY = y;
+    }
+
+    // traffic sound: engine voices follow the nearest bikes (with doppler), and riders beep constantly
+    audioTick(dt) {
+      const A = SS.Audio;
+      if (!A.engines) return;
+      const p = this.player;
+      const lx = p ? p.x : this.cam.x + this.viewW / 2, ly = p ? p.y : 340;
+      const near = [];
+      for (const s of this.scooters) {
+        if (Math.abs(s.x - lx) > 520) continue;
+        const d = Math.hypot(s.x - lx, (s.y - ly) * 1.3);
+        near.push([d, s]);
+      }
+      near.sort((a, b) => a[0] - b[0]);
+      const k = this.demo ? 0.5 : 1;
+      for (let i = 0; i < 4; i++) {
+        const it = near[i];
+        if (!it || this.freezeT > 0) { A.setEngine(i, 60, 0, 0); continue; }
+        const [d, s] = it;
+        const vx = s.ax * s.speed, vy = s.ay * s.speed;
+        const toward = ((lx - s.x) * vx + (ly - s.y) * vy) / Math.max(1, d); // + = approaching
+        const car = s.variant.kind === 'car';
+        const f = ((car ? 34 : 58) + s.speed * (car ? 0.12 : 0.22)) * (1 + U.clamp(toward / 700, -0.22, 0.22));
+        A.setEngine(i, f, (car ? 0.12 : 0.16) * k / (1 + Math.pow(d / 150, 2)), this.pan(s.x));
+      }
+      // Hanoi soundtrack: someone is always beeping
+      this.honkT = (this.honkT || 0.5) - dt;
+      if (this.honkT <= 0 && near.length) {
+        this.honkT = U.rand(0.25, 1.0) / (0.5 + this.density());
+        const [d, s] = near[Math.min(near.length - 1, Math.floor(Math.random() * Math.min(10, near.length)))];
+        if (this.freezeT <= 0) SS.Audio.sfx('horn', { pan: this.pan(s.x), vol: U.clamp(1.1 / (1 + Math.pow(d / 320, 2)), 0.2, 1) * k, type: (s.id * 7) % 6, car: s.variant.kind === 'car' });
+      }
     }
 
     /* ------------------------------------------------------------------ */
@@ -1081,6 +1149,7 @@
         this.updateBanhBao(dt);
         this.updateClouds(dt);
         this.updateParticles(dt);
+        this.audioTick(dt);
         SS.Audio.setAmbience(this.level.density * 0.7, true);
         return;
       }
@@ -1111,6 +1180,10 @@
           this.updateSellers(dt);
           this.updateIntersections(dt);
           this.checkDelivery();
+          // past the shop but on the wrong side? tell the player exactly what to do
+          const d = this.W.destination;
+          this.endHintT = (this.endHintT || 0) - dt;
+          if (p.x > d.x - 60 && p.y > G.ROAD_TOP + 4 && this.endHintT <= 0 && !this.banner) { this.endHintT = 7; this.banner = { text: S.deliverHere, sub: S.endHint, t: 4 }; }
         }
       } else if (this.state === 'won') {
         // walk into the shop
@@ -1125,6 +1198,7 @@
       this.updateBanhBao(dt);
       this.updateClouds(dt);
       this.updateParticles(dt);
+      this.audioTick(dt);
       if (this.state !== 'won' && this.state !== 'lost') this.updateTutorial(dt);
 
       // audio mix: ambience scales with traffic, music reacts to danger
@@ -1143,8 +1217,11 @@
       if (this.inter && this.inter.active) {
         this.cam.x += (this.inter.lockX - this.cam.x) * Math.min(1, dt * 3);
       } else {
-        const target = U.clamp(p.x - vw * 0.38, -60, maxX);
-        if (target > this.cam.x) this.cam.x += (target - this.cam.x) * Math.min(1, dt * 4);
+        // follow both ways, so you can always walk back
+        const lead = Math.abs(p.vx) > 10 ? (p.vx > 0 ? 0.38 : 0.62) : (this.camLead || 0.38);
+        this.camLead = U.lerp(this.camLead || 0.38, lead, Math.min(1, dt * 1.5));
+        const target = U.clamp(p.x - vw * this.camLead, -60, maxX);
+        this.cam.x += (target - this.cam.x) * Math.min(1, dt * 4);
       }
       this.cam.shake = Math.max(0, this.cam.shake - dt * 30);
       const sh = this.cam.shake * (SS.Main.quality > 0.6 ? 1 : 0.6);

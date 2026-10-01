@@ -189,6 +189,15 @@
         ctx.drawImage(T.road.c, 0, 0, 2 * G.CROSS_HALF, h + 3, I.x - G.CROSS_HALF, y, 2 * G.CROSS_HALF, h + 3);
       }
     };
+    // warm light spilling out of every shop onto the footpath
+    const pool = Art.glow('#ffb468');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.18 + L.windowGlow * 0.3;
+    for (const sh of this.W.shops) {
+      if (sh.x + sh.w < cx - 40 || sh.x > cx + vw + 40) continue;
+      ctx.drawImage(pool.c, sh.x + sh.w * 0.05, G.FACADE_BOT - 34, sh.w * 0.9, 96);
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     kerb(G.ROAD_TOP - 4, 4, U.shade(L.pathBase, 0.25), 'rgba(0,0,0,0.35)');
     kerb(G.ROAD_BOT, 5, U.shade(L.pathBase, 0.3), U.shade(L.pathBase, -0.35));
   };
@@ -227,7 +236,7 @@
     const L = this.L;
     for (const e of ents) {
       const o = e.o;
-      if (e.k === 's') { const sc = Art.depth(o.y); if (o.vertical) Art.shadow(ctx, o.x, o.y, 13 * sc, 8 * sc, L); else Art.shadow(ctx, o.x, o.y, 34 * sc, 7 * sc, L); }
+      if (e.k === 's') { const sc = Art.depth(o.y); if (o.vertical) Art.shadow(ctx, o.x, o.y, 13 * sc, 8 * sc, L); else Art.shadow(ctx, o.x, o.y, (o.len + 2) * sc, (o.halfW + 2) * sc * 0.9, L); }
       else if (e.k === 'p' || e.k === 'seller') { const z = o.tumble ? o.tumble.z : 0; Art.shadow(ctx, o.x, o.y, Math.max(6, 13 - z * 0.03), 4.5, L); }
       else if (e.k === 'o' && o.kind !== 'pole') { ctx.fillStyle = L.shadow; ctx.fillRect(o.x - o.w / 2 + L.shadowSkew * 6, o.y - o.d * 0.4, o.w, o.d * 0.4 + 3); }
     }
@@ -280,7 +289,11 @@
     ctx.translate(s.x, s.y);
     if (s.crashed > 0) ctx.rotate(Math.sin(s.wobT * 18) * 0.12 * Math.min(1, s.crashed));
     const bounce = s.speed > 20 ? Math.sin(s.wob * 5) * 0.7 : 0;
-    if (!s.vertical) {
+    if (v.kind === 'car') {
+      ctx.scale(sc * (s.ax < 0 ? -1 : 1), sc);
+      const spr = Art.carSprite(v);
+      ctx.drawImage(spr.c, -spr.ox, -spr.oy + bounce * 0.4, spr.w, spr.h);
+    } else if (!s.vertical) {
       const dir = s.ax < 0 ? -1 : 1;
       ctx.scale(sc * dir, sc);
       const spr = Art.scooterSprite(v, s.lookT > 0 ? 1 : 0);
@@ -322,13 +335,19 @@
       case 'cart': {
         const v = o.vendor;
         const up = Math.sin(t + v.ph) > 0.6;
-        Art.personCached(ctx, { x: o.x + 18, y: o.y - o.d * 0.55, s: Art.depth(o.y) * 0.95, face: -1, phase: 0, moving: 0, skin: v.skin, shirt: v.shirt, hat: v.hat, arms: up ? 'up' : null }, 'cv' + o.seed + (up ? 'u' : ''), 1);
+        Art.personCached(ctx, { x: o.x + 18, y: o.y - o.d * 0.55, s: Art.depth(o.y) / Art.ENT * 1.02, face: -1, phase: 0, moving: 0, skin: v.skin, shirt: v.shirt, hat: v.hat, arms: up ? 'up' : null }, 'cv' + o.seed + (up ? 'u' : ''), 1);
         Art.draw(ctx, Art.cartSprite(o), o.x, o.y);
+        // hanging bulb under the umbrella
+        Art.circle(ctx, o.x + 8, o.y - 92, 3.2, '#fff2b0');
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 + this.L.lantern * 0.4;
+        ctx.drawImage(Art.glow('#ffc070').c, o.x - 52, o.y - 150, 120, 120);
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+        if (Math.random() < 0.08 * SS.Main.quality) this.particle('steam', o.x + U.rand(-20, 20), o.y - 70, U.rand(-4, 4), -U.rand(14, 24), 1.4);
         break;
       }
       case 'durian': {
         Art.draw(ctx, Art.durianStallSprite(o, this.world.durianWord), o.x, o.y);
-        if (o.near) Art.personCached(ctx, { x: o.x + 58, y: o.y - 4, s: Art.depth(o.y) * 0.9, face: -1, phase: t * 1.5, sit: true, skin: '#c48b5f', shirt: '#7aa35a', hat: 'cone', arms: 'up' }, 'dv', 4);
+        if (o.near) Art.personCached(ctx, { x: o.x + 58, y: o.y - 4, s: Art.depth(o.y) / Art.ENT * 0.95, face: -1, phase: t * 1.5, sit: true, skin: '#c48b5f', shirt: '#7aa35a', hat: 'cone', arms: 'up' }, 'dv', 4);
         break;
       }
       case 'stools': case 'cards': case 'farstools': {
@@ -337,7 +356,7 @@
         for (const pp of people) {
           const x = o.x + pp.dx, y = o.y + pp.dy + 12;
           Art.stool(ctx, x, y, pp.stool, 12);
-          Art.personCached(ctx, { x, y: y - 14, s: Art.depth(y) * 0.95, face: pp.face, phase: t * 2 + pp.ph, sit: true, skin: pp.skin, shirt: pp.shirt, pants: pp.pants, hair: pp.hair, beard: pp.beard, hat: pp.hat,
+          Art.personCached(ctx, { x, y: y - 14, s: Art.depth(y) / Art.ENT * 1.0, face: pp.face, phase: t * 2 + pp.ph, sit: true, skin: pp.skin, shirt: pp.shirt, pants: pp.pants, hair: pp.hair, beard: pp.beard, hat: pp.hat,
             arms: o.kind === 'cards' ? 'cards' : 'eat', holding: o.kind === 'cards' ? 'cards' : 'bowl' }, 'op' + o.seed + '_' + people.indexOf(pp), 6);
         }
         break;
@@ -346,7 +365,7 @@
     }
   };
   P.farGoodsSprite = function (o) {
-    return Art.sprite('fg_' + o.seed, o.w + 20, 70, o.w / 2 + 10, 60, (g) => {
+    return Art.propSprite('fg_' + o.seed, o.w + 20, 70, o.w / 2 + 10, 60, (g) => {
       const rng = U.rng(o.seed);
       const n = Math.max(2, Math.round(o.w / 26));
       const goodsCol = { grocery: ['#e84a3a', '#f2c230', '#3d7fd0'], banhmi: ['#e8b86a'], cane: ['#9ac24a', '#6a8a2a'], steamer: ['#f4efe0'], barber: ['#cfe8ff'] }[o.goods] || ['#7fbf3a', '#f0a030', '#e84a3a'];
@@ -366,7 +385,7 @@
       moving: Math.min(1, Math.hypot(p.vx, p.vy) / SS.CONFIG.WALK_SPEED),
       skin: '#f0c9a0', shirt: '#2a9d8f', pants: '#c9b48a', hair: '#6b3e1f', backpack: '#c9762e', shoe: '#3a2a22',
       legsBare: true, carry: this.cargoDef.id, cargoPct: p.cargo / 100, carryTilt: p.carryTilt || 0, arms: 'carry',
-      sunglasses: p.sunglasses > 0, mouth: p.gassed > 0 ? 0.8 : 0, outline: this.L.rim,
+      sunglasses: p.sunglasses > 0, mouth: p.gassed > 0 ? 0.8 : 0, outline: this.L.rim, ink: '#24150f',
     };
   };
   P.drawPlayer = function (ctx) {
@@ -393,7 +412,7 @@
   P.drawSeller = function (ctx, s) {
     const t = this.time;
     const shake = s.shake > 0 ? (s.shake -= 1 / 60, Math.sin(t * 80) * 3) : 0;
-    const base = { x: s.x + shake, y: s.y, s: Art.depth(s.y), face: s.face, phase: s.phase, moving: s.moving || 0, skin: s.look.skin, shirt: s.look.shirt, pants: s.look.pants };
+    const base = { ink: '#24150f', x: s.x + shake, y: s.y, s: Art.depth(s.y), face: s.face, phase: s.phase, moving: s.moving || 0, skin: s.look.skin, shirt: s.look.shirt, pants: s.look.pants };
     const pitching = s.state === 'latched' || (s.state === 'approach' && s.engaged);
     if (s.type === 'sunglasses') Object.assign(base, { sunglasses: true, pattern: 'flowers', holding: 'rack', hat: 'cap', hatColor: '#1e1e22', arms: pitching ? 'up' : null, crouch: s.state === 'lurk', mouth: pitching ? 0.5 + 0.5 * Math.sin(t * 9) : 0 });
     else if (s.type === 'fruit') Object.assign(base, { hat: 'cone', pole: true, arms: 'pole', hunch: 1, s: base.s * 0.9, hairBun: true, hair: '#9a9a9a', fruit: '#7fbf3a', fruit2: '#f0a030', mouth: pitching ? 0.3 + 0.3 * Math.sin(t * 7) : 0 });
@@ -767,9 +786,36 @@
     ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     const scoreTxt = S.score + ' ' + this.score;
     ctx.strokeText(scoreTxt, vw / 2, py + 20 * u); ctx.fillText(scoreTxt, vw / 2, py + 20 * u);
+    // objective: what to deliver, where, and how far
+    const d = this.W.destination;
+    const m = Math.max(0, Math.round((d.x + d.w / 2 - p.x) / 10));
+    const objTxt = (m > 8 ? S.objective : S.objectiveHere).replace('{cargo}', this.cargoDef.short).replace('{shop}', this.level.destination).replace('{m}', m);
+    ctx.font = SS.font(12 * u, 800);
+    const ow = ctx.measureText(objTxt).width + 22 * u;
+    ctx.fillStyle = 'rgba(10,12,20,0.7)'; Art.rr(ctx, vw / 2 - ow / 2, py + 30 * u, ow, 22 * u, 11 * u); ctx.fill();
+    ctx.fillStyle = m > 8 ? '#ffd75a' : '#7ff0d8'; ctx.fillText(objTxt, vw / 2, py + 41.5 * u);
+    // the bánh bao bike is coming: edge-of-screen marker on the side his call comes from
+    const b = this.bb;
+    if (b) {
+      const sx = b.x - this.cam.x;
+      if (sx < -10 || sx > vw + 10) {
+        const left = sx < 0, ex = left ? ins.l + 14 * u : vw - ins.r - 14 * u, ey = U.clamp(b.y - 40, vh * 0.35, vh * 0.75);
+        const pulse = 0.85 + 0.15 * Math.sin(t * 8);
+        ctx.font = SS.font(13 * u * pulse, 800, true);
+        const tw = ctx.measureText(S.banhbaoIndicator).width + 34 * u;
+        const bx = left ? ex : ex - tw;
+        ctx.fillStyle = 'rgba(255,253,246,0.95)'; Art.rr(ctx, bx, ey - 13 * u, tw, 26 * u, 13 * u); ctx.fill();
+        ctx.strokeStyle = '#c8241e'; ctx.lineWidth = 2 * u; Art.rr(ctx, bx, ey - 13 * u, tw, 26 * u, 13 * u); ctx.stroke();
+        ctx.fillStyle = '#c8241e'; ctx.textAlign = left ? 'left' : 'right';
+        ctx.fillText(S.banhbaoIndicator, left ? bx + 26 * u : bx + tw - 26 * u, ey + 1 * u);
+        const ax0 = left ? bx + 13 * u : bx + tw - 13 * u, dir = left ? -1 : 1;
+        ctx.beginPath(); ctx.moveTo(ax0 + dir * 7 * u, ey); ctx.lineTo(ax0 - dir * 4 * u, ey - 7 * u); ctx.lineTo(ax0 - dir * 4 * u, ey + 7 * u); ctx.closePath(); ctx.fill();
+        ctx.textAlign = 'center';
+      }
+    }
 
     // banners
-    let bannerY = py + 40 * u;
+    let bannerY = py + 60 * u;
     const T = this.tut.cur;
     if (T) this.panelText(ctx, T.text, vw / 2, bannerY, Math.min(520 * u, vw * 0.6), 14 * u, '#ffffff', 'rgba(15,18,30,0.82)', '#f0a33a', Math.min(1, (this.tut.t) * 3)), bannerY += 64 * u;
     if (this.banner) {
