@@ -248,6 +248,13 @@
       if (o.carry && !oc) this.carryItem(g, o.carry, 14 + hx, sh + 8, o.carryTilt || 0, o.cargoPct);
       if (o.carry && oc) { g.fillStyle = oc; this.rr(g, 4 + hx, sh + 1, 22, 14, 5); g.fill(); }
       if (o.holding === 'rack' && !oc) this.sunglassesRack(g, 16 + hx, sh + 2);
+      if (o.holding === 'phone' && !oc) { // phone held up, glowing map screen
+        const px = o.arms === 'up' ? 11 : 14, py = o.arms === 'up' ? sh - 22 : sh + 10;
+        g.fillStyle = '#1b1b22'; this.rr(g, px, py, 8, 13, 1.5); g.fill();
+        g.fillStyle = '#9fe6b0'; g.fillRect(px + 1, py + 1.5, 6, 9);
+        g.fillStyle = '#2f9e4f'; g.fillRect(px + 1, py + 6, 6, 1.2); g.fillRect(px + 3.5, py + 1.5, 1.2, 9);
+        this.circle(g, px + 5, py + 4, 1.2, '#e8432d');
+      }
       if (o.holding === 'brush' && !oc) { g.fillStyle = '#6b4a2a'; this.rr(g, 14, hipY - 2, 14, 7, 2); g.fill(); g.fillStyle = '#d9c9a0'; g.fillRect(15, hipY + 4, 12, 2); }
       if (o.holding === 'cards' && !oc) { g.fillStyle = '#fafafa'; g.save(); g.translate(13, sh + 6); g.rotate(-0.3 + Math.sin(o.phase * 0.5) * 0.15); g.fillRect(-4, -5, 6, 9); g.fillRect(-1, -6, 6, 9); g.fillStyle = '#c33'; g.fillRect(1, -4, 2, 2); g.restore(); }
       if (o.holding === 'bowl' && !oc) { this.ellipse(g, 14, sh + 6, 6, 3, '#f4f1ea'); }
@@ -408,6 +415,10 @@
       const tw = 17 * sc, th = (hip - sh) + 4;
       this.rr(g, x - tw / 2 + (r.lean || 3), sh, tw, th, 6 * sc); g.fill();
       g.fillStyle = 'rgba(0,0,0,0.15)'; this.rr(g, x - tw / 2 + (r.lean || 3), sh, tw * 0.35, th, 5 * sc); g.fill();
+      if (r.stripe) { // reflective jacket stripes (no logos)
+        g.fillStyle = 'rgba(230,255,230,0.75)';
+        g.fillRect(x - tw / 2 + (r.lean || 3), sh + th * 0.45, tw, 2);
+      }
       if (r.bag) { // delivery backpack
         g.fillStyle = r.bag; this.rr(g, x - 20, sh - 4, 15, 22, 3); g.fill();
         g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x - 18, sh, 11, 2);

@@ -398,6 +398,8 @@
     if (s.type === 'sunglasses') Object.assign(base, { sunglasses: true, pattern: 'flowers', holding: 'rack', hat: 'cap', hatColor: '#1e1e22', arms: pitching ? 'up' : null, crouch: s.state === 'lurk', mouth: pitching ? 0.5 + 0.5 * Math.sin(t * 9) : 0 });
     else if (s.type === 'fruit') Object.assign(base, { hat: 'cone', pole: true, arms: 'pole', hunch: 1, s: base.s * 0.9, hairBun: true, hair: '#9a9a9a', fruit: '#7fbf3a', fruit2: '#f0a030', mouth: pitching ? 0.3 + 0.3 * Math.sin(t * 7) : 0 });
     else if (s.type === 'watch') Object.assign(base, { jacket: '#3b3f4a', jacketOpen: s.jacketOpen, arms: pitching ? 'up' : null, mouth: pitching ? 0.5 + 0.5 * Math.sin(t * 10) : 0, hair: '#111' });
+    else if (s.type === 'ride') Object.assign(base, { shirt: '#2f9e4f', hat: 'helmet', hatColor: '#2f9e4f', holding: 'phone', arms: pitching ? 'up' : null,
+      mouth: pitching ? 0.5 + 0.5 * Math.sin(t * 9) : 0, phase: pitching && !s.moving ? t * 3 : s.phase });
     else if (s.type === 'shoe') {
       Object.assign(base, { crouch: true, holding: 'brush', hat: 'cap', hatColor: '#3d7fd0', mouth: s.state === 'latched' ? 0.4 : 0, phase: s.state === 'latched' ? t * 10 : s.phase });
       ctx.fillStyle = '#7a5230'; Art.rr(ctx, s.x - 22 * s.face, s.y - 12, 16, 12, 2); ctx.fill();
@@ -784,6 +786,18 @@
     }
     // level intro card
     if (this.state === 'intro') this.drawIntroCard(ctx, vw, vh, u);
+    // fake ride-hail lift: quick fade with motion streaks
+    if (this.ride) {
+      const a = Math.sin(Math.PI * U.clamp(this.ride.t / 1.2, 0, 1));
+      ctx.fillStyle = 'rgba(8,8,14,' + a * 0.92 + ')'; ctx.fillRect(0, 0, vw, vh);
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2 * u;
+      for (let i = 0; i < 14; i++) { const y = (i * 53 + this.time * 900) % vh, x = (i * 137 + this.time * 2400) % (vw + 300) - 300; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 160 * u, y); ctx.stroke(); }
+      ctx.textAlign = 'center'; ctx.font = SS.font(28 * u, 800, true); ctx.fillStyle = '#7fc96b';
+      ctx.fillText(S.popRide, vw / 2, vh / 2);
+      ctx.font = SS.font(14 * u, 700); ctx.fillStyle = '#fff'; ctx.fillText(S.popRideCargo, vw / 2, vh / 2 + 30 * u);
+      ctx.globalAlpha = 1;
+    }
   };
   P.cargoIcon = function (ctx, x, y, r) {
     ctx.save(); ctx.translate(x, y); ctx.scale(r / 12, r / 12);

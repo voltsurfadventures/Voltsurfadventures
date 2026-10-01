@@ -134,6 +134,8 @@
     popNoCoins: 'Not enough coins',
     popSunglassesBroke: 'Sunglasses broke!',
     popBoost: 'Fresh shoes! Speed up!',
+    popRide: 'Bumpy ride!',
+    popRideCargo: 'Hold on to the cargo!',
     popSlowmo: 'Slow motion!',
     popFruit: 'Fresh fruit! Breath refilled',
     popSunglasses: 'Sunglasses on!',
@@ -182,6 +184,7 @@
       fruit: 'Fruit seller',
       watch: 'Watch seller',
       shoe: 'Shoe cleaner',
+      ride: 'Fake ride-hail driver',
     },
 
     creditsLines: [
@@ -211,6 +214,10 @@
                   lines: ['Fruit? Very fresh!', 'Mango? Very sweet!', 'Very fresh!'] },
     watch:      { behaviour: 'chase',  speed: 128, price: 40, hold: 0.3,  escape: 6, giveUp: 7,
                   lines: ['Buy watch! Buy watch!', 'Good price!', 'Buy watch!'] },
+    // Fake ride-hail driver: waves a phone at you. Buying = a wild bike ride further down the street.
+    // NOTE: "Grab" is a trademark of Grab Holdings. Change these lines before release if you want to avoid it.
+    ride:       { behaviour: 'follow', speed: 118, price: 35, hold: 0.3, escape: 5, giveUp: 12,
+                  lines: ['You want to grab? You want to grab?', 'Moto? Cheap cheap!', 'Very fast! Very safe!'] },
     shoe:       { behaviour: 'grab',   speed: 0,   price: 15, hold: 0.0,  escape: 6, giveUp: 0, finish: 3.6,
                   lines: ['Shoe clean, mister?', 'Very shiny!', 'Almost done!'] },
   };
@@ -277,6 +284,8 @@
       durianWord: 'SẦU RIÊNG',
       banhbaoWord: 'BÁNH BAO',
       sellers: ['sunglasses', 'fruit', 'watch', 'shoe'],
+      // ride-hail riders in traffic: green jackets & helmets, no logos
+      rideHailColor: '#2fa84f',
       palette: {
         facades: ['#d9a35b', '#c9824e', '#b8b07a', '#7fa88f', '#d7c49a', '#c76e5a', '#6f9aa6', '#e0b878', '#a6896a', '#93a77a'],
         awnings: ['#2f7f74', '#3a8f7c', '#b84a3a', '#d38a2e', '#2c6a8a', '#7a3d5c', '#3f7f4f'],
@@ -292,7 +301,7 @@
           length: 11200, density: 0.62, speedMul: 0.9, wildRiders: 0.03,
           intersections: [3400, 8000],
           durianEvery: 3000, durianFirst: 4300,
-          sellerTypes: ['sunglasses', 'fruit'], sellerFirst: 5200, sellerEvery: 1900,
+          sellerTypes: ['sunglasses', 'fruit', 'ride'], sellerFirst: 5200, sellerEvery: 1900,
           banhbaoFirst: 6000, banhbaoEvery: 30,
           coinGroups: 26, obstacleDensity: 0.65,
           stars: [2600, 4200], tutorial: true, requiresFullGame: false,
@@ -303,7 +312,7 @@
           length: 13200, density: 0.95, speedMul: 1.0, wildRiders: 0.06,
           intersections: [3000, 7000, 10600],
           durianEvery: 1500, durianFirst: 1500,
-          sellerTypes: ['sunglasses', 'fruit', 'watch', 'shoe'], sellerFirst: 1200, sellerEvery: 1150,
+          sellerTypes: ['sunglasses', 'ride', 'fruit', 'watch', 'shoe'], sellerFirst: 1200, sellerEvery: 1150,
           banhbaoFirst: 3000, banhbaoEvery: 22,
           coinGroups: 34, obstacleDensity: 0.8,
           stars: [3600, 6000], tutorial: false, requiresFullGame: true,
@@ -314,7 +323,7 @@
           length: 14400, density: 1.25, speedMul: 1.14, wildRiders: 0.09,
           intersections: [2800, 7000, 11400],
           durianEvery: 2100, durianFirst: 2000,
-          sellerTypes: ['sunglasses', 'fruit', 'watch', 'shoe'], sellerFirst: 1000, sellerEvery: 1000,
+          sellerTypes: ['ride', 'sunglasses', 'fruit', 'watch', 'ride', 'shoe'], sellerFirst: 1000, sellerEvery: 1000,
           banhbaoFirst: 2600, banhbaoEvery: 17,
           coinGroups: 40, obstacleDensity: 0.9,
           stars: [4200, 7200], tutorial: false, requiresFullGame: true,

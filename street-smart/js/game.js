@@ -81,7 +81,7 @@
 
     makeVariants() {
       const pal = this.world.palette;
-      const kinds = [['single', 30], ['couple', 14], ['family', 9], ['crates', 8], ['flowers', 8], ['chickens', 7], ['boxes', 7], ['delivery', 10]];
+      const kinds = [['single', 30], ['couple', 14], ['family', 9], ['crates', 8], ['flowers', 8], ['chickens', 7], ['boxes', 7], ['delivery', 8], ['ridehail', 12]];
       const rng = U.rng(77 + this.levelIndex);
       const pickK = () => { let t = 0; for (const k of kinds) t += k[1]; let r = rng() * t; for (const k of kinds) { r -= k[1]; if (r <= 0) return k[0]; } return 'single'; };
       const out = [];
@@ -100,6 +100,12 @@
       const v = { key, kind, body: P(pal.scooters), riders: [] };
       if (kind === 'couple') v.riders = [rider('driver', -6), rider('hold', -22)];
       else if (kind === 'family') v.riders = [rider('pass', 8, true), rider('driver', -6), rider('pass', -18, true), rider('hold', -28)];
+      else if (kind === 'ridehail') { // ride-hail bike: green jacket + helmet, passenger in the spare helmet
+        const g = this.world.rideHailColor || '#2fa84f';
+        const d = rider('driver', -6); d.shirt = g; d.helmet = g; d.stripe = true; d.mask = null;
+        const pas = rider('hold', -22); pas.helmet = g;
+        v.riders = rng() < 0.75 ? [d, pas] : [d];
+      }
       else if (kind === 'delivery') { const r = rider('driver', -6); r.shirt = P(['#2fa84f', '#f2a81d', '#e8432d']); r.bag = U.shade(r.shirt, -0.1); r.helmet = r.shirt; v.riders = [r]; }
       else if (kind === 'banhbao') {
         const r = rider('driver', -4); r.shirt = '#e8e2d0'; r.helmet = null; r.hair = '#1d1611'; r.mask = null; r.skin = '#c48b5f';
@@ -746,7 +752,7 @@
           engaged: false, latchedEver: false, jacketOpen: 0, finishT: 0, lastAx: 0,
           look: {
             skin: U.pick(pal.skin),
-            shirt: { sunglasses: '#d8402e', fruit: '#8fc6e0', watch: '#f0ead8', shoe: '#5a7a9a' }[tr.type],
+            shirt: { sunglasses: '#d8402e', fruit: '#8fc6e0', watch: '#f0ead8', shoe: '#5a7a9a', ride: '#2f9e4f' }[tr.type],
             pants: tr.type === 'fruit' ? '#1e1e24' : U.pick(['#3a3f4a', '#5a4a3a', '#2c3e5a']),
           },
         });
@@ -831,7 +837,7 @@
       const lines = s.cfg.lines;
       s.bubble = lines[s.lineI % lines.length]; s.lineI++;
       s.bubbleT = 1.9;
-      SS.Audio.sfx('seller', { pan: this.pan(s.x), pitch: { sunglasses: 200, fruit: 290, watch: 170, shoe: 230 }[s.type], syllables: { watch: [1, 1.25, 1, 1.25], fruit: [1.2, 1, 1.1], sunglasses: [1, 1.15, 1.3, 1.3], shoe: [1.1, 1, 1.2] }[s.type] });
+      SS.Audio.sfx('seller', { pan: this.pan(s.x), pitch: { sunglasses: 200, fruit: 290, watch: 170, shoe: 230, ride: 190 }[s.type], syllables: { ride: [1, 1.2, 1.1, 1, 1.2, 1.1], watch: [1, 1.25, 1, 1.25], fruit: [1.2, 1, 1.1], sunglasses: [1, 1.15, 1.3, 1.3], shoe: [1.1, 1, 1.2] }[s.type] });
     }
 
     latch(s) {
@@ -892,7 +898,36 @@
       else if (s.type === 'fruit') { p.breath = 100; if (p.lives < C.LIVES) p.lives++; this.popup(S.popFruit, p.x, p.y - 124, '#b6f37a', 1.5); }
       else if (s.type === 'watch') { this.slowT = 10; this.slowOn = true; this.slowGlitchT = U.rand(1, 2.5); this.popup(S.popSlowmo, p.x, p.y - 124, '#ffd75a', 1.5); }
       else if (s.type === 'shoe') { p.boostT = 8; this.popup(S.popBoost, p.x, p.y - 124, '#9fe6ff', 1.5); }
+      else if (s.type === 'ride') this.startRide();
       SS.Audio.sfx('powerup');
+    }
+
+    // The fake driver gives you a (wild) lift down the street: fade out, skip ahead, fade in.
+    startRide() {
+      const p = this.player;
+      const nextI = this.W.intersections.find((I) => !I.done && I.x > p.x);
+      const maxX = Math.min(this.W.length - 500, nextI ? nextI.x - this.viewW * 0.36 : Infinity);
+      this.ride = { t: 0, to: Math.max(p.x, Math.min(p.x + U.rand(550, 850), maxX)), moved: false };
+      p.vx = p.vy = 0;
+      SS.Audio.sfx('whoosh', { dir: 1, vol: 1 }); SS.Audio.sfx('horn', { type: 2 });
+    }
+    updateRide(dt) {
+      const R = this.ride, p = this.player;
+      R.t += dt;
+      if (Math.random() < dt * 4) SS.Audio.sfx('horn', { type: U.randi(0, 5), vol: 0.6 });
+      if (R.t >= 0.6 && !R.moved) {
+        R.moved = true;
+        let x = R.to, y = 480;
+        for (let tries = 0; tries < 40 && this.collides(x, y); tries++) { y = [470, 500, 520, 450][tries % 4]; if (tries % 4 === 3) x += 30; }
+        if (this.collides(x, y)) y = G.ROAD_BOT + 4;
+        p.x = x; p.y = y; p.svx = p.svy = 0;
+        this.cam.x = Math.max(this.cam.x, p.x - this.viewW * 0.38);
+        this.prefillTraffic();
+        p.invuln = Math.max(p.invuln, 1.5);
+        this.spill(6, true); // he drives like a maniac
+        this.popup(S.popRide, p.x, p.y - 100, '#7fc96b', 1.6, 20);
+      }
+      if (R.t >= 1.2) this.ride = null;
     }
 
     /* ------------------------------------------------------------------ */
@@ -1069,7 +1104,8 @@
       this.flash = Math.max(0, this.flash - dt * 2);
       if (this.banner) { this.banner.t -= dt; if (this.banner.t <= 0) this.banner = null; }
 
-      if (this.state === 'play' || this.state === 'intro') {
+      if (this.ride) this.updateRide(dt);
+      else if (this.state === 'play' || this.state === 'intro') {
         this.updatePlayer(dt);
         if (this.state === 'play') {
           this.updateSellers(dt);
