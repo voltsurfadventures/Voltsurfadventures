@@ -118,16 +118,18 @@ All PNGs have transparent backgrounds except the full-screen screenshots (`stree
 | `assets/backgrounds/shop_rice.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "CƠM TẤM" and its goods (rice), daytime | `art.js shopSprite() / drawShop()` |
 | `assets/backgrounds/shop_steamer.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "BÁNH BAO" and its goods (steamer), daytime | `art.js shopSprite() / drawShop()` |
 | `assets/backgrounds/shop_tea.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "TRÀ ĐÁ" and its goods (tea), daytime | `art.js shopSprite() / drawShop()` |
-| `assets/backgrounds/story_shot_1.png` | 2336×1080 | Opening story cutscene, shot 1 | Minh speeds through Hanoi ("VROOOM!") | `story.js shots[0]` |
-| `assets/backgrounds/story_shot_2.png` | 2336×1080 | Opening story cutscene, shot 2 | He runs in for an order; the key left in the ignition ("TING!") | `story.js shots[1]` |
-| `assets/backgrounds/story_shot_3.png` | 2336×1080 | Opening story cutscene, shot 3 | The tourist snatches the key ("SNATCH!!") | `story.js shots[2]` |
-| `assets/backgrounds/story_shot_4.png` | 2336×1080 | Opening story cutscene, shot 4 | Minh's shocked face ("TRỜI ƠI!!") | `story.js shots[3]` |
-| `assets/backgrounds/story_shot_5.png` | 2336×1080 | Opening story cutscene, shot 5 | The tourist rides off on Minh's scooter | `story.js shots[4]` |
-| `assets/backgrounds/story_shot_6.png` | 2336×1080 | Opening story cutscene, shot 6 | Minh in the rain; Bà Lan tells him to walk | `story.js shots[5]` |
-| `assets/backgrounds/story_shot_7.png` | 2336×1080 | Opening story cutscene, shot 7 | Goal card: save 1,500 coins for a new scooter | `story.js shots[6]` |
+| `assets/backgrounds/story_shot_1.png` | 2336×1080 | Opening story cutscene, shot 1 | The Old Quarter at rush hour (street painting, slow pan) | `story.js shots[0]` |
+| `assets/backgrounds/story_shot_2.png` | 2336×1080 | Opening story cutscene, shot 2 | Minh and his CRAB box (cover art, push-in) | `story.js shots[1]` |
+| `assets/backgrounds/story_shot_3.png` | 2336×1080 | Opening story cutscene, shot 3 | The key left in a parked scooter ("TING!") | `story.js shots[2]` |
+| `assets/backgrounds/story_shot_4.png` | 2336×1080 | Opening story cutscene, shot 4 | The tourist snatches the key ("SNATCH!!") | `story.js shots[3]` |
+| `assets/backgrounds/story_shot_5.png` | 2336×1080 | Opening story cutscene, shot 5 | Minh's shocked face ("TRỜI ƠI!!") | `story.js shots[4]` |
+| `assets/backgrounds/story_shot_6.png` | 2336×1080 | Opening story cutscene, shot 6 | The tourist rides off on Minh's scooter ("Spasibo!") | `story.js shots[5]` |
+| `assets/backgrounds/story_shot_7.png` | 2336×1080 | Opening story cutscene, shot 7 | Rain; Bà Lan tells Minh to deliver on foot | `story.js shots[6]` |
+| `assets/backgrounds/story_shot_8.png` | 2336×1080 | Opening story cutscene, shot 8 | Goal card: save 1,500 coins for a new scooter | `story.js shots[7]` |
 | `assets/backgrounds/street_golden.png` | 2336×1080 | Gameplay background, level 2 | Full street scene at golden: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
 | `assets/backgrounds/street_morning.png` | 2336×1080 | Gameplay background, level 1 | Full street scene at morning: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
 | `assets/backgrounds/street_night.png` | 2336×1080 | Gameplay background, level 3 | Full street scene at night: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
+| `assets/story/street.jpg` | 1376×768 | Story cutscene (loaded by the game) | Painted Old Quarter street at dusk: traffic, vendors, carts (supplied by the author; only crops without lettering are shown) | `story.js` |
 | `assets/ui/cover.jpg` | 1376×768 | Title screen (loaded by the game) | Banh Zai cover art: Minh in CRAB uniform running from the tourist on his stolen scooter (supplied by the author, made with Gemini) | `ui.js drawCoverTitle()` |
 | `assets/ui/button_primary.png` | 480×140 | Menus: main buttons | Orange rounded button (PLAY) | `ui.js button()` |
 | `assets/ui/logo.png` | 1520×320 | Title screen + loading | "STREET SMART" logo lettering (font: Baloo 2) | `ui.js logo()` |
@@ -198,7 +200,7 @@ To re-export after changing the art code: `npm install playwright` then `node to
 
 Minh was the fastest CRAB delivery rider in Hanoi's Old Quarter (CRAB is the game's parody courier company: green jacket, green cap, green CRAB box), until a bald Russian tourist in a tank top snatched the key he'd left in his scooter and rode off on it. Now he delivers on foot, saving his tips for a new scooter. The goal is **1,500 coins** (`SCOOTER_PRICE` in `js/config.js`), shown as the **Scooter Fund** on the level screen. Riding the new scooter is planned as Chapter 2.
 
-The opening cutscene (`js/story.js`) plays the first time you press PLAY, and again from the **STORY** button. It is drawn like an old black-and-white manga: the game's own street and characters are rendered once, then converted into ink and halftone screentone, with only Minh's courier green kept in colour. The close-ups, speed lines, focus lines and sound-effect lettering are drawn live. The story text is in `SS.STRINGS.story`. Tap to go to the next shot; SKIP ends it.
+The opening cutscene (`js/story.js`) plays the first time you press PLAY, and again from the **STORY** button. It is shot like a short animated film from the game's painted key art: `assets/ui/cover.jpg` (the Banh Zai cover) and `assets/story/street.jpg` (the Old Quarter street painting). Each of the 8 shots is a slow camera move across part of a painting, with letterbox bars, film grain, a vignette, subtitles, speech balloons and cover-style sound-effect lettering, plus speed lines, rain, flashes and shake drawn live. Crops avoid the parts of the street painting that contain lettering or HUD mock-ups. Story text is in `SS.STRINGS.story`. Tap to go to the next shot; SKIP ends it.
 
 ## How it plays
 

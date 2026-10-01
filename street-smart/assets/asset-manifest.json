@@ -660,7 +660,7 @@
     "w": 2336,
     "h": 1080,
     "used": "Opening story cutscene, shot 1",
-    "what": "Minh speeds through Hanoi (\"VROOOM!\")",
+    "what": "The Old Quarter at rush hour (street painting, slow pan)",
     "code": "story.js shots[0]"
   },
   {
@@ -668,7 +668,7 @@
     "w": 2336,
     "h": 1080,
     "used": "Opening story cutscene, shot 2",
-    "what": "He runs in for an order; the key left in the ignition (\"TING!\")",
+    "what": "Minh and his CRAB box (cover art, push-in)",
     "code": "story.js shots[1]"
   },
   {
@@ -676,7 +676,7 @@
     "w": 2336,
     "h": 1080,
     "used": "Opening story cutscene, shot 3",
-    "what": "The tourist snatches the key (\"SNATCH!!\")",
+    "what": "The key left in a parked scooter (\"TING!\")",
     "code": "story.js shots[2]"
   },
   {
@@ -684,7 +684,7 @@
     "w": 2336,
     "h": 1080,
     "used": "Opening story cutscene, shot 4",
-    "what": "Minh's shocked face (\"TRỜI ƠI!!\")",
+    "what": "The tourist snatches the key (\"SNATCH!!\")",
     "code": "story.js shots[3]"
   },
   {
@@ -692,7 +692,7 @@
     "w": 2336,
     "h": 1080,
     "used": "Opening story cutscene, shot 5",
-    "what": "The tourist rides off on Minh's scooter",
+    "what": "Minh's shocked face (\"TRỜI ƠI!!\")",
     "code": "story.js shots[4]"
   },
   {
@@ -700,7 +700,7 @@
     "w": 2336,
     "h": 1080,
     "used": "Opening story cutscene, shot 6",
-    "what": "Minh in the rain; Bà Lan tells him to walk",
+    "what": "The tourist rides off on Minh's scooter (\"Spasibo!\")",
     "code": "story.js shots[5]"
   },
   {
@@ -708,7 +708,15 @@
     "w": 2336,
     "h": 1080,
     "used": "Opening story cutscene, shot 7",
-    "what": "Goal card: save 1,500 coins for a new scooter",
+    "what": "Rain; Bà Lan tells Minh to deliver on foot",
     "code": "story.js shots[6]"
+  },
+  {
+    "path": "backgrounds/story_shot_8.png",
+    "w": 2336,
+    "h": 1080,
+    "used": "Opening story cutscene, shot 8",
+    "what": "Goal card: save 1,500 coins for a new scooter",
+    "code": "story.js shots[7]"
   }
 ]

@@ -204,13 +204,14 @@ function serve() {
   await shot('ui/screen_levels.png', 'Level select', 'Level cards, Scooter Fund meter, Upgrades and Food Passport buttons', 'ui.js drawLevels()');
   await page.evaluate(() => { SS.Input.touchMode = true; SS.UI.startLevel(0); SS.UI.session.state = 'play'; }); await page.waitForTimeout(2500);
   await shot('ui/screen_gameplay_hud.png', 'Gameplay HUD', 'HUD: confidence + breath meters, hearts, coins, order chip, touch buttons, PICK UP marker, guide arrow', 'render.js drawHUD() + input.js draw()');
-  // story frames
-  await page.evaluate(() => SS.UI.playStory(() => {})); await page.waitForTimeout(400);
-  const times = [3.5, 4.8, 2.4, 2.0, 2.2, 5.5, 3.0];
-  for (let i = 0; i < 7; i++) {
-    await page.evaluate(([i, t]) => { SS.Story.shot = i; SS.Story.lt = t; SS.Story.fired = { s: 1, g: 1, h: 1, w: 1, t: 1, r: 1, p: 1, c: 1 }; SS.Story.shake = 0; }, [i, times[i]]);
+  // story frames (the cutscene loads its two paintings first)
+  await page.evaluate(() => SS.UI.playStory(() => {})); await page.waitForFunction(() => SS.Story.imgs && !SS.Story.loading, null, { timeout: 10000 });
+  const times = [3.5, 3.0, 3.2, 2.2, 1.6, 3.5, 5.0, 3.0];
+  const shotWhat = ['The Old Quarter at rush hour (street painting, slow pan)', 'Minh and his CRAB box (cover art, push-in)', 'The key left in a parked scooter ("TING!")', 'The tourist snatches the key ("SNATCH!!")', 'Minh\'s shocked face ("TRỜI ƠI!!")', 'The tourist rides off on Minh\'s scooter ("Spasibo!")', 'Rain; Bà Lan tells Minh to deliver on foot', 'Goal card: save 1,500 coins for a new scooter'];
+  for (let i = 0; i < times.length; i++) {
+    await page.evaluate(([i, t]) => { SS.Story.prev = null; SS.Story.shot = i; SS.Story.lt = t; SS.Story.fired = { s: 1, g: 1, h: 1, h2: 1, t: 1, r: 1, p: 1, c: 1 }; SS.Story.shake = 0; SS.Story.flash = 0; }, [i, times[i]]);
     await page.waitForTimeout(120);
-    await shot(`backgrounds/story_shot_${i + 1}.png`, 'Opening story cutscene, shot ' + (i + 1), ['Minh speeds through Hanoi ("VROOOM!")', 'He runs in for an order; the key left in the ignition ("TING!")', 'The tourist snatches the key ("SNATCH!!")', 'Minh\'s shocked face ("TRỜI ƠI!!")', 'The tourist rides off on Minh\'s scooter', 'Minh in the rain; Bà Lan tells him to walk', 'Goal card: save 1,500 coins for a new scooter'][i], 'story.js shots[' + i + ']');
+    await shot(`backgrounds/story_shot_${i + 1}.png`, 'Opening story cutscene, shot ' + (i + 1), shotWhat[i], 'story.js shots[' + i + ']');
   }
 
   fs.writeFileSync(path.join(ROOT, 'assets', 'asset-manifest.json'), JSON.stringify(out, null, 2));
