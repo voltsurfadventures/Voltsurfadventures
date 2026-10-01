@@ -1002,10 +1002,14 @@
 
     // The fake driver gives you a (wild) lift down the street: fade out, skip ahead, fade in.
     startRide() {
-      const p = this.player;
-      const nextI = this.W.intersections.find((I) => !I.done && I.x > p.x);
-      const maxX = Math.min(this.W.length - 500, nextI ? nextI.x - this.viewW * 0.36 : Infinity);
-      this.ride = { t: 0, to: Math.max(p.x, Math.min(p.x + U.rand(550, 850), maxX)), moved: false };
+      // the driver takes you to wherever your current order needs you: the shop, or the customer
+      const p = this.player, o = this.order;
+      let tx = p.x + 700, ty = 480;
+      if (o && o.state === 'waiting') { tx = o.vendor.x; ty = o.vendor.y; }
+      else if (o && o.state === 'carrying') { tx = o.drop.x; ty = o.drop.y; }
+      const dir = tx >= p.x ? 1 : -1;
+      const to = Math.abs(tx - p.x) > 2600 ? p.x + dir * 2600 : tx - dir * 70; // drop you just short of it
+      this.ride = { t: 0, to, toY: ty, moved: false };
       p.vx = p.vy = 0;
       SS.Audio.sfx('whoosh', { dir: 1, vol: 1 }); SS.Audio.sfx('horn', { type: 2 });
     }
@@ -1015,11 +1019,13 @@
       if (Math.random() < dt * 4) SS.Audio.sfx('horn', { type: U.randi(0, 5), vol: 0.6 });
       if (R.t >= 0.6 && !R.moved) {
         R.moved = true;
-        let x = R.to, y = 480;
-        for (let tries = 0; tries < 40 && this.collides(x, y); tries++) { y = [470, 500, 520, 450][tries % 4]; if (tries % 4 === 3) x += 30; }
-        if (this.collides(x, y)) y = G.ROAD_BOT + 4;
-        p.x = x; p.y = y; p.svx = p.svy = 0;
-        this.cam.x = Math.max(this.cam.x, p.x - this.viewW * 0.38);
+        const far = R.toY < G.ROAD_TOP;
+        const spot = this.freeSpot(R.to, far ? 'far' : 'near');
+        p.x = spot.x; p.y = spot.y; p.svx = p.svy = 0;
+        // any intersection you rode through counts as crossed
+        for (const I of this.W.intersections) if (!I.done && I.x < p.x) { I.done = true; I.active = false; }
+        if (this.inter && this.inter.done) this.inter = null;
+        this.cam.x = p.x - this.viewW * 0.38;
         this.prefillTraffic();
         p.invuln = Math.max(p.invuln, 1.5);
         this.spill(6, true); // he drives like a maniac
@@ -1349,13 +1355,13 @@
       const o = this.order, p = this.player;
       if (!o || p.tumble) return;
       if (o.state === 'waiting') {
-        if (this.atShop(o.shop)) this.pickUp(o);
+        if (this.atShop(o.shop) || Math.hypot(p.x - o.vendor.x, (p.y - o.vendor.y) * 1.3) < 62) this.pickUp(o);
       } else if (o.state === 'carrying') {
         const rain = this.rainT > 0 ? 1.35 : 1;
         o.heat = Math.max(0, o.heat - o.coolRate * rain * dt);
         if (o.heat <= 0 && !o.coldMsg) { o.coldMsg = true; this.popup(o.food.temp === 'cold' ? S.melted : S.cold, p.x, p.y - 100, '#9fd0ff', 1.4, 18); }
         const d = o.drop;
-        const reached = d.kind === 'near' ? Math.hypot(p.x - d.x, (p.y - d.y) * 1.3) < 44 : (this.atShop(d.shop) && Math.abs(p.x - d.x) < d.shop.w / 2);
+        const reached = d.kind === 'near' ? Math.hypot(p.x - d.x, (p.y - d.y) * 1.3) < 60 : (this.atShop(d.shop) && Math.abs(p.x - d.x) < d.shop.w / 2);
         if (reached) this.deliver(o);
       }
     }

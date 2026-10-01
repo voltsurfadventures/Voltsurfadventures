@@ -53,6 +53,10 @@
   };
 
   /* ---------------- UI strings (English; translate here) ---------------- */
+  // marker colours chosen to stand out against the warm street palette
+  SS.COL_PICK = '#1fd1ff'; // pick up: electric cyan
+  SS.COL_DROP = '#ff2e88'; // deliver: hot pink
+
   SS.STRINGS = {
     loading: 'Loading…',
     tapToStart: 'Tap to start',
