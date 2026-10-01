@@ -31,7 +31,7 @@
       this.world = SS.WORLDS[worldId];
       this.levelIndex = levelIndex;
       this.level = this.world.levels[levelIndex];
-      this.cargoDef = SS.CARGO[this.level.cargo];
+      this.cargoDef = { id: null, carry: null, temp: null, sensitivity: 0 }; // what you are carrying right now
       const L = SS.LIGHTING[this.level.time];
       this.L = Object.assign({ key: this.level.time }, L);
       this.W = SS.World.build(this.world, this.level, levelIndex);
@@ -63,7 +63,18 @@
       this.dangerT = 0;
       this.lowConfMsgT = 0;
       this.crossing = null;
-      if (!this.demo) this.initPlayer();
+      // delivery shift
+      this.orders = []; this.order = null; this.customers = [];
+      this.delivered = 0; this.failedOrders = 0; this.tips = 0; this.streak = 0; this.bestStreak = 0; this.ratingSum = 0;
+      this.charmUsed = false; this.ratingFx = null;
+      // events: traffic lights at every intersection, and maybe a downpour
+      for (const I of this.W.intersections) {
+        I.phase = Math.floor(Math.random() * 4); I.phaseT = U.rand(1, 6);
+        this.W.obstacles.push({ kind: 'light', x: I.x - G.CROSS_HALF - 16, y: G.ROAD_BOT + 10, w: 10, d: 6, I, side: 'near' });
+        this.W.obstacles.push({ kind: 'light', x: I.x + G.CROSS_HALF + 16, y: G.ROAD_TOP - 3, w: 10, d: 6, I, side: 'far' });
+      }
+      this.rainX = this.level.rain ? this.W.length * U.rand(0.3, 0.6) : null; this.rainT = 0; this.rainK = 0;
+      if (!this.demo) { this.initPlayer(); this.nextOrder(); }
       this.prefillTraffic();
     }
 
@@ -150,6 +161,7 @@
       let d = this.level.density;
       if (this.inter && this.inter.active) d *= 1.3;
       if (this.demo) d = 1.0;
+      if (this.level.endless) d *= 1 + Math.min(1.1, this.delivered * 0.06);
       return d;
     }
 
@@ -280,13 +292,16 @@
             if ((s.panic > 0 || n.panic > 0) && Math.abs(along) < s.len * 0.8 && Math.abs(lat) < gapLat * 0.6 && s.speed > 60 && !crossing && pActive) this.scooterCrash(s, n);
           }
         }
+        // ---- traffic lights (most riders stop; some run the red) ----
+        const ld = this.lightStop(s);
+        if (ld !== null) target = Math.min(target, Math.max(0, ld * 2.2));
         // ---- flow: predict the player and commit to a passing line ----
         let sees = false;
         if (pActive) {
           const rx = p.x - s.x, ry = p.y - s.y;
           const along = rx * ax + ry * ay, lat = rx * px_ + ry * py_;
           // the rider's read of you: 10% confidence = unreadable, 70%+ = perfectly readable
-          const q = U.clamp(U.clamp((conf - 0.1) / 0.6, 0, 1) * s.skill * (s.isBB ? 0.35 : 1), 0, 1);
+          const q = U.clamp(U.clamp((conf - 0.1) / 0.6, 0, 1) * s.skill * (s.isBB ? 0.35 : 1) * (1 - 0.18 * this.rainK), 0, 1);
           const readRate = U.lerp(0.8, 8, q);
           const jitter = conf < 0.4 ? (0.4 - conf) * 260 : 0;
           s.evx += (p.vx + U.rand(-jitter, jitter) - s.evx) * Math.min(1, readRate * dt);
@@ -546,7 +561,7 @@
       }
       p.sprinting = canMove && In.sprint && (Math.abs(ax) + Math.abs(ay) > 0.2) && p.gassed <= 0;
       p.holding = canMove && In.breath && p.breath > 0 && p.gassed <= 0;
-      let max = WALK * (p.sprinting ? C.SPRINT_MUL : 1) * (p.boostT > 0 ? 1.3 : 1) * (p.gassed > 0 ? 0.6 : 1);
+      let max = WALK * (1 + 0.07 * SS.Save.up('sandals')) * (p.sprinting ? C.SPRINT_MUL : 1) * (p.boostT > 0 ? 1.3 : 1) * (p.gassed > 0 ? 0.6 : 1);
       // sellers hanging on to you
       const sl = p.latchedBy;
       if (sl) max *= sl.cfg.hold;
@@ -608,8 +623,13 @@
           this.popup('+1', c.x, c.y - 30, '#ffd75a', 0.6, 15);
         }
       }
-      // phở steam
-      if (this.cargoDef.id === 'pho' && Math.random() < dt * 6 * SS.Main.quality) this.particle('steam', p.x + p.face * 14, p.y - 52, U.rand(-6, 6) + p.vx * 0.3, -U.rand(14, 26), 1.2);
+      // steam off hot food, frosty sparkle off iced drinks (fades as the order cools / melts)
+      const o = this.order;
+      if (o && o.state === 'carrying' && o.heat > 5) {
+        const k = o.heat / 100;
+        if (o.food.temp !== 'cold' && Math.random() < dt * 7 * k * SS.Main.quality) this.particle('steam', p.x + p.face * 15, p.y - 60, U.rand(-6, 6) + p.vx * 0.3, -U.rand(14, 26), 1.2);
+        if (o.food.temp === 'cold' && Math.random() < dt * 5 * k * SS.Main.quality) this.particle('frost', p.x + p.face * 15 + U.rand(-6, 6), p.y - 62, U.rand(-10, 10), -U.rand(4, 14), 0.8);
+      }
     }
 
     collides(x, y) {
@@ -624,7 +644,7 @@
 
     updateConfidence(dt, speed) {
       const p = this.player;
-      const ref = WALK * (p.boostT > 0 ? 1.3 : 1);
+      const ref = WALK * (1 + 0.07 * SS.Save.up('sandals')) * (p.boostT > 0 ? 1.3 : 1);
       const sv = Math.hypot(p.svx, p.svy);
       let delta = 0, why = null;
       if (p.onRoad) {
@@ -643,7 +663,7 @@
           else {
             const cross = Math.abs(p.vy) / Math.max(1, speed);
             const pace = 1 - Math.min(1, Math.abs(speed - ref * 0.9) / ref); // ideal: a calm walk
-            delta = (8 + 10 * cross) * (0.5 + pace);
+            delta = (8 + 10 * cross) * (0.5 + pace) * (1 + 0.25 * SS.Save.up('whisper'));
             // strolling down the middle of the road for ages gets in everyone's way
             if (p.roadT > 6 && cross < 0.5 && !(this.inter && this.inter.active)) { delta = -7; why = 'linger'; }
           }
@@ -667,11 +687,12 @@
 
     spill(amount, slosh) {
       const p = this.player;
+      if (!this.order || this.order.state !== 'carrying') return;
       const a = amount * this.cargoDef.sensitivity;
       p.cargo = Math.max(0, p.cargo - a);
       if (slosh) {
-        SS.Audio.sfx('slosh', { kind: this.cargoDef.id, vol: U.clamp(a / 5, 0.4, 1.2) });
-        const col = this.cargoDef.id === 'pho' ? '#c9873a' : this.cargoDef.id === 'cake' ? '#fbf6f0' : '#f6ead2';
+        SS.Audio.sfx('slosh', { kind: this.cargoDef.carry === 'pho' || this.cargoDef.carry === 'cup' ? 'pho' : 'box', vol: U.clamp(a / 5, 0.4, 1.2) });
+        const col = this.cargoDef.carry === 'pho' ? '#c9873a' : this.cargoDef.carry === 'cup' ? (this.cargoDef.cup || '#6a3e22') : '#e8c79a';
         for (let i = 0; i < Math.min(8, 2 + a); i++) this.particle('splash', p.x + p.face * 16, p.y - 44, U.rand(-60, 60) + p.vx * 0.4, U.rand(-80, -20), 0.6, 0, col);
       }
       if (p.cargo < 80 && !this.tut.shown.cargo) this.tutorial('cargo');
@@ -679,6 +700,7 @@
 
     updateCargo(dt, speed) {
       const p = this.player;
+      if (!this.order || this.order.state !== 'carrying') { p.carryTilt = 0; return; }
       // sudden changes in velocity slosh the cargo
       const dv = Math.hypot(p.vx - p.svx, p.vy - p.svy);
       let rate = Math.max(0, dv - 70) * 0.045;
@@ -689,7 +711,7 @@
         if (p.spillAcc > 1.2) { p.spillAcc = 0; this.spill(0, true); }
       }
       p.carryTilt = U.clamp((p.vx - p.svx) * -0.004 * p.face, -0.4, 0.4);
-      if (p.cargo <= 0 && this.state === 'play') this.lose('cargo');
+      if (p.cargo <= 0 && this.state === 'play') this.failOrder();
     }
 
     updateBreath(dt) {
@@ -701,9 +723,10 @@
       }
       p.inCloud = inCloud;
       if (p.gassed > 0) { p.breath = Math.min(100, p.breath + 10 * dt); return; }
-      if (p.holding) p.breath -= 15 * dt;
+      const lungs = 1 - 0.25 * SS.Save.up('lungs');
+      if (p.holding) p.breath -= 15 * lungs * dt;
       else if (inCloud > 0.1) {
-        p.breath -= 42 * inCloud * dt;
+        p.breath -= 42 * inCloud * lungs * dt;
         p.breathCough -= dt;
         if (p.breathCough <= 0) { p.breathCough = 0.7; this.particle('puff', p.x + p.face * 10, p.y - 62, p.face * 30, -10, 0.6, 0, '#b8c94a'); }
       } else p.breath = Math.min(100, p.breath + 24 * dt);
@@ -738,6 +761,13 @@
 
     playerHit(s) {
       const p = this.player;
+      if (SS.Save.up('charm') && !this.charmUsed) { // the lucky charm takes the first hit of the shift
+        this.charmUsed = true; p.invuln = 2; s.speed *= 0.3; this.shout(s);
+        this.popup(S.luckyCharm, p.x, p.y - 100, '#ffd75a', 1.6, 22);
+        SS.Audio.sfx('powerup'); this.cam.shake = 6;
+        for (let i = 0; i < 12; i++) this.particle('spark', p.x, p.y - 50, U.rand(-120, 120), U.rand(-140, 20), 0.8);
+        return;
+      }
       p.lives--;
       this.stats.hits++;
       p.invuln = 2.6;
@@ -1091,10 +1121,9 @@
       if (T.cur) { T.t -= dt; if (T.t <= 0 || (T.cur.id === 'move' && p.moved > 160)) T.cur = null; }
       if (!T.cur && T.queue.length) { T.cur = T.queue.shift(); T.t = T.cur.id === 'move' ? 8 : 6; }
       // position-based triggers
-      if (this.state === 'play') this.tutorial('move');
+      if (this.state === 'play') { this.tutorial('move'); this.tutorial('pickup'); }
       const firstBlock = this.W.obstacles.find((o) => o.y > 480 && o.x > 300 && o.kind !== 'pole');
       if (firstBlock && p.x > firstBlock.x - firstBlock.w / 2 - 260) this.tutorial('blocked');
-      if (p.x > this.W.length - 900) this.tutorial('deliver');
       const firstDurian = this.W.durians[0];
       if (firstDurian && p.x > firstDurian.x - this.viewW * 0.6) this.tutorial('durian');
     }
@@ -1149,6 +1178,7 @@
       if (this.demo) {
         this.cam.x += 55 * dt;
         if (this.cam.x > this.W.length - vw - 200) this.cam.x = 600;
+        this.updateLights(dt);
         this.manageTraffic(dt);
         this.updateScooters(dt);
         this.updateBanhBao(dt);
@@ -1175,6 +1205,8 @@
         if (this.slowT <= 0) this.slowOn = true;
       }
       this.glare = Math.max(0, this.glare - dt * 2);
+      if (this.ratingFx) { this.ratingFx.t -= dt; if (this.ratingFx.t <= 0) this.ratingFx = null; }
+      for (let i = this.customers.length - 1; i >= 0; i--) { const c = this.customers[i]; c.phase += dt * 6; if (c.bubbleT > 0) c.bubbleT -= dt; if (c.leaveT != null) { c.leaveT -= dt; c.x += c.leaveDir * 60 * dt; c.moving = 1; if (c.leaveT <= 0) this.customers.splice(i, 1); } }
       this.flash = Math.max(0, this.flash - dt * 2);
       if (this.banner) { this.banner.t -= dt; if (this.banner.t <= 0) this.banner = null; }
 
@@ -1184,20 +1216,16 @@
         if (this.state === 'play') {
           this.updateSellers(dt);
           this.updateIntersections(dt);
-          this.checkDelivery();
-          // past the shop but on the wrong side? tell the player exactly what to do
-          const d = this.W.destination;
-          this.endHintT = (this.endHintT || 0) - dt;
-          if (p.x > d.x - 60 && p.y > G.ROAD_TOP + 4 && this.endHintT <= 0 && !this.banner) { this.endHintT = 7; this.banner = { text: S.deliverHere, sub: S.endHint, t: 4 }; }
+          this.updateOrders(dt);
+          this.updateRain(dt);
         }
       } else if (this.state === 'won') {
-        // walk into the shop
-        p.y = U.approach(p.y, G.FACADE_BOT + 4, 50 * dt); p.phase += dt * 8;
-        p.vx = 0; p.vy = -40;
+        p.vx = p.vy = 0;
       } else if (this.state === 'lost') {
         if (p.tumble) this.updateTumble(dt);
       }
       this.updateCamera(dt);
+      this.updateLights(dt);
       this.manageTraffic(dt);
       this.updateScooters(dt);
       this.updateBanhBao(dt);
@@ -1233,17 +1261,211 @@
       this.cam.sx = (Math.random() - 0.5) * sh; this.cam.sy = (Math.random() - 0.5) * sh;
     }
 
-    checkDelivery() {
-      const p = this.player, d = this.W.destination;
-      if (p.y < G.ROAD_TOP + 2 && Math.abs(p.x - (d.x + d.w / 2)) < d.w / 2 - 10 && !p.tumble) {
-        this.state = 'won'; this.stateT = 0;
-        if (p.latchedBy) this.releaseSeller(p.latchedBy);
-        SS.Audio.playJingle('complete');
-        SS.Audio.duckMusic(0.25);
-        SS.Haptics.vibrate([20, 40, 20, 40, 60]);
-        for (let i = 0; i < 40; i++) this.particle('confetti', p.x + U.rand(-60, 60), p.y - 120, U.rand(-120, 120), U.rand(-60, 60), 2, 0, U.pick(['#ff5c8a', '#ffd23f', '#3ff0ff', '#7fc96b', '#ffffff']));
-        this.popup(S.delivered, p.x, p.y - 130, '#ffd75a', 1.8, 30);
+    /* ------------------------------------------------------------------ */
+    /* Delivery orders: pick up at a shop (yellow flag), deliver to a       */
+    /* customer (green pin) before the food goes cold / the ice melts.      */
+    /* ------------------------------------------------------------------ */
+    nextOrder() {
+      const lvl = this.level, W = this.W, p = this.player;
+      if (this.orders.length >= lvl.orders) { this.order = null; return; }
+      const idx = this.orders.length, remaining = lvl.orders - idx;
+      const fromX = Math.max(p.x, idx === 0 ? 300 : p.x);
+      const room = Math.max(1400, W.length - 450 - fromX);
+      const leg = lvl.endless ? U.rand(1300, 2400) : U.clamp(room / remaining, 1100, 3400);
+      // pick-up shop a little way ahead, converted to sell the food we need
+      const prev = this.orders.length ? this.orders[this.orders.length - 1].food.id : null;
+      const pool = lvl.foods.filter((f) => f !== prev);
+      const food = SS.FOODS[U.pick(pool.length ? pool : lvl.foods)];
+      const shop = this.pickShop(fromX + Math.max(380, leg * 0.3), food.shop, null);
+      if (shop.word !== food.shop) this.convertShop(shop, food.shop);
+      // drop-off further on: usually a customer on the near footpath (so you have to cross), sometimes another shop
+      const dropX = shop.x + shop.w / 2 + Math.max(520, leg * 0.62);
+      const pal = this.world.palette;
+      const look = { skin: U.pick(pal.skin), shirt: U.pick(pal.shirts), pants: U.pick(['#3a3f4a', '#5a4a3a', '#2c3e5a', '#7a6a58']), hair: U.pick(['#231a14', '#3a2a1e', '#111']), hat: Math.random() < 0.25 ? 'cap' : null, hatColor: U.pick(pal.helmets) };
+      let drop;
+      if (Math.random() < 0.68) {
+        const spot = this.freeSpot(dropX, 'near');
+        drop = { kind: 'near', x: spot.x, y: spot.y };
+      } else {
+        const ds = this.pickShop(dropX, null, shop);
+        const spot = this.freeSpot(ds.x + ds.w / 2, 'far', ds);
+        drop = { kind: 'shop', shop: ds, x: spot.x, y: spot.y };
       }
+      const cust = { x: drop.x, y: drop.y, look, phase: Math.random() * 6, bubble: null, bubbleT: 0, mood: 0, moving: 0, face: drop.x > shop.x ? -1 : 1 };
+      this.customers.push(cust);
+      const o = { id: idx, food, shop, drop, cust, state: 'waiting', heat: 100, dist: 0 };
+      this.orders.push(o); this.order = o;
+      if (!lvl.endless && remaining === 1) this.tutorial('deliver');
+    }
+    pickShop(x, word, exclude) {
+      let best = null, bd = 1e9;
+      for (const sh of this.W.shops) {
+        if (sh === exclude || sh.isDest) continue;
+        const c = sh.x + sh.w / 2;
+        if (c < x - 250 || c > this.W.length - 250) continue;
+        let d = Math.abs(c - x);
+        if (word && sh.word === word) d -= 260; // prefer a shop that already sells it
+        if (this.orders.some((o) => o.state !== 'done' && o.state !== 'failed' && (o.shop === sh || o.drop.shop === sh))) d += 2000;
+        if (d < bd) { bd = d; best = sh; }
+      }
+      return best || this.W.shops[this.W.shops.length - 2];
+    }
+    convertShop(shop, word) {
+      const typ = this.world.shopTypes.find((t) => t.word === word);
+      if (!typ) return;
+      shop.word = word; shop.goods = typ.goods; shop.icon = typ.icon; shop._sign = null;
+      if (shop.signStyle === 'icon' || shop.signStyle === 'blank') shop.signStyle = 'board'; // the sign must say what it sells
+      SS.Art.drop('shop_' + shop.id + '_' + this.L.key); SS.Art.drop('neon_' + shop.id);
+    }
+    freeSpot(x, side, shop) {
+      const ys = side === 'near' ? [482, 500, 466, 516] : [206, 198, 214];
+      for (let k = 0; k < 40; k++) {
+        const dx = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 28;
+        const xx = shop ? U.clamp(x + dx, shop.x + 24, shop.x + shop.w - 24) : x + dx;
+        if (this.W.intersections.some((I) => Math.abs(xx - I.x) < G.CROSS_HALF + 60)) continue;
+        for (const y of ys) if (!this.collides(xx, y) && !this.collides(xx + 14, y) && !this.collides(xx - 14, y)) return { x: xx, y };
+      }
+      return { x, y: side === 'near' ? G.ROAD_BOT + 8 : G.ROAD_TOP - 6 };
+    }
+    atShop(shop) {
+      const p = this.player;
+      return p.y < G.ROAD_TOP + 10 && p.x > shop.x + 4 && p.x < shop.x + shop.w - 4;
+    }
+    updateOrders(dt) {
+      const o = this.order, p = this.player;
+      if (!o || p.tumble) return;
+      if (o.state === 'waiting') {
+        if (this.atShop(o.shop)) this.pickUp(o);
+      } else if (o.state === 'carrying') {
+        const rain = this.rainT > 0 ? 1.35 : 1;
+        o.heat = Math.max(0, o.heat - o.coolRate * rain * dt);
+        if (o.heat <= 0 && !o.coldMsg) { o.coldMsg = true; this.popup(o.food.temp === 'cold' ? S.melted : S.cold, p.x, p.y - 100, '#9fd0ff', 1.4, 18); }
+        const d = o.drop;
+        const reached = d.kind === 'near' ? Math.hypot(p.x - d.x, (p.y - d.y) * 1.3) < 44 : (this.atShop(d.shop) && Math.abs(p.x - d.x) < d.shop.w / 2);
+        if (reached) this.deliver(o);
+      }
+    }
+    pickUp(o) {
+      const p = this.player, F = o.food;
+      o.state = 'carrying'; o.heat = 100; o.t0 = this.time;
+      p.cargo = 100;
+      this.cargoDef = { id: F.id, carry: F.carry, temp: F.temp, cup: F.cup, sensitivity: F.sens * (1 - 0.18 * SS.Save.up('box')) };
+      // the time a calm, steady walker needs: distance plus a crossing; food keeps for a while beyond that
+      o.dist = Math.abs(o.drop.x - p.x) + (o.drop.kind === 'near' ? 260 : 80);
+      const allowed = o.dist / 68 + 9;
+      o.coolRate = 100 / (allowed * 2.2) * F.cool * (F.temp === 'warm' ? 0.5 : 1) * (1 - 0.2 * SS.Save.up('bag'));
+      this.popup(S.orderUp + ' ' + F.name, p.x, p.y - 104, '#ffd75a', 1.6, 20);
+      SS.Audio.sfx('pickup');
+      SS.Haptics.vibrate(20);
+      for (let i = 0; i < 10; i++) this.particle('spark', p.x, p.y - 60, U.rand(-80, 80), U.rand(-110, 0), 0.6);
+      this.tutorial('carry');
+    }
+    deliver(o) {
+      const p = this.player, F = o.food;
+      o.state = 'done';
+      const heat = o.heat, cond = p.cargo;
+      const q = heat * 0.55 + cond * 0.45;
+      const stars = q >= 80 ? 5 : q >= 64 ? 4 : q >= 46 ? 3 : q >= 26 ? 2 : 1;
+      o.stars = stars;
+      this.streak = stars >= 4 ? this.streak + 1 : 0;
+      this.bestStreak = Math.max(this.bestStreak, this.streak);
+      const tip = Math.max(1, Math.round((6 + o.dist / 110) * (0.25 + 0.75 * q / 100) * (1 + 0.1 * Math.min(5, Math.max(0, this.streak - 1)))));
+      o.tip = tip;
+      this.tips += tip; this.coins += tip; this.delivered++; this.ratingSum += stars;
+      this.score += tip * 10 + stars * 60;
+      const lines = (F.temp === 'cold' ? S.reactionsCold : S.reactions)[stars - 1];
+      const c = o.cust; c.bubble = U.pick(lines); c.bubbleT = 2.8; c.mood = stars >= 4 ? 1 : stars <= 2 ? -1 : 0; c.leaveT = 3.2; c.leaveDir = Math.random() < 0.5 ? -1 : 1;
+      this.ratingFx = { stars, tip, t: 2.4, streak: this.streak };
+      SS.Audio.sfx('buy'); if (stars >= 4) SS.Audio.sfx('star');
+      SS.Haptics.vibrate(stars >= 4 ? [20, 30, 40] : 20);
+      for (let i = 0; i < 6 + stars * 3; i++) this.particle(stars >= 4 ? 'confetti' : 'spark', c.x, c.y - 70, U.rand(-110, 110), U.rand(-120, 0), 1.2, 0, U.pick(['#ff5c8a', '#ffd23f', '#3ff0ff', '#7fc96b']));
+      // food passport stamp
+      const st = SS.Save.data.stamps;
+      if (stars >= 4 && !st[F.id]) {
+        st[F.id] = true; SS.Save.save();
+        this.popup(S.stampEarned.replace('{food}', F.name), p.x, p.y - 140, '#ff8fb0', 2.2, 18);
+        if (!SS.Save.data.passportDone && SS.FOOD_ORDER.every((k) => st[k])) { SS.Save.data.passportDone = true; SS.Save.save(); this.coins += 300; this.popup(S.passportDone, p.x, p.y - 170, '#ffd75a', 2.6, 20); }
+      }
+      this.cargoDef = { id: null, carry: null, temp: null, sensitivity: 0 };
+      if (this.delivered === 1) this.tutorial('tip');
+      this.afterOrder();
+    }
+    failOrder() {
+      const o = this.order, p = this.player;
+      if (!o || o.state !== 'carrying') return;
+      o.state = 'failed'; this.failedOrders++; this.streak = 0;
+      SS.Audio.sfx('shatter');
+      for (let i = 0; i < 16; i++) this.particle('splash', p.x + p.face * 14, p.y - 44, U.rand(-120, 120), U.rand(-160, -20), 0.9, 0, this.cargoDef.carry === 'cup' ? this.cargoDef.cup : '#c9873a');
+      this.popup(S.dropped, p.x, p.y - 100, '#ff6a5a', 1.6, 24);
+      this.banner = { text: S.dropped, sub: S.orderFailed, t: 2.4 };
+      const c = o.cust; c.bubble = 'Oh no…'; c.bubbleT = 2; c.mood = -1; c.leaveT = 2.5; c.leaveDir = 1;
+      this.cargoDef = { id: null, carry: null, temp: null, sensitivity: 0 };
+      p.cargo = 100;
+      this.afterOrder();
+    }
+    afterOrder() {
+      if (!this.level.endless && this.orders.length >= this.level.orders) { this.order = null; this.finishShift(); return; }
+      this.nextOrder();
+    }
+    finishShift() {
+      const p = this.player;
+      if (this.delivered === 0) { this.lose('orders'); return; }
+      this.state = 'won'; this.stateT = 0;
+      if (p.latchedBy) this.releaseSeller(p.latchedBy);
+      SS.Audio.playJingle('complete');
+      SS.Audio.duckMusic(0.25);
+      SS.Haptics.vibrate([20, 40, 20, 40, 60]);
+      for (let i = 0; i < 40; i++) this.particle('confetti', p.x + U.rand(-60, 60), p.y - 120, U.rand(-120, 120), U.rand(-60, 60), 2, 0, U.pick(['#ff5c8a', '#ffd23f', '#3ff0ff', '#7fc96b', '#ffffff']));
+      this.popup(S.shiftComplete, p.x, p.y - 130, '#ffd75a', 1.8, 30);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Street events: traffic lights and sudden downpours                  */
+    /* ------------------------------------------------------------------ */
+    // phases: 0 main road green, 1 main amber, 2 cross street green (main red), 3 cross amber
+    updateLights(dt) {
+      const DUR = [9, 1.6, 7.5, 1.6];
+      for (const I of this.W.intersections) {
+        I.phaseT -= dt;
+        if (I.phaseT <= 0) {
+          I.phase = (I.phase + 1) % 4; I.phaseT = DUR[I.phase];
+          const p = this.player;
+          if (p && I.phase === 2 && Math.abs(p.x - I.x) < this.viewW * 0.6 && this.state === 'play') {
+            this.popup(S.redLight, p.x, p.y - 110, '#ff6a5a', 1.6, 18);
+            this.tutorial('light');
+          }
+        }
+      }
+    }
+    lightStop(s) {
+      // returns the distance to a stop line this vehicle must obey, or null
+      if (s.runsRed === undefined) s.runsRed = s.skill < 0.5 || s.isBB || Math.random() < 0.08; // it is Hanoi…
+      if (s.runsRed) return null;
+      for (const I of this.W.intersections) {
+        if (s.vertical) {
+          if (s.ix !== I.x || !(I.phase === 0 || I.phase === 3)) continue;
+          const stopY = s.ay > 0 ? G.ROAD_TOP - 34 : G.ROAD_BOT + 40;
+          const d = (stopY - s.y) * s.ay - 18;
+          if (d > -6 && d < 220) return d;
+        } else {
+          if (!(I.phase === 1 || I.phase === 2)) continue;
+          const stopX = s.ax > 0 ? I.x - G.CROSS_HALF - 100 : I.x + G.CROSS_HALF + 70; // stop before the zebra crossing
+          const d = (stopX - s.x) * s.ax - s.len;
+          if (d > (I.phase === 1 ? 30 : -6) && d < 300) return d;
+        }
+      }
+      return null;
+    }
+    updateRain(dt) {
+      const p = this.player;
+      if (this.rainX != null && p.x > this.rainX && this.rainT <= 0 && !this.rainDone) {
+        this.rainT = 26; this.rainDone = true;
+        this.banner = { text: S.rainStart, sub: S.rainSub, t: 3.2 };
+      }
+      if (this.rainT > 0) this.rainT -= dt;
+      this.rainK = U.approach(this.rainK, this.rainT > 0 ? 1 : 0, dt * 0.5);
+      SS.Audio.setRain(this.rainK);
+      if (this.rainK > 0.05 && Math.random() < dt * 30 * this.rainK * SS.Main.quality) this.particle('drop', this.cam.x + Math.random() * this.viewW, U.rand(G.FACADE_BOT, G.VIEW_H), 0, 0, 0.35);
     }
 
     lose(reason) {
@@ -1251,25 +1473,22 @@
       this.state = 'lost'; this.stateT = 0; this.loseReason = reason;
       SS.Audio.duckMusic(0.2);
       SS.Audio.playJingle('gameover');
-      if (reason === 'cargo') {
-        SS.Audio.sfx('shatter');
-        const p = this.player;
-        for (let i = 0; i < 18; i++) this.particle('splash', p.x + p.face * 14, p.y - 44, U.rand(-120, 120), U.rand(-160, -20), 0.9, 0, this.cargoDef.id === 'pho' ? '#c9873a' : '#fbf6f0');
-      }
+      SS.Audio.setRain(0);
     }
 
     // final results (also commits coins)
     results() {
       const p = this.player;
       const won = this.state === 'won';
-      const cargo = Math.round(p.cargo);
-      let bonusCargo = 0, bonusLives = 0;
-      if (won) { bonusCargo = cargo * 15; bonusLives = Math.max(0, p.lives) * 250; }
-      const total = this.score + bonusCargo + bonusLives;
-      const st = this.level.stars;
+      const n = this.orders.filter((o) => o.state === 'done' || o.state === 'failed').length;
+      const avg = this.delivered ? this.ratingSum / Math.max(1, this.delivered + this.failedOrders) : 0;
+      const bonusLives = won ? Math.max(0, p.lives) * 200 : 0;
+      const total = this.score + bonusLives;
       let stars = 0;
-      if (won) { stars = 1; if (total >= st[0]) stars = 2; if (total >= st[1] && cargo >= 50) stars = 3; }
-      return { won, total, base: this.score, bonusCargo, bonusLives, stars, cargo, lives: Math.max(0, p.lives), time: this.time, reason: this.loseReason, stats: this.stats, coinsEarned: this.coins - this.coinsStart };
+      if (won) { stars = 1; if (avg >= 3.5) stars = 2; if (avg >= 4.4 && this.failedOrders === 0) stars = 3; }
+      return { won, endless: !!this.level.endless, total, base: this.score, bonusLives, stars, lives: Math.max(0, p.lives), time: this.time, reason: this.loseReason,
+        stats: this.stats, delivered: this.delivered, failed: this.failedOrders, orders: this.level.endless ? n : this.level.orders, avg, tips: this.tips, bestStreak: this.bestStreak,
+        coinsEarned: this.coins - this.coinsStart };
     }
 
     commitCoins() {

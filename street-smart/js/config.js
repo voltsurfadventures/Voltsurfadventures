@@ -146,6 +146,55 @@
     popConfidenceLow: 'Riders can\'t read you!',
 
     now: 'NOW!',
+    // orders, tips & ratings
+    orderPickup: 'Pick up {food} at {shop}',
+    orderDeliver: 'Deliver {food} to the customer',
+    orderDeliverShop: 'Deliver {food} to {shop}',
+    orderOf: 'Order {i} of {n}',
+    orderUp: 'Order up!',
+    ordersCount: '{n} orders',
+    heat: 'HEAT', ice: 'ICE', freshness: 'FRESH', condition: 'CONDITION',
+    cold: 'Gone cold!', melted: 'All melted!',
+    dropped: 'Dropped it!',
+    orderFailed: 'Order ruined. Next one!',
+    tipLine: '+{tip} tip',
+    streak: 'Streak ×{n}',
+    reactions: [
+      ['Is this a joke?', 'I asked for food, not soup on a lid.'],
+      ['Cold and messy…', 'Took your time, huh?'],
+      ['It will do.', 'Okay, thanks.'],
+      ['Nice, still warm!', 'Good job!'],
+      ['Still steaming! Perfect!', 'Wow, so fast!', 'Best delivery ever!'],
+    ],
+    reactionsCold: [
+      ['Is this a joke?', 'This is just wet.'],
+      ['All the ice melted…', 'Warm coffee? Really?'],
+      ['It will do.', 'Okay, thanks.'],
+      ['Nice and cold!', 'Good job!'],
+      ['Ice cold! Perfect!', 'So refreshing!', 'Best delivery ever!'],
+    ],
+    shiftComplete: 'SHIFT COMPLETE!',
+    shiftOver: 'SHIFT OVER',
+    statOrders: 'Orders delivered',
+    statRating: 'Average rating',
+    statTips: 'Tips earned',
+    statStreak: 'Best streak',
+    statBest: 'Best score',
+    upgrades: 'UPGRADES',
+    upgradeTitle: 'UPGRADE SHOP',
+    upgradeSub: 'Spend your tips. Upgrades last for every shift.',
+    maxed: 'MAX',
+    bought: 'Upgraded!',
+    passport: 'FOOD PASSPORT',
+    passportSub: 'Deliver each dish with 4 stars or more to earn its stamp.',
+    passportDone: 'Passport complete! +300 coins',
+    stampEarned: 'New stamp: {food}!',
+    luckyCharm: 'Lucky charm!',
+    endlessName: 'Endless Rush Hour',
+    endlessHint: 'Unlock by finishing level 1',
+    rainStart: 'Sudden downpour!',
+    rainSub: 'Riders can see less and food cools faster.',
+    redLight: 'Red light: cross now!',
     objective: '{cargo} → {shop}  ·  {m} m',
     objectiveHere: '{cargo} → {shop}  ·  cross the road!',
     endHint: 'Cross the road to the shop under the yellow flag to deliver!',
@@ -156,12 +205,12 @@
     ctrlDpad: 'Arrows',
     ctrlJoystick: 'Joystick',
     howto: [
-      ['THE GOAL', 'Carry your delivery to the shop at the end of the street. It is on the far side of the road, under the yellow flag. The bar at the top shows how far.'],
+      ['THE JOB', 'Collect hot food and iced drinks at shops with a yellow flag. Deliver each order to the customer with a green pin before it goes cold.'],
       ['FLOW, DON\'T DASH', 'On the road, walk slowly and steadily. Riders read your path and steer around you. Stopping, reversing or sprinting confuses them, and that is when they hit you.'],
       ['WATCH OUT', 'Sellers grab you: tap NO THANKS or BUY. Durian stink clouds: hold your breath. Bumps and sudden moves spill your cargo.'],
-      ['THE BÁNH BAO BIKE', 'Listen for his call. Step in front of him just as he arrives (gold ring means now) for a power-up. Mistime it and he knocks you flat.'],
+      ['TIPS & UPGRADES', 'Fast, clean deliveries earn big tips and 5 stars. Spend tips on upgrades. Step in front of the bánh bao bike at the right moment for a power-up.'],
     ],
-    howtoFooter: '3 lives. Lose them all, or spill the whole cargo, and the delivery fails.',
+    howtoFooter: '3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
     purchaseUnavailable: 'Purchases are not available yet',
     controlsTouch: 'Arrow pad: walk   ·   SPRINT   ·   HOLD BREATH   ·   NO THANKS   ·   BUY',
     controlsKeys: 'WASD / Arrows: walk   ·   Shift: sprint   ·   Space: hold breath   ·   E: no thanks (hold E: buy)   ·   Esc: pause',
@@ -188,12 +237,16 @@
       blocked: 'The footpath is blocked. Step out into the road.',
       steady: 'Walk slowly and STEADILY. Riders read your path and flow around you.',
       drain: 'Stopping, reversing or sprinting drains CONFIDENCE. Low confidence = chaos.',
-      cargo: 'Careful with the phở! Sudden moves and bumps spill your CARGO.',
+      cargo: 'Careful! Sudden moves and bumps spill the food. Watch the CONDITION bar.',
+      pickup: 'Your first order! Go to the shop with the yellow flag and step onto its footpath to collect it.',
+      carry: 'It is hot! The HEAT bar drops every second. Take it to the customer with the green pin.',
+      tip: 'Delivered! Faster and cleaner deliveries earn bigger tips. Spend tips on upgrades between shifts.',
+      light: 'Traffic lights! When the main road is red, the bikes stop. That is your moment to cross.',
       durian: 'Durian cloud! Hold BREATH (Space) to walk through the stink.',
       seller: 'A street seller! Tap NO THANKS (E) quickly to escape, or BUY (hold E).',
       banhbao: 'Hear that? The bánh bao bike! Step in front of him at the right moment to grab one.',
       intersection: 'Intersection! Cross to the other footpath. Keep it steady.',
-      deliver: 'Nearly there! Deliver to the shop on the far side.',
+      deliver: 'Last order! Finish it to end your shift.',
     },
 
     sellerNames: {
@@ -215,6 +268,32 @@
   };
 
   /* ---------------- Cargo types ---------------- */
+  /* ---------------- Foods you deliver ----------------
+   * shop: the sign word of the shop you pick it up from (must be in the sign list)
+   * temp: 'hot' cools down, 'cold' melts; 'warm' changes slowly
+   * sens: how easily it spills; cool: how fast it loses heat / ice */
+  SS.FOODS = {
+    pho:     { id: 'pho',     name: 'phở',             shop: 'PHỞ BÒ',   carry: 'pho',   temp: 'hot',  sens: 1.0,  cool: 1.0 },
+    buncha:  { id: 'buncha',  name: 'bún chả',         shop: 'BÚN CHẢ',  carry: 'box',   temp: 'hot',  sens: 0.8,  cool: 1.0 },
+    comtam:  { id: 'comtam',  name: 'cơm tấm',         shop: 'CƠM TẤM',  carry: 'box',   temp: 'hot',  sens: 0.6,  cool: 0.9 },
+    banhbao: { id: 'banhbao', name: 'bánh bao',        shop: 'BÁNH BAO', carry: 'bun',   temp: 'hot',  sens: 0.4,  cool: 1.1 },
+    banhmi:  { id: 'banhmi',  name: 'bánh mì',         shop: 'BÁNH MÌ',  carry: 'bread', temp: 'warm', sens: 0.35, cool: 0.6 },
+    caphe:   { id: 'caphe',   name: 'iced coffee',     shop: 'CÀ PHÊ',   carry: 'cup',   temp: 'cold', sens: 0.9,  cool: 1.1, cup: '#6a3e22' },
+    trada:   { id: 'trada',   name: 'iced tea',        shop: 'TRÀ ĐÁ',   carry: 'cup',   temp: 'cold', sens: 0.8,  cool: 1.0, cup: '#d9a640' },
+    nuocmia: { id: 'nuocmia', name: 'sugarcane juice', shop: 'NƯỚC MÍA', carry: 'cup',   temp: 'cold', sens: 0.8,  cool: 1.0, cup: '#cfe07a' },
+  };
+  SS.FOOD_ORDER = ['pho', 'buncha', 'comtam', 'banhbao', 'banhmi', 'caphe', 'trada', 'nuocmia'];
+
+  /* ---------------- Upgrade shop (bought with tips) ---------------- */
+  SS.UPGRADES = [
+    { id: 'sandals', name: 'Comfy sandals',   desc: 'Walk 7% faster per level.',                      prices: [40, 100, 180] },
+    { id: 'box',     name: 'Padded box',      desc: 'Food spills 18% less per level.',                prices: [50, 110, 200] },
+    { id: 'bag',     name: 'Insulated bag',   desc: 'Food stays hot (or iced) 20% longer per level.', prices: [50, 110, 200] },
+    { id: 'lungs',   name: 'Big lungs',       desc: 'Durian stink and holding breath cost 25% less.', prices: [60, 140] },
+    { id: 'whisper', name: 'Traffic whisperer', desc: 'Confidence builds 25% faster per level.',      prices: [80, 180] },
+    { id: 'charm',   name: 'Lucky charm',     desc: 'Shrug off the first hit of every shift.',        prices: [250] },
+  ];
+
   SS.CARGO = {
     pho:  { id: 'pho',  name: 'a bowl of phở',     short: 'Phở',          sensitivity: 1.0,  icon: 'bowl' },
     cake: { id: 'cake', name: 'a wedding cake',    short: 'Wedding cake', sensitivity: 1.5,  icon: 'cake' },
@@ -314,7 +393,8 @@
       levels: [
         {
           id: 'vn-1', name: 'Old Quarter Morning', time: 'morning', music: 'morning',
-          cargo: 'pho', destination: 'TẠP HÓA',
+          cargo: 'pho', destination: 'TẠP HÓA', orders: 3, foods: ['pho', 'banhmi', 'caphe', 'banhbao'],
+          brief: 'Bà Lan: “Your first shift! Collect each order at the shop with the yellow flag, then get it to the customer while it is still hot.”',
           length: 11200, density: 0.62, speedMul: 0.9, wildRiders: 0.03,
           intersections: [3400, 8000],
           durianEvery: 2200, durianFirst: 1500, cars: 5,
@@ -325,7 +405,8 @@
         },
         {
           id: 'vn-2', name: 'Golden-Hour Market', time: 'golden', music: 'market',
-          cargo: 'cake', destination: 'BIA HƠI',
+          cargo: 'cake', destination: 'BIA HƠI', orders: 4, foods: ['buncha', 'comtam', 'nuocmia', 'trada', 'pho'], rain: true,
+          brief: 'Bà Lan: “Market rush! Hot food cools and iced drinks melt. Keep moving, but keep it steady.”',
           length: 13200, density: 0.95, speedMul: 1.0, wildRiders: 0.06,
           intersections: [3000, 7000, 10600],
           durianEvery: 1500, durianFirst: 1200, cars: 5,
@@ -336,7 +417,8 @@
         },
         {
           id: 'vn-3', name: 'Neon Rush Hour', time: 'night', music: 'night',
-          cargo: 'eggs', destination: 'BÁNH MÌ',
+          cargo: 'eggs', destination: 'BÁNH MÌ', orders: 5, foods: ['pho', 'banhbao', 'buncha', 'caphe', 'comtam', 'banhmi'], rain: true,
+          brief: 'Bà Lan: “Night shift in rush hour. Five orders. Do not spill my bún chả.”',
           length: 14400, density: 1.12, speedMul: 1.14, wildRiders: 0.09,
           intersections: [2800, 7000, 11400],
           durianEvery: 1800, durianFirst: 1300, cars: 6,
@@ -344,6 +426,19 @@
           banhbaoFirst: 600, banhbaoEvery: 15,
           coinGroups: 40, obstacleDensity: 0.9,
           stars: [4200, 7200], tutorial: false, requiresFullGame: true,
+        },
+        {
+          // Endless: orders keep coming and the traffic keeps getting busier
+          id: 'vn-endless', name: 'Endless Rush Hour', time: 'golden', music: 'market', endless: true,
+          cargo: 'pho', destination: 'TẠP HÓA', orders: 9999, foods: ['pho', 'buncha', 'comtam', 'banhbao', 'banhmi', 'caphe', 'trada', 'nuocmia'], rain: true,
+          brief: 'Bà Lan: “Endless orders, endless traffic. How long can you last?”',
+          length: 90000, density: 0.75, speedMul: 1.0, wildRiders: 0.06,
+          intersections: Array.from({ length: 21 }, (_, i) => 3200 + i * 4000),
+          durianEvery: 1900, durianFirst: 1500, cars: 5,
+          sellerTypes: ['sunglasses', 'ride', 'fruit', 'watch', 'shoe'], sellerFirst: 900, sellerEvery: 1100,
+          banhbaoFirst: 700, banhbaoEvery: 18,
+          coinGroups: 220, obstacleDensity: 0.8,
+          stars: [0, 0], tutorial: false, requiresFullGame: true, unlockAfter: 'vn-1',
         },
       ],
     },

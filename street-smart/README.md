@@ -26,6 +26,20 @@ street-smart/
 
 ---
 
+## How it plays
+
+Each level is a **delivery shift**: 3, 4 or 5 orders, plus an **Endless Rush Hour** mode that unlocks after level 1.
+
+1. **Pick up** each order at the shop under the **yellow flag** (pho, bánh mì, iced coffee and more).
+2. **Deliver** it to the customer under the **green pin**, often on the other side of the road.
+3. **Hot food cools and iced drinks melt** (the HEAT or ICE bar), and sudden moves spill it (the CONDITION bar).
+4. Speed plus care earns **1 to 5 stars and a tip**. Four-star deliveries in a row build a **streak** bonus.
+5. Spend tips in the **upgrade shop**: sandals, padded box, insulated bag, big lungs, traffic whisperer, lucky charm.
+6. Each dish delivered with 4 or more stars earns a stamp in the **Food Passport**. Complete all 8 for a bonus.
+7. **Street events**: traffic lights at every intersection (cross while the main road is red) and sudden downpours that slow riders' reactions and cool food faster.
+
+Food, upgrade and level data are all in `js/config.js` (`SS.FOODS`, `SS.UPGRADES`, levels).
+
 ## 1. Run it locally
 
 Browsers block some features on `file://`, so serve the folder over HTTP:

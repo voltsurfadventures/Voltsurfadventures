@@ -17,6 +17,10 @@
     tutorialDone: false,
     settings: { music: 0.45, sfx: 0.9, vibration: true, graphics: 'auto', controls: 'dpad' },
     howtoSeen: false,
+    upgrades: {},          // upgradeId -> level
+    stamps: {},            // foodId -> true (food passport)
+    passportDone: false,
+    endlessBest: 0,
   });
 
   const Save = (SS.Save = {
@@ -41,6 +45,10 @@
             d.fullGame = !!p.fullGame;
             d.tutorialDone = !!p.tutorialDone;
             d.howtoSeen = !!p.howtoSeen;
+            d.upgrades = p.upgrades && typeof p.upgrades === 'object' ? p.upgrades : {};
+            d.stamps = p.stamps && typeof p.stamps === 'object' ? p.stamps : {};
+            d.passportDone = !!p.passportDone;
+            d.endlessBest = Math.max(0, p.endlessBest | 0);
             if (p.settings) Object.assign(d.settings, p.settings);
           }
         } catch (e) { /* corrupt save: start fresh */ }
@@ -79,8 +87,12 @@
     },
 
     // levels unlock in order across a world
+    up(id) { return this.data.upgrades[id] | 0; },
+
     isUnlocked(world, index) {
       if (index === 0) return true;
+      const lv = world.levels[index];
+      if (lv.unlockAfter) return !!this.level(lv.unlockAfter).completed;
       const prev = world.levels[index - 1];
       return !!this.level(prev.id).completed;
     },

@@ -376,6 +376,11 @@
       this.rumbleGain = c.createGain(); this.rumbleGain.gain.value = 0.0001;
       r.connect(rf); rf.connect(this.rumbleGain); this.rumbleGain.connect(this.ambBus); r.start();
       this.hornTimer = 1; this.chatTimer = 0.3;
+      // rain: hissing filtered noise, faded in by setRain()
+      const rn = this.noiseSrc(), rhp = c.createBiquadFilter(), rlp = c.createBiquadFilter();
+      rhp.type = 'highpass'; rhp.frequency.value = 900; rlp.type = 'lowpass'; rlp.frequency.value = 7000;
+      this.rainGain = c.createGain(); this.rainGain.gain.value = 0.0001;
+      rn.connect(rhp); rhp.connect(rlp); rlp.connect(this.rainGain); this.rainGain.connect(this.sfxBus); rn.start();
       // four positional engine voices, assigned each frame to the nearest bikes (see Session.audioTick)
       this.engines = [];
       for (let i = 0; i < 4; i++) {
@@ -390,6 +395,10 @@
         o.start(); lfo.start();
         this.engines.push({ o, lfo, v, pn, lp });
       }
+    },
+    setRain(k) {
+      if (!this.rainGain) return;
+      this.rainGain.gain.setTargetAtTime(Math.max(0.0001, k * 0.22), this.ctx.currentTime, 0.4);
     },
     setEngine(i, freq, vol, pan) {
       const e = this.engines && this.engines[i]; if (!e) return;
@@ -607,6 +616,14 @@
         os.type = 'triangle'; os.frequency.value = mtof(72 + s);
         g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(0.16, tt + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.3);
         os.connect(g); g.connect(out); os.start(tt); os.stop(tt + 0.32);
+      });
+    },
+    sfx_pickup(t) { // bright two-note "order up" ding
+      const c = this.ctx, out = this.out();
+      [[1047, 0], [1568, 0.09]].forEach(([f, d]) => {
+        const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t + d); g.gain.linearRampToValueAtTime(0.22, t + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.5);
+        o.connect(g); g.connect(out); o.start(t + d); o.stop(t + d + 0.55);
       });
     },
     sfx_freeze(t) {

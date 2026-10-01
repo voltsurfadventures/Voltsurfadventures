@@ -265,7 +265,7 @@
       }
 
       // ---- carried item (front) ----
-      if (o.carry && !oc) this.carryItem(g, o.carry, 14 + hx, sh + 8, o.carryTilt || 0, o.cargoPct);
+      if (o.carry && !oc) this.carryItem(g, o.carry, 14 + hx, sh + 8, o.carryTilt || 0, o.cargoPct, o.carryColor);
       if (o.carry && oc) { g.fillStyle = oc; this.rr(g, 4 + hx, sh + 1, 22, 14, 5); g.fill(); }
       if (o.holding === 'rack' && !oc) this.sunglassesRack(g, 16 + hx, sh + 2);
       if (o.holding === 'phone' && !oc) { // phone held up, glowing map screen
@@ -325,9 +325,34 @@
         this.rr(g, x, yy, 5, 3, 1.4); g.fill(); this.rr(g, x + 7, yy, 5, 3, 1.4); g.fill();
       }
     },
-    carryItem(g, kind, x, y, tilt, pct) {
+    carryItem(g, kind, x, y, tilt, pct, color) {
       g.save(); g.translate(x, y); g.rotate(tilt || 0);
-      if (kind === 'pho') {
+      const full = pct == null ? 1 : pct;
+      if (kind === 'box') { // takeaway box in a plastic bag
+        g.fillStyle = '#f6f3ec'; this.rr(g, -12, -13, 24, 13, 2); g.fill();
+        g.fillStyle = '#e6e1d6'; g.fillRect(-12, -13, 24, 3);
+        g.strokeStyle = '#d23a2a'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-12, -6); g.lineTo(12, -6); g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(-6, -13); g.quadraticCurveTo(0, -24, 6, -13); g.stroke();
+        if (full < 0.6) { g.fillStyle = '#b5713a'; g.beginPath(); g.ellipse(6, 0.5, 5 * (1 - full), 1.5, 0, 0, Math.PI * 2); g.fill(); }
+      } else if (kind === 'bun') { // bánh bao in a paper bag
+        g.fillStyle = '#d9c08a'; this.rr(g, -10, -14, 20, 15, 2); g.fill();
+        this.circle(g, -4, -15, 6, '#fbf7ee'); this.circle(g, 4, -16, 6, '#fbf7ee');
+        g.strokeStyle = '#d9cdb0'; g.lineWidth = 0.8; g.beginPath(); g.arc(-4, -18, 2.5, 0, Math.PI); g.arc(4, -19, 2.5, 0, Math.PI); g.stroke();
+      } else if (kind === 'bread') { // bánh mì in paper
+        g.save(); g.rotate(-0.25);
+        this.ellipse(g, 0, -6, 15, 4.5, '#e2a95a'); this.ellipse(g, 0, -7.5, 13, 2.5, '#efc27e');
+        g.fillStyle = '#f4efe2'; g.fillRect(-15, -10, 12, 8);
+        this.ellipse(g, 7, -9, 3, 1.4, '#6fbf4a');
+        g.restore();
+      } else if (kind === 'cup') { // iced drink with straw, the ice melts as it warms
+        const c = color || '#6a3e22';
+        g.fillStyle = 'rgba(230,245,255,0.55)'; g.beginPath(); g.moveTo(-7, -20); g.lineTo(7, -20); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
+        const lvl = 4 + 14 * full;
+        g.fillStyle = c; g.beginPath(); g.moveTo(-5 - (lvl / 20) * 2, -lvl); g.lineTo(5 + (lvl / 20) * 2, -lvl); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.75)'; g.fillRect(-4, -lvl + 1, 3, 3); g.fillRect(1, -lvl + 3, 3, 3);
+        g.strokeStyle = '#e8432d'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(2, -16); g.lineTo(6, -28); g.stroke();
+        g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(-6, -19, 1.5, 17);
+      } else if (kind === 'pho') {
         g.fillStyle = '#f4f1ea'; g.beginPath(); g.moveTo(-11, -6); g.quadraticCurveTo(0, 10, 11, -6); g.closePath(); g.fill();
         g.fillStyle = '#2f6db0'; g.fillRect(-9, -3, 18, 1.4);
         const lvl = 0.4 + 0.6 * (pct == null ? 1 : pct);

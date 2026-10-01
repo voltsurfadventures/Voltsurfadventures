@@ -31,7 +31,7 @@
 
     go(screen) {
       this.screen = screen; this.t = 0; this.overlay = null; this.pressed = null;
-      if (['title', 'levels', 'settings', 'credits', 'howto'].includes(screen)) {
+      if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport'].includes(screen)) {
         if (this.session) { this.session.destroy(); this.session = null; }
         if (SS.Audio.unlocked) { SS.Audio.playMusic('morning'); SS.Audio.duckMusic(0.8); }
         SS.Audio.setIntensity(0); SS.Audio.setTension(0);
@@ -72,12 +72,16 @@
       session.commitCoins();
       const lvl = session.level;
       res.isBest = false;
-      if (won) {
+      if (res.endless) {
+        res.isBest = res.total > SS.Save.data.endlessBest;
+        if (res.isBest) { SS.Save.data.endlessBest = res.total; SS.Save.save(); }
+        res.best = SS.Save.data.endlessBest;
+      } else if (won) {
         res.isBest = SS.Save.recordResult(lvl.id, res.stars, res.total);
         if (lvl.tutorial) { SS.Save.data.tutorialDone = true; SS.Save.save(); }
       }
       this.res = res;
-      this.screen = won ? 'results' : 'gameover';
+      this.screen = won || res.endless ? 'results' : 'gameover';
       this.t = 0; this.starsShown = 0;
       SS.Audio.setAmbience(0.3, true);
       SS.Audio.setIntensity(0); SS.Audio.setTension(0);
@@ -124,6 +128,7 @@
         else if (this.overlay === 'settings') this.overlay = 'pause';
         else if (this.overlay === 'confirmReset') this.overlay = null;
         else if (this.overlay === 'howto') this.overlay = 'pause';
+        else if (['shop', 'passport'].includes(this.screen)) this.go(this.shopBack || 'levels');
         else if (['levels', 'settings', 'credits'].includes(this.screen)) this.go('title');
       }
     },
@@ -251,6 +256,8 @@
         else if (this.screen === 'levels') this.drawLevels(ctx, vw, vh, u);
         else if (this.screen === 'settings') this.drawSettings(ctx, vw, vh, u, false);
         else if (this.screen === 'credits') this.drawCredits(ctx, vw, vh, u);
+        else if (this.screen === 'shop') this.drawShop(ctx, vw, vh, u);
+        else if (this.screen === 'passport') this.drawPassport(ctx, vw, vh, u);
         else if (this.screen === 'howto') this.drawHowto(ctx, vw, vh, u, () => { SS.Save.data.howtoSeen = true; SS.Save.save(); const n = this.howtoNext || (() => this.go('title')); this.howtoNext = null; n(); });
       }
       if (this.overlay === 'confirmReset') this.drawConfirm(ctx, vw, vh, u);
@@ -313,60 +320,132 @@
     },
 
     drawLevels(ctx, vw, vh, u) {
-      u = Math.min(u, vh * 0.96 / 380);
+      u = Math.min(u, vh * 0.96 / 400);
       const ins = SS.View.insets;
       this.dim(ctx, 0.55);
       this.backButton(ctx, () => this.go('title'));
       this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 16 * u, u);
       const w = SS.WORLDS[this.worldId];
-      this.text(ctx, S.levelSelect, vw / 2, ins.t + 34 * u, 24 * u, '#ffd23f', 800, true);
-      this.text(ctx, w.name + '  ·  ' + w.city, vw / 2, ins.t + 60 * u, 13 * u, '#7ff0d8', 800);
-      const n = w.levels.length;
-      const avail = vw - ins.l - ins.r - 40 * u;
-      const cw = Math.min(230 * u, (avail - (n - 1) * 16 * u) / n), ch = Math.min(260 * u, vh - ins.t - ins.b - 110 * u);
-      const x0 = vw / 2 - (n * cw + (n - 1) * 16 * u) / 2, y0 = ins.t + 84 * u;
+      this.text(ctx, S.levelSelect, vw / 2, ins.t + 30 * u, 22 * u, '#ffd23f', 800, true);
+      this.text(ctx, w.name + '  ·  ' + w.city, vw / 2, ins.t + 54 * u, 12 * u, '#7ff0d8', 800);
+      const n = w.levels.length, gap = 12 * u;
+      const avail = vw - ins.l - ins.r - 32 * u;
+      const cw = Math.min(215 * u, (avail - (n - 1) * gap) / n), ch = Math.min(232 * u, vh - ins.t - ins.b - 150 * u);
+      const x0 = vw / 2 - (n * cw + (n - 1) * gap) / 2, y0 = ins.t + 72 * u;
       w.levels.forEach((lvl, i) => {
-        const x = x0 + i * (cw + 16 * u), y = y0;
+        const x = x0 + i * (cw + gap), y = y0;
         const k = U.easeOutCubic(U.clamp((this.t - i * 0.08) / 0.4, 0, 1));
         ctx.save(); ctx.globalAlpha = k; ctx.translate(0, (1 - k) * 30 * u);
         const iapLocked = lvl.requiresFullGame && !SS.Purchases.isFullGameUnlocked();
         const unlocked = SS.Save.isUnlocked(w, i) && !iapLocked;
         const rec = SS.Save.level(lvl.id);
-        // card
-        ctx.fillStyle = 'rgba(14,16,28,0.92)'; Art.rr(ctx, x, y, cw, ch, 16 * u); ctx.fill();
+        ctx.fillStyle = 'rgba(14,16,28,0.92)'; Art.rr(ctx, x, y, cw, ch, 14 * u); ctx.fill();
         // thumbnail: time-of-day sky + street strip
         const L = SS.LIGHTING[lvl.time];
-        const th = ch * 0.38;
-        ctx.save(); Art.rr(ctx, x, y, cw, th + 16 * u, 16 * u); ctx.clip();
+        const th = ch * 0.36;
+        ctx.save(); Art.rr(ctx, x, y, cw, th + 14 * u, 14 * u); ctx.clip();
         const g = ctx.createLinearGradient(0, y, 0, y + th);
-        g.addColorStop(0, L.sky[0]); g.addColorStop(1, L.sky[1]);
-        ctx.fillStyle = g; ctx.fillRect(x, y, cw, th + 16 * u);
+        g.addColorStop(0, lvl.endless ? '#ff7a4a' : L.sky[0]); g.addColorStop(1, lvl.endless ? '#3a1840' : L.sky[1]);
+        ctx.fillStyle = g; ctx.fillRect(x, y, cw, th + 14 * u);
         ctx.fillStyle = L.far; for (let b = 0; b < 6; b++) ctx.fillRect(x + b * cw / 6, y + th * (0.3 + U.hash(b + i * 7) * 0.3), cw / 6 + 1, th);
         ctx.fillStyle = L.road; ctx.fillRect(x, y + th * 0.82, cw, th);
-        if (lvl.time === 'night') for (let b = 0; b < 5; b++) { ctx.fillStyle = ['#ff4fa3', '#3ff0ff', '#ffe14a'][b % 3]; ctx.fillRect(x + 12 * u + b * cw / 5, y + th * 0.55, 14 * u, 4 * u); }
+        if (lvl.time === 'night' || lvl.endless) for (let b = 0; b < 5; b++) { ctx.fillStyle = ['#ff4fa3', '#3ff0ff', '#ffe14a'][b % 3]; ctx.fillRect(x + 12 * u + b * cw / 5, y + th * 0.55, 14 * u, 4 * u); }
         ctx.restore();
-        // cargo icon
-        ctx.save(); ctx.translate(x + cw / 2, y + th * 0.62); ctx.scale(1.6 * u, 1.6 * u);
-        Art.carryItem(ctx, lvl.cargo, 0, 6, 0, 1); ctx.restore();
-        this.text(ctx, S.level + ' ' + (i + 1), x + cw / 2, y + th + 30 * u, 12 * u, '#f0a33a', 800);
-        this.text(ctx, lvl.name, x + cw / 2, y + th + 52 * u, Math.min(19 * u, cw / 11), '#fff', 800, true);
-        this.text(ctx, SS.CARGO[lvl.cargo].short, x + cw / 2, y + th + 74 * u, 13 * u, '#e8e2d0', 600);
+        // the dishes on this shift
+        const foods = lvl.foods.slice(0, 3);
+        foods.forEach((fid, j) => {
+          const F = SS.FOODS[fid];
+          ctx.save(); ctx.translate(x + cw / 2 + (j - (foods.length - 1) / 2) * 34 * u, y + th * 0.66); ctx.scale(1.3 * u, 1.3 * u);
+          Art.carryItem(ctx, F.carry, 0, 6, 0, 1, F.cup); ctx.restore();
+        });
+        this.text(ctx, lvl.endless ? S.endlessName.toUpperCase() : S.level + ' ' + (i + 1), x + cw / 2, y + th + 26 * u, 11 * u, '#f0a33a', 800);
+        this.text(ctx, lvl.endless ? 'Rush Hour ∞' : lvl.name, x + cw / 2, y + th + 48 * u, Math.min(17 * u, cw / 11.5), '#fff', 800, true);
+        this.text(ctx, lvl.endless ? S.best + ': ' + SS.Save.data.endlessBest : S.ordersCount.replace('{n}', lvl.orders), x + cw / 2, y + th + 70 * u, 12 * u, '#e8e2d0', 600);
         if (unlocked) {
-          for (let s = 0; s < 3; s++) this.starShape(ctx, x + cw / 2 + (s - 1) * 30 * u, y + th + 104 * u, 11 * u, s < rec.stars);
-          this.text(ctx, rec.best ? S.best + ': ' + rec.best : ' ', x + cw / 2, y + th + 130 * u, 12 * u, '#9fe6ff', 700);
+          if (!lvl.endless) {
+            for (let st = 0; st < 3; st++) this.starShape(ctx, x + cw / 2 + (st - 1) * 28 * u, y + th + 98 * u, 10 * u, st < rec.stars);
+            this.text(ctx, rec.best ? S.best + ': ' + rec.best : ' ', x + cw / 2, y + th + 122 * u, 11 * u, '#9fe6ff', 700);
+          }
           this.hits.push({ id: 'lvl' + i, x, y, w: cw, h: ch, action: () => this.startLevel(i) });
-          if (this.pressed && this.pressed.id === 'lvl' + i) { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3 * u; Art.rr(ctx, x, y, cw, ch, 16 * u); ctx.stroke(); }
-          else { ctx.strokeStyle = 'rgba(240,163,58,0.6)'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, x, y, cw, ch, 16 * u); ctx.stroke(); }
+          ctx.strokeStyle = this.pressed && this.pressed.id === 'lvl' + i ? '#ffd23f' : 'rgba(240,163,58,0.6)';
+          ctx.lineWidth = (this.pressed && this.pressed.id === 'lvl' + i ? 3 : 1.5) * u; Art.rr(ctx, x, y, cw, ch, 14 * u); ctx.stroke();
         } else {
-          ctx.fillStyle = 'rgba(0,0,0,0.45)'; Art.rr(ctx, x, y, cw, ch, 16 * u); ctx.fill();
-          this.lockIcon(ctx, x + cw / 2, y + th + 104 * u, 13 * u);
-          this.text(ctx, iapLocked ? S.fullGameLocked : S.locked, x + cw / 2, y + th + 134 * u, 13 * u, '#fff', 800);
-          if (!iapLocked) this.text(ctx, S.lockedHint, x + cw / 2, y + th + 154 * u, 10.5 * u, 'rgba(255,255,255,0.7)', 600);
-          else this.button(ctx, 'iap' + i, x + 16 * u, y + ch - 50 * u, cw - 32 * u, 36 * u, S.unlockFullGame, { size: 12 * u, color: '#7fc96b', action: () => SS.Purchases.unlockFullGame((ok) => { if (!ok) this.showToast(S.purchaseUnavailable); }) });
+          ctx.fillStyle = 'rgba(0,0,0,0.45)'; Art.rr(ctx, x, y, cw, ch, 14 * u); ctx.fill();
+          this.lockIcon(ctx, x + cw / 2, y + th + 98 * u, 12 * u);
+          this.text(ctx, iapLocked ? S.fullGameLocked : S.locked, x + cw / 2, y + th + 126 * u, 12 * u, '#fff', 800);
+          if (!iapLocked) this.text(ctx, lvl.endless ? S.endlessHint : S.lockedHint, x + cw / 2, y + th + 144 * u, 9.5 * u, 'rgba(255,255,255,0.7)', 600);
+          else this.button(ctx, 'iap' + i, x + 12 * u, y + ch - 46 * u, cw - 24 * u, 34 * u, S.unlockFullGame, { size: 11 * u, color: '#7fc96b', action: () => SS.Purchases.unlockFullGame((ok) => { if (!ok) this.showToast(S.purchaseUnavailable); }) });
         }
         ctx.restore();
       });
+      // upgrades + passport
+      const bw = 190 * u, by = y0 + ch + 14 * u;
+      this.button(ctx, 'toshop', vw / 2 - bw - 8 * u, by, bw, 42 * u, S.upgrades, { size: 15 * u, color: '#7fc96b', action: () => { this.shopBack = 'levels'; this.go('shop'); } });
+      this.button(ctx, 'topass', vw / 2 + 8 * u, by, bw, 42 * u, S.passport, { size: 14 * u, color: '#ff8fb0', action: () => { this.shopBack = 'levels'; this.go('passport'); } });
     },
+
+    drawShop(ctx, vw, vh, u) {
+      u = Math.min(u, vh * 0.96 / 410);
+      const ins = SS.View.insets;
+      this.dim(ctx, 0.7);
+      this.backButton(ctx, () => this.go(this.shopBack || 'levels'));
+      this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 16 * u, u);
+      this.text(ctx, S.upgradeTitle, vw / 2, ins.t + 30 * u, 22 * u, '#7fc96b', 800, true);
+      this.text(ctx, S.upgradeSub, vw / 2, ins.t + 54 * u, 12 * u, '#e8e2d0', 600);
+      const ups = SS.UPGRADES, cols = 3, gap = 12 * u;
+      const cw = Math.min(250 * u, (vw - ins.l - ins.r - 40 * u - gap * (cols - 1)) / cols), ch = 132 * u;
+      const x0 = vw / 2 - (cols * cw + (cols - 1) * gap) / 2, y0 = ins.t + 72 * u;
+      ups.forEach((up, i) => {
+        const x = x0 + (i % cols) * (cw + gap), y = y0 + Math.floor(i / cols) * (ch + gap);
+        const lvl = SS.Save.up(up.id), max = up.prices.length, price = up.prices[lvl];
+        ctx.fillStyle = 'rgba(14,16,28,0.92)'; Art.rr(ctx, x, y, cw, ch, 12 * u); ctx.fill();
+        ctx.strokeStyle = 'rgba(127,201,107,0.5)'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, x, y, cw, ch, 12 * u); ctx.stroke();
+        this.text(ctx, up.name, x + 14 * u, y + 20 * u, 14 * u, '#fff', 800, true, 'left');
+        for (let k = 0; k < max; k++) { ctx.fillStyle = k < lvl ? '#7fc96b' : 'rgba(255,255,255,0.18)'; Art.rr(ctx, x + cw - 14 * u - (max - k) * 16 * u, y + 14 * u, 12 * u, 12 * u, 3 * u); ctx.fill(); }
+        ctx.font = SS.font(11 * u, 600); ctx.fillStyle = '#e8e2d0'; ctx.textAlign = 'left';
+        this.wrap(ctx, up.desc, cw - 28 * u).forEach((ln, k) => ctx.fillText(ln, x + 14 * u, y + 44 * u + k * 15 * u));
+        if (lvl >= max) this.text(ctx, S.maxed, x + cw / 2, y + ch - 26 * u, 14 * u, '#7fc96b', 800, true);
+        else {
+          const afford = SS.Save.data.coins >= price;
+          this.button(ctx, 'up_' + up.id, x + 14 * u, y + ch - 44 * u, cw - 28 * u, 34 * u, String(price), { size: 15 * u, color: afford ? '#ffd23f' : '#6a6a72', action: () => {
+            if (SS.Save.data.coins < price) { this.showToast(S.popNoCoins); return; }
+            SS.Save.data.coins -= price; SS.Save.data.upgrades[up.id] = lvl + 1; SS.Save.save();
+            SS.Audio.sfx('buy'); SS.Haptics.vibrate([15, 30, 15]); this.showToast(S.bought);
+          } });
+          Art.coin(ctx, x + cw / 2 - ctx.measureText(String(price)).width / 2 - 14 * u, y + ch - 27 * u, 7 * u, 0);
+        }
+      });
+    },
+
+    drawPassport(ctx, vw, vh, u) {
+      u = Math.min(u, vh * 0.96 / 400);
+      const ins = SS.View.insets, st = SS.Save.data.stamps;
+      this.dim(ctx, 0.7);
+      this.backButton(ctx, () => this.go(this.shopBack || 'levels'));
+      const pw = Math.min(vw - ins.l - ins.r - 40 * u, 640 * u), ph = Math.min(vh * 0.86, 330 * u), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2 + 12 * u;
+      // a little passport booklet
+      ctx.fillStyle = '#f3e7cf'; Art.rr(ctx, px, py, pw, ph, 14 * u); ctx.fill();
+      ctx.strokeStyle = '#8a2f2a'; ctx.lineWidth = 3 * u; Art.rr(ctx, px + 6 * u, py + 6 * u, pw - 12 * u, ph - 12 * u, 10 * u); ctx.stroke();
+      this.text(ctx, S.passport, vw / 2, py + 30 * u, 20 * u, '#8a2f2a', 800, true);
+      this.text(ctx, S.passportSub, vw / 2, py + 52 * u, 11 * u, '#5a4030', 600);
+      const ids = SS.FOOD_ORDER, cols = 4, cw = (pw - 40 * u) / cols, chh = (ph - 90 * u) / 2;
+      ids.forEach((id, i) => {
+        const F = SS.FOODS[id], x = px + 20 * u + (i % cols) * cw + cw / 2, y = py + 76 * u + Math.floor(i / cols) * chh + chh * 0.42;
+        const have = !!st[id];
+        ctx.save(); ctx.translate(x, y); ctx.scale(1.6 * u, 1.6 * u); ctx.globalAlpha = have ? 1 : 0.25;
+        Art.carryItem(ctx, F.carry, 0, 8, 0, 1, F.cup); ctx.restore();
+        if (have) { // red ink stamp
+          ctx.save(); ctx.translate(x + 14 * u, y - 4 * u); ctx.rotate(-0.25);
+          ctx.strokeStyle = 'rgba(190,40,40,0.8)'; ctx.lineWidth = 2.5 * u; ctx.beginPath(); ctx.arc(0, 0, 24 * u, 0, TAU); ctx.stroke();
+          ctx.beginPath(); ctx.arc(0, 0, 19 * u, 0, TAU); ctx.stroke();
+          ctx.restore();
+        }
+        this.text(ctx, F.name, x, y + chh * 0.42, 12.5 * u, have ? '#3a2a1e' : 'rgba(58,42,30,0.45)', 800);
+      });
+      const got = ids.filter((k) => st[k]).length;
+      this.text(ctx, got + ' / ' + ids.length, vw / 2, py + ph - 16 * u, 12 * u, '#8a2f2a', 800);
+    },
+
     lockIcon(ctx, x, y, r) {
       ctx.strokeStyle = '#fff'; ctx.lineWidth = r * 0.25;
       ctx.beginPath(); ctx.arc(x, y - r * 0.4, r * 0.55, Math.PI, TAU); ctx.stroke();
@@ -496,12 +575,13 @@
     statsLines(res) {
       const st = res.stats;
       return [
-        [S.statCoins, String(st.coins)],
+        [S.statOrders, res.delivered + ' / ' + res.orders],
+        [S.statRating, res.delivered ? res.avg.toFixed(1) + ' / 5' : '-'],
+        [S.statTips, String(res.tips)],
+        [S.statStreak, String(res.bestStreak)],
         [S.statNearMiss, String(st.nearMiss)],
-        [S.statCrossings, String(st.crossings)],
         [S.statBanhBao, String(st.banhbao)],
         [S.statSellers, String(st.sellers)],
-        [S.statCargo, res.cargo + '%'],
         [S.statTime, U.fmtTime(res.time)],
       ];
     },
@@ -510,56 +590,56 @@
       const res = this.res;
       this.dim(ctx, U.clamp(this.t * 2, 0, 0.62));
       const k = U.easeOutBack(U.clamp(this.t / 0.5, 0, 1));
-      const pw = Math.min(520 * u, vw * 0.84), ph = Math.min(400 * u, vh * 0.92), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
+      const pw = Math.min(540 * u, vw * 0.86), ph = Math.min(400 * u, vh * 0.94), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
       ctx.save(); ctx.translate(vw / 2, vh / 2); ctx.scale(k, k); ctx.translate(-vw / 2, -vh / 2);
       this.panel(ctx, px, py, pw, ph);
-      this.text(ctx, S.delivered, vw / 2, py + 34 * u, 30 * u, '#ffd23f', 800, true);
-      for (let s = 0; s < 3; s++) {
+      this.text(ctx, res.endless ? S.shiftOver : S.shiftComplete, vw / 2, py + 32 * u, 28 * u, '#ffd23f', 800, true);
+      if (!res.endless) for (let s = 0; s < 3; s++) {
         const shown = s < this.starsShown;
         const pop = shown ? U.easeOutBack(U.clamp((this.t - 0.5 - s * 0.45) / 0.35, 0, 1)) : 1;
-        this.starShape(ctx, vw / 2 + (s - 1) * 54 * u, py + 82 * u - (s === 1 ? 8 * u : 0), 22 * u, shown, shown ? pop : 1);
-      }
+        this.starShape(ctx, vw / 2 + (s - 1) * 52 * u, py + 76 * u - (s === 1 ? 8 * u : 0), 20 * u, shown, shown ? pop : 1);
+      } else this.text(ctx, S.statBest + ': ' + res.best, vw / 2, py + 72 * u, 15 * u, '#9fe6ff', 800);
       const counted = Math.round(res.total * U.clamp((this.t - 0.4) / 1.2, 0, 1));
-      this.text(ctx, S.score + ': ' + counted, vw / 2, py + 126 * u, 22 * u, '#fff', 800, true);
-      if (res.isBest && this.t > 1.7) this.text(ctx, S.newBest, vw / 2 + pw * 0.33, py + 126 * u, 13 * u, '#7ff0d8', 800);
+      this.text(ctx, S.score + ': ' + counted, vw / 2, py + 116 * u, 22 * u, '#fff', 800, true);
+      if (res.isBest && this.t > 1.7) this.text(ctx, S.newBest, vw / 2 + pw * 0.34, py + 116 * u, 13 * u, '#7ff0d8', 800);
       const lines = this.statsLines(res);
-      lines.push([S.statLives, String(res.lives)]);
       const colW = (pw - 60 * u) / 2;
       lines.forEach(([a, b], i) => {
-        const cx = px + 30 * u + (i % 2) * colW, y = py + 160 * u + Math.floor(i / 2) * 26 * u;
+        const cx = px + 30 * u + (i % 2) * colW, y = py + 150 * u + Math.floor(i / 2) * 25 * u;
         this.text(ctx, a, cx, y, 12.5 * u, 'rgba(255,255,255,0.75)', 600, false, 'left');
         this.text(ctx, b, cx + colW - 18 * u, y, 13 * u, '#ffd75a', 800, false, 'right');
       });
       const w = SS.WORLDS[this.worldId];
-      const hasNext = this.session.levelIndex + 1 < w.levels.length && this.levelAvailable(this.session.levelIndex + 1);
-      const nb = hasNext ? 3 : 2, by = py + ph - 62 * u, bw = (pw - 48 * u - (nb - 1) * 12 * u) / nb;
-      this.button(ctx, 'rmenu', px + 24 * u, by, bw, 44 * u, S.menu, { flat: true, size: 14 * u, action: () => this.go('levels') });
+      const nextI = this.session.levelIndex + 1;
+      const hasNext = !res.endless && nextI < w.levels.length && this.levelAvailable(nextI);
+      const nb = hasNext ? 3 : 2, by = py + ph - 60 * u, bw = (pw - 48 * u - (nb - 1) * 12 * u) / nb;
+      this.button(ctx, 'rshop', px + 24 * u, by, bw, 44 * u, S.upgrades, { flat: true, size: 14 * u, action: () => { this.shopBack = 'levels'; this.go('shop'); } });
       this.button(ctx, 'rretry', px + 36 * u + bw, by, bw, 44 * u, S.retry, { flat: !!hasNext, size: 14 * u, action: () => this.startLevel(this.session.levelIndex) });
       if (hasNext) this.button(ctx, 'rnext', px + 48 * u + bw * 2, by, bw, 44 * u, S.next, { size: 15 * u, action: () => this.nextLevel() });
       ctx.restore();
     },
     drawGameOver(ctx, vw, vh, u) {
-      u = Math.min(u, vh * 0.96 / 350);
+      u = Math.min(u, vh * 0.96 / 360);
       const res = this.res;
       this.dim(ctx, U.clamp(this.t * 2, 0, 0.66));
       const k = U.easeOutBack(U.clamp(this.t / 0.5, 0, 1));
-      const pw = Math.min(480 * u, vw * 0.8), ph = Math.min(330 * u, vh * 0.9), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
+      const pw = Math.min(500 * u, vw * 0.82), ph = Math.min(340 * u, vh * 0.92), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
       ctx.save(); ctx.translate(vw / 2, vh / 2); ctx.scale(k, k); ctx.translate(-vw / 2, -vh / 2);
       this.panel(ctx, px, py, pw, ph);
-      const cargo = res.reason === 'cargo';
-      this.text(ctx, cargo ? S.cargoRuined : S.gameOver, vw / 2, py + 38 * u, 30 * u, '#ff6a5a', 800, true);
-      this.text(ctx, cargo ? S.cargoBroken : S.outOfLives, vw / 2, py + 72 * u, 14 * u, '#e8e2d0', 600);
-      this.text(ctx, S.score + ': ' + res.base, vw / 2, py + 104 * u, 18 * u, '#fff', 800, true);
+      this.text(ctx, S.gameOver, vw / 2, py + 36 * u, 30 * u, '#ff6a5a', 800, true);
+      this.text(ctx, res.reason === 'orders' ? S.cargoBroken : S.outOfLives, vw / 2, py + 70 * u, 14 * u, '#e8e2d0', 600);
+      this.text(ctx, S.score + ': ' + res.base, vw / 2, py + 100 * u, 18 * u, '#fff', 800, true);
       const lines = this.statsLines(res).slice(0, 6);
       const colW = (pw - 60 * u) / 2;
       lines.forEach(([a, b], i) => {
-        const cx = px + 30 * u + (i % 2) * colW, y = py + 138 * u + Math.floor(i / 2) * 25 * u;
+        const cx = px + 30 * u + (i % 2) * colW, y = py + 134 * u + Math.floor(i / 2) * 25 * u;
         this.text(ctx, a, cx, y, 12.5 * u, 'rgba(255,255,255,0.75)', 600, false, 'left');
         this.text(ctx, b, cx + colW - 18 * u, y, 13 * u, '#ffd75a', 800, false, 'right');
       });
-      const by = py + ph - 62 * u, bw = (pw - 60 * u) / 2;
+      const by = py + ph - 60 * u, bw = (pw - 72 * u) / 3;
       this.button(ctx, 'gmenu', px + 24 * u, by, bw, 44 * u, S.menu, { flat: true, size: 14 * u, action: () => this.go('levels') });
-      this.button(ctx, 'gretry', px + 36 * u + bw, by, bw, 44 * u, S.retry, { size: 16 * u, action: () => this.startLevel(this.session.levelIndex) });
+      this.button(ctx, 'gshop', px + 36 * u + bw, by, bw, 44 * u, S.upgrades, { flat: true, size: 14 * u, action: () => { this.shopBack = 'levels'; this.go('shop'); } });
+      this.button(ctx, 'gretry', px + 48 * u + bw * 2, by, bw, 44 * u, S.retry, { size: 16 * u, action: () => this.startLevel(this.session.levelIndex) });
       ctx.restore();
     },
   });

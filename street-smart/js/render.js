@@ -230,6 +230,7 @@
     for (const s of this.sellers) ents.push({ y: s.y + 0.5, k: 'seller', o: s });
     for (const c of this.W.coins) if (!c.taken && c.x > x0 && c.x < x1) ents.push({ y: c.y - 0.1, k: 'c', o: c });
     if (this.player) ents.push({ y: this.player.y + 0.3, k: 'p', o: this.player });
+    for (const c of this.customers) if (c.x > x0 && c.x < x1) ents.push({ y: c.y + 0.2, k: 'cust', o: c });
     ents.sort((a, b) => a.y - b.y);
   };
   P.drawShadows = function (ctx) {
@@ -237,7 +238,7 @@
     for (const e of ents) {
       const o = e.o;
       if (e.k === 's') { const sc = Art.depth(o.y); if (o.vertical) Art.shadow(ctx, o.x, o.y, 13 * sc, 8 * sc, L); else Art.shadow(ctx, o.x, o.y, (o.len + 2) * sc, (o.halfW + 2) * sc * 0.9, L); }
-      else if (e.k === 'p' || e.k === 'seller') { const z = o.tumble ? o.tumble.z : 0; Art.shadow(ctx, o.x, o.y, Math.max(6, 13 - z * 0.03), 4.5, L); }
+      else if (e.k === 'p' || e.k === 'seller' || e.k === 'cust') { const z = o.tumble ? o.tumble.z : 0; Art.shadow(ctx, o.x, o.y, Math.max(6, 13 - z * 0.03), 4.5, L); }
       else if (e.k === 'o' && o.kind !== 'pole') { ctx.fillStyle = L.shadow; ctx.fillRect(o.x - o.w / 2 + L.shadowSkew * 6, o.y - o.d * 0.4, o.w, o.d * 0.4 + 3); }
     }
   };
@@ -273,6 +274,7 @@
       else if (e.k === 'o') this.drawObstacle(ctx, e.o);
       else if (e.k === 'p') this.drawPlayer(ctx);
       else if (e.k === 'seller') this.drawSeller(ctx, e.o);
+      else if (e.k === 'cust') this.drawCustomer(ctx, e.o);
       else if (e.k === 'c') { const c = e.o; Art.coin(ctx, c.x, c.y - 12 - Math.sin(this.time * 3 + c.ph) * 3, 7.5, this.time * 2.5 + c.ph); }
     }
   };
@@ -362,7 +364,26 @@
         break;
       }
       case 'fargoods': Art.draw(ctx, this.farGoodsSprite(o), o.x, o.y); break;
+      case 'light': this.drawTrafficLight(ctx, o); break;
     }
+  };
+  P.drawTrafficLight = function (ctx, o) {
+    const I = o.I, h = o.side === 'near' ? 150 : 120;
+    const mainCol = I.phase === 0 ? 2 : I.phase === 1 ? 1 : 0; // 0 red, 1 amber, 2 green (for the main road)
+    ctx.fillStyle = '#3a3d42'; ctx.fillRect(o.x - 2.5, o.y - h, 5, h);
+    ctx.fillStyle = '#1d1f23'; Art.rr(ctx, o.x - 9, o.y - h - 44, 18, 46, 4); ctx.fill();
+    const cols = ['#ff3b30', '#ffb020', '#34d058'];
+    for (let i = 0; i < 3; i++) {
+      const on = i === mainCol, cy = o.y - h - 36 + i * 14;
+      Art.circle(ctx, o.x, cy, 5, on ? cols[i] : 'rgba(255,255,255,0.12)');
+      if (on) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; ctx.drawImage(Art.glow(cols[i]).c, o.x - 22, cy - 22, 44, 44); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+    }
+    // pedestrian signal: green walker when the main road is stopped
+    const walk = I.phase === 2;
+    ctx.fillStyle = '#1d1f23'; Art.rr(ctx, o.x + 8, o.y - h + 6, 16, 18, 3); ctx.fill();
+    ctx.fillStyle = walk ? '#34d058' : '#ff3b30';
+    Art.circle(ctx, o.x + 16, o.y - h + 10, 2, ctx.fillStyle); ctx.fillRect(o.x + 15, o.y - h + 12, 2.5, 6);
+    if (walk) { ctx.fillRect(o.x + 13, o.y - h + 17, 2, 4); ctx.fillRect(o.x + 18, o.y - h + 17, 2, 4); } else ctx.fillRect(o.x + 15, o.y - h + 17, 2.5, 4);
   };
   P.farGoodsSprite = function (o) {
     return Art.propSprite('fg_' + o.seed, o.w + 20, 70, o.w / 2 + 10, 60, (g) => {
@@ -384,7 +405,7 @@
       x: p.x, y: p.y, s: Art.depth(p.y) * 1.06, face: p.face, phase: p.phase,
       moving: Math.min(1, Math.hypot(p.vx, p.vy) / SS.CONFIG.WALK_SPEED),
       skin: '#f0c9a0', shirt: '#2a9d8f', pants: '#c9b48a', hair: '#6b3e1f', backpack: '#c9762e', shoe: '#3a2a22',
-      legsBare: true, carry: this.cargoDef.id, cargoPct: p.cargo / 100, carryTilt: p.carryTilt || 0, arms: 'carry',
+      legsBare: true, carry: this.cargoDef.carry, carryColor: this.cargoDef.cup, cargoPct: p.cargo / 100, carryTilt: p.carryTilt || 0, arms: this.cargoDef.carry ? 'carry' : null,
       sunglasses: p.sunglasses > 0, mouth: p.gassed > 0 ? 0.8 : 0, outline: this.L.rim, ink: '#24150f',
     };
   };
@@ -408,6 +429,13 @@
       for (let i = 0; i < 3; i++) { const a = this.time * 4 + i * 2.1; ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * 16, p.y - 80 + Math.sin(a) * 5, 3, 0, TAU); ctx.stroke(); }
     }
     ctx.globalAlpha = 1;
+  };
+  P.drawCustomer = function (ctx, c) {
+    const L = c.look, o = this.order, waiting = o && o.cust === c && o.state === 'carrying';
+    const near = waiting && Math.abs(this.player.x - c.x) < 300;
+    Art.person(ctx, { ink: '#24150f', x: c.x, y: c.y, s: Art.depth(c.y), face: c.leaveT != null ? c.leaveDir : (this.player.x > c.x ? 1 : -1), phase: c.phase, moving: c.moving || 0,
+      skin: L.skin, shirt: L.shirt, pants: L.pants, hair: L.hair, hat: L.hat, hatColor: L.hatColor,
+      holding: c.leaveT == null ? 'phone' : null, arms: near || c.mood > 0 ? 'up' : null, mouth: c.bubbleT > 0 ? 0.6 : 0 });
   };
   P.drawSeller = function (ctx, s) {
     const t = this.time;
@@ -470,6 +498,8 @@
         case 'petal': ctx.globalAlpha = k; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); Art.ellipse(ctx, 0, 0, 3, 1.8, '#ff6a9a'); ctx.restore(); break;
         case 'confetti': ctx.globalAlpha = Math.min(1, k * 2); ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillStyle = q.color; ctx.fillRect(-3, -1.5, 6, 3); ctx.restore(); break;
         case 'shard': ctx.globalAlpha = k; ctx.fillStyle = '#333'; ctx.fillRect(q.x, q.y, 3, 2); break;
+        case 'frost': ctx.globalAlpha = k * 0.9; ctx.fillStyle = '#dff6ff'; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillRect(-2, -0.6, 4, 1.2); ctx.fillRect(-0.6, -2, 1.2, 4); ctx.restore(); break;
+        case 'drop': ctx.globalAlpha = k * 0.7; ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(q.x, q.y, 6 * (1 - k) + 1, 2 * (1 - k) + 0.5, 0, 0, TAU); ctx.stroke(); break;
         case 'bun': ctx.globalAlpha = 1; Art.circle(ctx, q.x, q.y, 7, '#fbf7ee'); ctx.strokeStyle = '#d9cdb0'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.x, q.y - 3, 3, 0, Math.PI); ctx.stroke(); break;
       }
     }
@@ -589,6 +619,18 @@
       g.addColorStop(0, 'rgba(255,0,0,0)'); g.addColorStop(1, 'rgba(200,20,10,' + a + ')');
       ctx.fillStyle = g; ctx.fillRect(0, 0, vw, vh);
     }
+    if (this.rainK > 0.02) {
+      ctx.fillStyle = 'rgba(30,40,60,' + 0.22 * this.rainK + ')'; ctx.fillRect(0, 0, vw, vh);
+      ctx.strokeStyle = 'rgba(200,220,255,' + 0.45 * this.rainK + ')'; ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      const n = Math.round(90 * this.rainK * (SS.Main.quality > 0.6 ? 1 : 0.5));
+      for (let i = 0; i < n; i++) {
+        const x = (U.hash(i * 3.1) * vw + this.time * 160 + i * 7) % (vw + 40) - 20;
+        const y = (U.hash(i * 7.7) * vh + this.time * 900) % (vh + 40) - 20;
+        ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 16);
+      }
+      ctx.stroke();
+    }
     if (this.flash > 0) { ctx.fillStyle = 'rgba(255,240,230,' + this.flash * 0.6 + ')'; ctx.fillRect(0, 0, vw, vh); }
   };
 
@@ -619,17 +661,29 @@
   P.drawWorldUI = function (ctx, cx, vw) {
     const p = this.player, t = this.time;
     placed.length = 0;
-    // destination marker
-    const d = this.W.destination;
-    const dx = d.x + d.w / 2;
-    if (dx > cx - 100 && dx < cx + vw + 100) {
-      const by = 112 + Math.sin(t * 4) * 6;
-      ctx.fillStyle = '#ffd75a';
-      ctx.beginPath(); ctx.moveTo(dx - 14, by - 18); ctx.lineTo(dx + 14, by - 18); ctx.lineTo(dx, by); ctx.closePath(); ctx.fill();
-      this.bubble(ctx, dx, by - 24, S.deliverHere, { size: 16, bg: 'rgba(20,20,30,0.85)', color: '#ffd75a', border: '#ffd75a' });
-      ctx.fillStyle = U.rgba('#ffd75a', 0.18 + 0.1 * Math.sin(t * 5));
-      ctx.fillRect(d.x + 10, G.FACADE_BOT + 2, d.w - 20, G.ROAD_TOP - G.FACADE_BOT - 4);
+    // order markers: yellow flag over the pick-up shop, green pin over the customer
+    const o = this.order;
+    if (o && o.state === 'waiting') {
+      const sh = o.shop, dx = sh.x + sh.w / 2;
+      if (dx > cx - 200 && dx < cx + vw + 200) {
+        ctx.fillStyle = U.rgba('#ffd75a', 0.22 + 0.12 * Math.sin(t * 5));
+        ctx.fillRect(sh.x + 8, G.FACADE_BOT + 2, sh.w - 16, G.ROAD_TOP - G.FACADE_BOT + 8);
+        const by = 118 + Math.sin(t * 4) * 5;
+        ctx.fillStyle = '#5a4026'; ctx.fillRect(dx - 2, by - 40, 4, 44);
+        ctx.fillStyle = '#ffd75a'; ctx.beginPath(); ctx.moveTo(dx + 2, by - 40); ctx.lineTo(dx + 34, by - 30); ctx.lineTo(dx + 2, by - 20); ctx.closePath(); ctx.fill();
+        ctx.save(); ctx.translate(dx - 26, by - 26); ctx.scale(1.2, 1.2); Art.carryItem(ctx, o.food.carry, 0, 6, 0, 1, o.food.cup); ctx.restore();
+      }
     }
+    if (o && o.state === 'carrying') {
+      const d = o.drop, bounce = Math.sin(t * 5) * 4, hy = d.y - 108 + bounce;
+      ctx.strokeStyle = U.rgba('#7fc96b', 0.6 + 0.3 * Math.sin(t * 6)); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(d.x, d.y, 26, 9, 0, 0, TAU); ctx.stroke();
+      if (d.kind === 'shop') { ctx.fillStyle = U.rgba('#7fc96b', 0.18 + 0.1 * Math.sin(t * 5)); ctx.fillRect(d.shop.x + 8, G.FACADE_BOT + 2, d.shop.w - 16, G.ROAD_TOP - G.FACADE_BOT + 8); }
+      ctx.fillStyle = '#7fc96b'; ctx.beginPath(); ctx.arc(d.x, hy, 13, Math.PI, 0); ctx.lineTo(d.x, hy + 22); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(d.x, hy, 5, 0, TAU); ctx.fill();
+    }
+    // customer reactions
+    for (const c of this.customers) if (c.bubble && c.bubbleT > 0) this.bubble(ctx, c.x, c.y - 96 * Art.depth(c.y), c.bubble, { size: 14, color: c.mood > 0 ? '#2f7a2f' : c.mood < 0 ? '#b5261e' : '#1f1a17' });
     // intersection goal: glowing target footpath + chevrons
     if (this.inter && this.inter.active) {
       const I = this.inter, far = I.goal === 'far';
@@ -728,11 +782,9 @@
     row(0, 'conf', S.hudConfidence, cf, confC[0], confC[1], drain, whyText);
     const bInfo = p.holding ? { t: S.holding, c: '#9fe6ff' } : p.inCloud > 0.1 ? { t: S.stink, c: '#c6e65a' } : null;
     row(1, 'breath', S.hudBreath, p.breath / 100, p.inCloud > 0.1 && !p.holding ? '#9ab83a' : '#2f9e8f', p.inCloud > 0.1 && !p.holding ? '#d6e85a' : '#6ff0dc', p.inCloud > 0.1 ? 0.6 : 0, bInfo);
-    const cg = p.cargo / 100;
-    row(2, 'cargo', this.cargoDef.short.toUpperCase(), cg, cg < 0.3 ? '#c8321e' : '#d9a84a', cg < 0.3 ? '#ff6a3a' : '#f4e2a0', 0, null);
 
     // power-up chips
-    let cy = y0 + 3 * 34 * u + 4 * u;
+    let cy = y0 + 2 * 34 * u + 4 * u;
     const chip = (text, col) => {
       ctx.font = SS.font(11 * u, 800);
       const w = ctx.measureText(text).width + 16 * u;
@@ -745,6 +797,7 @@
     if (this.slowT > 0) chip(S.chipSlowmo + ' ' + Math.ceil(this.slowT) + 's', '#ffd75a');
     if (this.freezeT > 0) chip(S.chipFreeze + ' ' + Math.ceil(this.freezeT) + 's', '#9fe6ff');
     if (p.boostT > 0) chip(S.chipBoost + ' ' + Math.ceil(p.boostT) + 's', '#7fc96b');
+    if (this.streak >= 2) chip(S.streak.replace('{n}', this.streak), '#ff8fb0');
 
     // top-right: coins, cargo, lives (left of the pause button)
     const pb = SS.Input.btns.pause;
@@ -757,19 +810,42 @@
     pill(y0, cw, 28 * u);
     ctx.fillStyle = '#fff'; ctx.fillText(coinTxt, rx - 34 * u, y0 + 15 * u);
     Art.coin(ctx, rx - 17 * u, y0 + 14 * u, 9 * u, 0);
-    // cargo condition pill
-    ctx.font = SS.font(12 * u, 800);
-    const cargoTxt = S.hudCargo + ' ' + Math.round(p.cargo) + '%';
-    const cgw = ctx.measureText(cargoTxt).width + 48 * u;
-    pill(y0 + 34 * u, cgw, 26 * u);
-    ctx.fillStyle = cg < 0.3 ? '#ff8a6a' : '#fff'; ctx.fillText(cargoTxt, rx - 36 * u, y0 + 47.5 * u);
-    this.cargoIcon(ctx, rx - 18 * u, y0 + 47 * u, 9 * u);
+    // order card: what you are carrying, how hot (or iced) it still is, and its condition
+    const o = this.order;
+    const cardW = 206 * u, cardH = o && o.state === 'carrying' ? 72 * u : 58 * u, cardY = y0 + 34 * u, cardX = rx - cardW;
+    ctx.fillStyle = 'rgba(10,12,20,0.78)'; Art.rr(ctx, cardX, cardY, cardW, cardH, 12 * u); ctx.fill();
+    ctx.strokeStyle = o && o.state === 'carrying' ? '#7fc96b' : '#ffd75a'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, cardX, cardY, cardW, cardH, 12 * u); ctx.stroke();
+    ctx.textAlign = 'left';
+    if (o) {
+      const F = o.food;
+      ctx.save(); ctx.translate(cardX + 24 * u, cardY + 28 * u); ctx.scale(1.15 * u, 1.15 * u);
+      Art.carryItem(ctx, F.carry, 0, F.carry === 'cup' ? 8 : 5, 0, o.state === 'carrying' ? p.cargo / 100 : 1, F.cup);
+      ctx.restore();
+      ctx.font = SS.font(10 * u, 800); ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.fillText(this.level.endless ? S.orderOf.replace('{i}', o.id + 1).replace(' of {n}', '') : S.orderOf.replace('{i}', o.id + 1).replace('{n}', this.level.orders), cardX + 48 * u, cardY + 12 * u);
+      ctx.font = SS.font(14 * u, 800, true); ctx.fillStyle = '#fff';
+      ctx.fillText(F.name, cardX + 48 * u, cardY + 28 * u);
+      if (o.state === 'carrying') {
+        const cold = F.temp === 'cold';
+        const lab = (cold ? S.ice : S.heat), lab2 = S.condition;
+        ctx.font = SS.font(8.5 * u, 800);
+        ctx.fillStyle = cold ? '#9fe6ff' : '#ffb07a'; ctx.fillText(lab, cardX + 48 * u, cardY + 47 * u);
+        this.meter(ctx, cardX + 112 * u, cardY + 43 * u, 82 * u, 7 * u, o.heat / 100, cold ? '#3f7fd0' : '#c8321e', cold ? '#bff2ff' : '#ffcf5a', o.heat < 25 ? 0.5 + 0.5 * Math.sin(t * 10) : 0);
+        ctx.fillStyle = '#f4e2a0'; ctx.fillText(lab2, cardX + 48 * u, cardY + 62 * u);
+        const cg = p.cargo / 100;
+        this.meter(ctx, cardX + 112 * u, cardY + 58 * u, 82 * u, 7 * u, cg, cg < 0.3 ? '#c8321e' : '#d9a84a', cg < 0.3 ? '#ff6a3a' : '#f4e2a0', 0);
+      } else {
+        ctx.font = SS.font(10.5 * u, 700); ctx.fillStyle = '#ffd75a';
+        ctx.fillText(o.shop.word, cardX + 48 * u, cardY + 46 * u);
+      }
+    }
     // lives
     for (let i = 0; i < Math.max(SS.CONFIG.LIVES, p.lives); i++) {
       const alive = i < p.lives;
-      const hb = alive && p.invuln > 0 && i === p.lives ? 1.3 : 1;
-      Art.heart(ctx, rx - 12 * u - i * 24 * u, y0 + 76 * u, 9 * u * hb, alive ? '#ff4d5e' : 'rgba(255,255,255,0.22)');
+      Art.heart(ctx, rx - 12 * u - i * 24 * u, cardY + cardH + 16 * u, 9 * u, alive ? '#ff4d5e' : 'rgba(255,255,255,0.22)');
     }
+    if (SS.Save.up('charm') && !this.charmUsed) { ctx.fillStyle = '#ffd75a'; ctx.beginPath(); ctx.arc(rx - 12 * u - Math.max(SS.CONFIG.LIVES, p.lives) * 24 * u, cardY + cardH + 16 * u, 6 * u, 0, TAU); ctx.fill(); }
+    ctx.textAlign = 'right';
 
     // top-centre progress bar
     const pw = Math.min(240 * u, vw * 0.26), px = vw / 2 - pw / 2, py = ins.t + 14 * u;
@@ -780,20 +856,37 @@
       const ix = px + pw * I.x / this.W.length;
       ctx.fillStyle = I.done ? '#7ff0d8' : '#ffffff'; ctx.fillRect(ix - 1.5 * u, py - 3 * u, 3 * u, 10 * u);
     }
-    ctx.fillStyle = '#ffd75a'; ctx.beginPath(); ctx.arc(px + pw, py + 2 * u, 5 * u, 0, TAU); ctx.fill();
+    if (o) {
+      const tx = o.state === 'waiting' ? o.shop.x + o.shop.w / 2 : o.drop.x;
+      ctx.fillStyle = o.state === 'waiting' ? '#ffd75a' : '#7fc96b';
+      ctx.beginPath(); ctx.arc(px + pw * U.clamp(tx / this.W.length, 0, 1), py + 2 * u, 5 * u, 0, TAU); ctx.fill();
+    }
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px + pw * prog, py + 2 * u, 4.5 * u, 0, TAU); ctx.fill();
     ctx.textAlign = 'center'; ctx.font = SS.font(11 * u, 800); ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     const scoreTxt = S.score + ' ' + this.score;
     ctx.strokeText(scoreTxt, vw / 2, py + 20 * u); ctx.fillText(scoreTxt, vw / 2, py + 20 * u);
-    // objective: what to deliver, where, and how far
-    const d = this.W.destination;
-    const m = Math.max(0, Math.round((d.x + d.w / 2 - p.x) / 10));
-    const objTxt = (m > 8 ? S.objective : S.objectiveHere).replace('{cargo}', this.cargoDef.short).replace('{shop}', this.level.destination).replace('{m}', m);
-    ctx.font = SS.font(12 * u, 800);
-    const ow = ctx.measureText(objTxt).width + 22 * u;
-    ctx.fillStyle = 'rgba(10,12,20,0.7)'; Art.rr(ctx, vw / 2 - ow / 2, py + 30 * u, ow, 22 * u, 11 * u); ctx.fill();
-    ctx.fillStyle = m > 8 ? '#ffd75a' : '#7ff0d8'; ctx.fillText(objTxt, vw / 2, py + 41.5 * u);
+    // objective: what to do next, and how far it is
+    if (o) {
+      const tx = o.state === 'waiting' ? o.shop.x + o.shop.w / 2 : o.drop.x;
+      const m = Math.round(Math.abs(tx - p.x) / 10);
+      const base = o.state === 'waiting' ? S.orderPickup.replace('{food}', o.food.name).replace('{shop}', o.shop.word)
+        : o.drop.kind === 'shop' ? S.orderDeliverShop.replace('{food}', o.food.name).replace('{shop}', o.drop.shop.word) : S.orderDeliver.replace('{food}', o.food.name);
+      const objTxt = base + (m > 4 ? '  ·  ' + m + ' m ' + (tx > p.x ? '→' : '←') : '');
+      ctx.font = SS.font(12 * u, 800); ctx.textAlign = 'center';
+      const ow = ctx.measureText(objTxt).width + 22 * u;
+      ctx.fillStyle = 'rgba(10,12,20,0.78)'; Art.rr(ctx, vw / 2 - ow / 2, py + 30 * u, ow, 22 * u, 11 * u); ctx.fill();
+      ctx.fillStyle = o.state === 'waiting' ? '#ffd75a' : '#7fc96b'; ctx.fillText(objTxt, vw / 2, py + 41.5 * u);
+      // off-screen target marker on the screen edge
+      const sx = tx - this.cam.x;
+      if (sx < 0 || sx > vw) {
+        const left = sx < 0, ex = left ? ins.l + 70 * u : vw - ins.r - 70 * u, ey = vh * 0.3;
+        ctx.fillStyle = o.state === 'waiting' ? '#ffd75a' : '#7fc96b';
+        ctx.beginPath(); const d2 = left ? -1 : 1;
+        ctx.moveTo(ex + d2 * 22 * u, ey); ctx.lineTo(ex - d2 * 2 * u, ey - 16 * u); ctx.lineTo(ex - d2 * 2 * u, ey + 16 * u); ctx.closePath(); ctx.fill();
+        ctx.font = SS.font(11 * u, 800); ctx.fillText(m + ' m', ex - d2 * 18 * u, ey + 30 * u);
+      }
+    }
     // the bánh bao bike is coming: edge-of-screen marker on the side his call comes from
     const b = this.bb;
     if (b) {
@@ -817,7 +910,7 @@
     // banners
     let bannerY = py + 60 * u;
     const T = this.tut.cur;
-    if (T) this.panelText(ctx, T.text, vw / 2, bannerY, Math.min(520 * u, vw * 0.6), 14 * u, '#ffffff', 'rgba(15,18,30,0.82)', '#f0a33a', Math.min(1, (this.tut.t) * 3)), bannerY += 64 * u;
+    if (T) this.panelText(ctx, T.text, vw / 2, bannerY, Math.min(440 * u, vw * 0.44), 13 * u, '#ffffff', 'rgba(15,18,30,0.82)', '#f0a33a', Math.min(1, (this.tut.t) * 3)), bannerY += 64 * u;
     if (this.banner) {
       const k = U.clamp(this.banner.t, 0, 1);
       ctx.globalAlpha = k;
@@ -838,6 +931,18 @@
       ctx.strokeStyle = '#7ff0d8'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, vw / 2 - tw / 2, hy, tw, 26 * u, 13 * u); ctx.stroke();
       ctx.fillStyle = '#7ff0d8'; ctx.fillText(S.crossHintShort, vw / 2, hy + 13.5 * u);
     }
+    // delivery rating: stars and tip
+    if (this.ratingFx) {
+      const R = this.ratingFx, k = U.easeOutBack(U.clamp((2.4 - R.t) / 0.35, 0, 1)), a = U.clamp(R.t / 0.4, 0, 1);
+      ctx.globalAlpha = a;
+      const cyR = vh * 0.32;
+      ctx.save(); ctx.translate(vw / 2, cyR); ctx.scale(k, k);
+      ctx.fillStyle = 'rgba(12,14,24,0.85)'; Art.rr(ctx, -130 * u, -34 * u, 260 * u, 76 * u, 16 * u); ctx.fill();
+      for (let i = 0; i < 5; i++) SS.UI.starShape(ctx, (i - 2) * 30 * u, -10 * u, 12 * u, i < R.stars);
+      ctx.textAlign = 'center'; ctx.font = SS.font(18 * u, 800, true); ctx.fillStyle = '#ffd75a';
+      ctx.fillText(S.tipLine.replace('{tip}', R.tip) + (R.streak >= 2 ? '   ' + S.streak.replace('{n}', R.streak) : ''), 0, 24 * u);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
     // level intro card
     if (this.state === 'intro') this.drawIntroCard(ctx, vw, vh, u);
     // fake ride-hail lift: quick fade with motion streaks
@@ -855,7 +960,7 @@
   };
   P.cargoIcon = function (ctx, x, y, r) {
     ctx.save(); ctx.translate(x, y); ctx.scale(r / 12, r / 12);
-    Art.carryItem(ctx, this.cargoDef.id, 0, this.cargoDef.id === 'cake' ? 10 : 5, 0, this.player ? this.player.cargo / 100 : 1);
+    Art.carryItem(ctx, this.cargoDef.carry || 'box', 0, 5, 0, this.player ? this.player.cargo / 100 : 1, this.cargoDef.cup);
     ctx.restore();
   };
   // wrapped text in a rounded panel
@@ -878,7 +983,7 @@
   P.drawIntroCard = function (ctx, vw, vh, u) {
     const k = this.stateT < 0.4 ? U.easeOutCubic(this.stateT / 0.4) : this.stateT > 2.0 ? 1 - (this.stateT - 2.0) / 0.4 : 1;
     ctx.globalAlpha = U.clamp(k, 0, 1);
-    const w = Math.min(460 * u, vw * 0.7), h = 150 * u, x = vw / 2 - w / 2, y = vh * 0.3;
+    const w = Math.min(500 * u, vw * 0.74), h = 150 * u, x = vw / 2 - w / 2, y = vh * 0.3;
     ctx.fillStyle = 'rgba(12,14,24,0.85)'; Art.rr(ctx, x, y, w, h, 16 * u); ctx.fill();
     ctx.strokeStyle = '#f0a33a'; ctx.lineWidth = 2 * u; Art.rr(ctx, x, y, w, h, 16 * u); ctx.stroke();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -887,9 +992,11 @@
     ctx.fillStyle = '#fff'; ctx.font = SS.font(30 * u, 800, true);
     ctx.fillText(this.level.name, vw / 2, y + 62 * u);
     ctx.font = SS.font(14 * u, 600); ctx.fillStyle = '#e8e2d0';
-    ctx.fillText(S.deliverLine.replace('{cargo}', this.cargoDef.name).replace('{shop}', this.level.destination), vw / 2, y + 100 * u);
-    ctx.font = SS.font(12 * u, 600); ctx.fillStyle = '#9fe6ff';
-    ctx.fillText(SS.CONFIG.TAGLINE, vw / 2, y + 126 * u);
+    ctx.font = SS.font(12.5 * u, 600);
+    const lines = SS.UI.wrap(ctx, this.level.brief || '', w - 40 * u);
+    lines.slice(0, 2).forEach((ln, i) => ctx.fillText(ln, vw / 2, y + 94 * u + i * 16 * u));
+    ctx.font = SS.font(11 * u, 700); ctx.fillStyle = '#9fe6ff';
+    ctx.fillText(this.level.endless ? S.endlessName : S.ordersCount.replace('{n}', this.level.orders), vw / 2, y + 134 * u);
     ctx.globalAlpha = 1;
   };
 })();
