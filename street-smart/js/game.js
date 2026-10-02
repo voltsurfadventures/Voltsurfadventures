@@ -24,6 +24,7 @@
 
   let SC_ID = 0;
 
+  const ENDLESS_DAYS = 7, ORDERS_PER_DAY = 3; // endless: survive 7 days, each harder
   const HEIST_END = 9.2;           // the opening heist scene
   const HEIST_T = HEIST_END + 2.4;  // + the level card, then you take control // seconds of the opening heist before you take control
 
@@ -82,6 +83,7 @@
       this.rainX = this.level.rain ? this.W.length * U.rand(0.3, 0.6) : null; this.rainT = 0; this.rainK = 0;
       this.cops = [];
       this.influencers = []; this.inflT = U.rand(30, 45);
+      this.day = 1; this.dayOrders = 0; this.scamT = 20;
       if (!this.demo) { this.initPlayer(); this.setupHeist(); this.nextOrder(); }
       this.prefillTraffic();
     }
@@ -169,7 +171,7 @@
       let d = this.level.density;
       if (this.inter && this.inter.active) d *= 1.3;
       if (this.demo) d = 1.0;
-      if (this.level.endless) d *= 1 + Math.min(1.1, this.delivered * 0.06);
+      if (this.level.endless) d *= 1 + (this.day - 1) * 0.14;
       return d;
     }
 
@@ -184,7 +186,8 @@
         if (this.spotFree(x, y)) this.spawnScooter({ x, y, ax: right ? 1 : -1, ay: 0, speed: this.baseSpeed() });
       }
     }
-    baseSpeed() { return U.rand(165, 235) * this.level.speedMul; }
+    speedMul() { return this.level.speedMul * (this.level.endless ? 1 + (this.day - 1) * 0.06 : 1); }
+    baseSpeed() { return U.rand(165, 235) * this.speedMul(); }
 
     spotFree(x, y) {
       for (const s of this.scooters) if (Math.abs(s.x - x) < s.len + 60 && Math.abs(s.y - y) < s.halfW + 14) return false;
@@ -214,7 +217,7 @@
           const y = down ? G.FACADE_BOT - 40 : G.VIEW_H + 60;
           let free = true;
           for (const s of this.scooters) if (s.vertical && Math.abs(s.x - x) < 22 && Math.abs(s.y - y) < 70) { free = false; break; }
-          if (free) this.spawnScooter({ x, y, ax: 0, ay: down ? 1 : -1, speed: U.rand(120, 170) * this.level.speedMul, ix: I.x });
+          if (free) this.spawnScooter({ x, y, ax: 0, ay: down ? 1 : -1, speed: U.rand(120, 170) * this.speedMul(), ix: I.x });
         }
       }
       // despawn
@@ -551,7 +554,7 @@
           const band = fromLeft ? G.LOWER_BAND : G.UPPER_BAND;
           const y = U.rand(band[0] + 10, band[1] - 10);
           const x = fromLeft ? this.cam.x - 900 : this.cam.x + this.viewW + 900; // far off-screen: you HEAR him first
-          this.bb = this.spawnScooter({ x, y, ax: fromLeft ? 1 : -1, ay: 0, speed: 180 * this.level.speedMul, variant: this.bbVariant, isBB: true, skill: 0.35 });
+          this.bb = this.spawnScooter({ x, y, ax: fromLeft ? 1 : -1, ay: 0, speed: 180 * this.speedMul(), variant: this.bbVariant, isBB: true, skill: 0.35 });
           SS.Audio.bbStart();
           if (!this.demo) this.tutorial('banhbao');
         }
@@ -564,7 +567,7 @@
         SS.Audio.bbUpdate(this.pan(b.x), this.demo ? vol * 0.5 : vol);
         b.mouth = 0.5 + 0.5 * Math.abs(Math.sin(this.time * 7));
         if (Math.random() < dt * 0.8) b.bubble = { text: this.world.banhbaoWord + '!', t: 1.4 };
-        if (b.grabT > 0) { b.grabT -= dt; b.desired = 60; if (b.grabT <= 0) b.desired = 180 * this.level.speedMul; }
+        if (b.grabT > 0) { b.grabT -= dt; b.desired = 60; if (b.grabT <= 0) b.desired = 180 * this.speedMul(); }
       }
     }
     banhBaoGrab(s, along, lat) {
@@ -1030,6 +1033,16 @@
       s.state = 'latched'; s.latchedEver = true; s.escape = 0; s.active = 0;
       p.latchedBy = s;
       this.say(s);
+      // being grabbed hurts: red flash and a heart lost (unless just hurt)
+      if (s.type !== 'shoe') {
+        this.hurtPulse = 1;
+        if (p.invuln <= 0) {
+          p.lives--; this.stats.hits++; p.invuln = 1.6; this.cam.shake = Math.max(this.cam.shake, 7);
+          this.popup(S.popGrabbed, p.x, p.y - 118, '#ff6a5a', 1.3, 20);
+          SS.Audio.sfx('bump'); SS.Haptics.vibrate([50, 40, 70]);
+          if (p.lives <= 0) this.lose('lives');
+        }
+      }
       this.spill(2.5, true);
       SS.Haptics.vibrate(25);
       if (s.type === 'shoe') { p.vx = p.vy = 0; }
@@ -1104,7 +1117,7 @@
       for (let k = 0; k < 18; k++) this.particle('spark', cx, cy, U.rand(-170, 170), U.rand(-200, 40), 0.9);
       for (let k = 0; k < 12; k++) this.particle('shard', cx, cy, U.rand(-120, 120), U.rand(-160, 0), 1.2);
       for (let k = 0; k < 4; k++) this.particle('puff', cx, cy, U.rand(-30, 30), U.rand(-40, 0), 0.8, 0, '#7a7a80');
-      SS.Audio.sfx('shatter'); SS.Audio.sfx('crash', { pan: this.pan(f.x), vol: 0.5 });
+      SS.Audio.playSample('judo_chop', { vol: 1.1, fallback: 'crash' }); SS.Audio.sfx('shatter');
       SS.Haptics.vibrate([30, 30, 60]);
       this.cam.shake = Math.max(this.cam.shake, 7);
       this.flash = Math.max(this.flash, 0.25);
@@ -1285,7 +1298,7 @@
         if (st.x < cx - 250 || st.x > cx + vw + 250) continue;
         st.timer -= dt;
         if (st.timer <= 0) {
-          st.timer = U.rand(4.5, 7.5) / (0.6 + this.level.density * 0.5);
+          st.timer = U.rand(4.5, 7.5) / (0.6 + this.level.density * 0.5) / (this.level.endless ? 1 + (this.day - 1) * 0.2 : 1);
           const c = {
             x: st.x + U.rand(-20, 20), y: st.near ? st.y - 50 : st.y - 10, r: 30, rMax: U.rand(125, 165),
             vx: U.rand(-16, 16), vy: st.near ? -U.rand(14, 24) : U.rand(14, 24), life: 0, max: U.rand(13, 16), alpha: 0,
@@ -1471,6 +1484,7 @@
         if (this.state === 'play') {
           this.updateSellers(dt);
           this.updateInfluencers(dt);
+          this.updateEndlessExtras(dt);
           this.updateIntersections(dt);
           this.updateOrders(dt);
           this.updateRain(dt);
@@ -1684,7 +1698,41 @@
     }
     afterOrder() {
       if (!this.level.endless && this.orders.length >= this.level.orders) { this.order = null; this.finishShift(); return; }
+      if (this.level.endless && ++this.dayOrders >= ORDERS_PER_DAY) {
+        this.dayOrders = 0;
+        if (this.day >= ENDLESS_DAYS) { this.order = null; this.endEndless('complete'); return; }
+        this.day++;
+        const p = this.player;
+        this.banner = { text: S.dayN.replace('{n}', this.day).replace('{max}', ENDLESS_DAYS), sub: S.dayHarder, t: 3.2 };
+        this.addScore(300 * (this.day - 1), S.popDayBonus, p.x, p.y - 140, '#ffd75a', 22);
+        if (p.lives < C.LIVES) p.lives++;
+        SS.Audio.sfx('powerup');
+      }
       this.nextOrder();
+    }
+    // endless: finish after the last day ('complete') or cash out from the pause menu
+    endEndless(how) {
+      if (this.state === 'won' || this.state === 'lost') return;
+      const p = this.player;
+      this.endlessHow = how;
+      if (how === 'complete') {
+        this.addScore(2500, S.popEndlessDone, p.x, p.y - 150, '#ffd75a', 26);
+        this.coins += 200;
+        for (let i = 0; i < 60; i++) this.particle('confetti', p.x + U.rand(-80, 80), p.y - 120, U.rand(-140, 140), U.rand(-80, 60), 2.2, 0, U.pick(['#ff5c8a', '#ffd23f', '#3ff0ff', '#7fc96b', '#ffffff']));
+      }
+      this.state = 'won'; this.stateT = 0;
+      if (p.latchedBy) this.releaseSeller(p.latchedBy);
+      SS.Audio.playJingle('complete'); SS.Audio.duckMusic(0.25);
+    }
+    // endless: from day 2 the fake drivers and sellers come more often
+    updateEndlessExtras(dt) {
+      if (!this.level.endless || this.day < 2) return;
+      this.scamT -= dt;
+      if (this.scamT <= 0) {
+        this.scamT = Math.max(7, 22 - this.day * 2.5);
+        const types = ['ride', 'ride', 'fruit', 'watch', 'sunglasses'];
+        this.W.sellerTriggers.push({ x: this.player.x + U.rand(150, 400), type: U.pick(types), fired: false });
+      }
     }
     finishShift() {
       const p = this.player;
@@ -1765,7 +1813,7 @@
       const total = this.score + bonusLives;
       let stars = 0;
       if (won) { stars = 1; if (avg >= 3.5) stars = 2; if (avg >= 4.4 && this.failedOrders === 0) stars = 3; }
-      return { won, endless: !!this.level.endless, total, base: this.score, bonusLives, stars, lives: Math.max(0, p.lives), time: this.time, reason: this.loseReason,
+      return { won, endless: !!this.level.endless, day: this.day, days: ENDLESS_DAYS, endlessDone: this.endlessHow === 'complete', total, base: this.score, bonusLives, stars, lives: Math.max(0, p.lives), time: this.time, reason: this.loseReason,
         stats: this.stats, delivered: this.delivered, failed: this.failedOrders, orders: this.level.endless ? n : this.level.orders, avg, tips: this.tips, bestStreak: this.bestStreak,
         coinsEarned: this.coins - this.coinsStart };
     }

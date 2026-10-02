@@ -133,7 +133,7 @@
      * Drop MP3s into assets/audio/ with these names and they replace the
      * synthesised versions automatically (see README). Missing files are fine. */
     SAMPLES: ['horn_1', 'horn_2', 'horn_3', 'horn_4', 'horn_5', 'horn_6', 'car_horn_1', 'car_horn_2', 'car_horn_3',
-      'music_main', 'music_menu', 'music_morning', 'music_market', 'music_night', 'street_ambience', 'rain'],
+      'music_main', 'music_menu', 'music_morning', 'music_market', 'music_night', 'street_ambience', 'rain', 'judo_chop'],
     samples: {},
     loadSamples() {
       if (!window.fetch || location.protocol === 'file:') return;
@@ -155,6 +155,17 @@
       const s = this.ctx.createBufferSource(); s.buffer = this.samples[name]; s.loop = true;
       const g = this.ctx.createGain(); g.gain.value = gain; s.connect(g); g.connect(dest); s.start(); cb(s);
       return s;
+    },
+    // play a recorded clip once (e.g. the judo chop); falls back to a synth sound
+    playSample(name, o) {
+      o = o || {};
+      if (!this.ctx || this.ctx.state !== 'running') return false;
+      const buf = this.samples[name];
+      if (!buf) { if (o.fallback) this.sfx(o.fallback, o); return false; }
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
+      s.buffer = buf; g.gain.value = o.vol == null ? 1 : o.vol;
+      s.connect(g); g.connect(this.out(o.pan)); s.start();
+      return true;
     },
     hornSamples(car) {
       const list = [];

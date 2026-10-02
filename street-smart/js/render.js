@@ -1003,6 +1003,7 @@
     if (this.freezeT > 0) chip(S.chipFreeze + ' ' + Math.ceil(this.freezeT) + 's', '#9fe6ff');
     if (p.boostT > 0) chip(S.chipBoost + ' ' + Math.ceil(p.boostT) + 's', '#7fc96b');
     if (this.streak >= 2) chip(S.streak.replace('{n}', this.streak), '#ff8fb0');
+    if (this.level.endless) chip(S.dayN.replace('{n}', this.day).replace('{max}', 7).toUpperCase(), '#ffd23f');
 
     // ---- top-right: lives + coins on one row, compact order chip underneath ----
     const pb = SS.Input.btns.pause;
