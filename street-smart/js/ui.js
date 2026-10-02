@@ -352,7 +352,11 @@
       const bx = vw - ins.r - gap - colW, bw = colW;
       const total = 56 * u + 12 * u + 40 * u + 10 * u + 40 * u;
       let by = vh / 2 - total / 2;
-      this.button(ctx, 'play', bx, by, bw, 56 * u, S.play, { size: 26 * u, action: () => { if (!SS.Save.data.storySeen) this.playStory(() => this.go('levels')); else this.go('levels'); } });
+      const startNew = () => { SS.Save.newGame(); if (!SS.Save.data.storySeen) this.playStory(() => this.go('levels')); else this.go('levels'); };
+      if (SS.Save.hasSave()) {
+        this.button(ctx, 'continue', bx, by, bw * 0.6 - 5 * u, 56 * u, S.continueGame, { size: 21 * u, action: () => { SS.Save.continueGame(); this.go('levels'); } });
+        this.button(ctx, 'play', bx + bw * 0.6 + 5 * u, by, bw * 0.4 - 5 * u, 56 * u, S.newGame, { flat: true, size: 13 * u, action: startNew });
+      } else this.button(ctx, 'play', bx, by, bw, 56 * u, S.play, { size: 26 * u, action: startNew });
       by += 56 * u + 12 * u;
       this.button(ctx, 'howto', bx, by, bw / 2 - 5 * u, 40 * u, S.howToPlay, { flat: true, size: 11.5 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
       this.button(ctx, 'story', bx + bw / 2 + 5 * u, by, bw / 2 - 5 * u, 40 * u, S.storyBtn, { flat: true, size: 12 * u, action: () => this.playStory(() => this.go('title')) });
@@ -374,6 +378,10 @@
       } else if (SS.Fullscreen.needsHomeScreenTip()) {
         this.text(ctx, S.iosFullTip, vw / 2, vh - ins.b - 32 * u, 11.5 * u, '#ffd23f', 700);
       }
+    },
+    // SAVE GAME: keeps your coins, unlocked levels and upgrades for next time (CONTINUE)
+    saveButton(ctx, x, y, w, h, u) {
+      this.button(ctx, 'savegame', x, y, w, h, S.saveGame, { color: '#3fb7a6', size: 13 * u, action: () => { SS.Save.saveGame(); this.showToast(S.gameSaved); SS.Audio.sfx('coin'); } });
     },
     // the story goal: savings toward a new scooter
     scooterFund(ctx, x, y, w, u) {
@@ -457,9 +465,10 @@
         ctx.restore();
       });
       // upgrades + passport
-      const bw = 190 * u, by = y0 + ch + 14 * u;
-      this.button(ctx, 'toshop', vw / 2 - bw - 8 * u, by, bw, 42 * u, S.upgrades, { size: 15 * u, color: '#7fc96b', action: () => { this.shopBack = 'levels'; this.go('shop'); } });
-      this.button(ctx, 'topass', vw / 2 + 8 * u, by, bw, 42 * u, S.passport, { size: 14 * u, color: '#ff8fb0', action: () => { this.shopBack = 'levels'; this.go('passport'); } });
+      const bw = 170 * u, by = y0 + ch + 14 * u;
+      this.saveButton(ctx, vw / 2 + bw * 0.5 + 24 * u, by, bw, 42 * u, u);
+      this.button(ctx, 'toshop', vw / 2 - bw * 1.5 - 24 * u, by, bw, 42 * u, S.upgrades, { size: 15 * u, color: '#7fc96b', action: () => { this.shopBack = 'levels'; this.go('shop'); } });
+      this.button(ctx, 'topass', vw / 2 - bw / 2, by, bw, 42 * u, S.passport, { size: 14 * u, color: '#ff8fb0', action: () => { this.shopBack = 'levels'; this.go('passport'); } });
     },
 
     drawShop(ctx, vw, vh, u) {
@@ -614,7 +623,8 @@
       this.button(ctx, 'restart', bx, y, bw, 40 * u, S.restart, { flat: true, size: 14 * u, action: () => this.startLevel(this.session.levelIndex) }); y += 50 * u;
       this.button(ctx, 'phowto', bx, y, bw, 40 * u, S.howToPlay, { flat: true, size: 14 * u, action: () => { this.overlay = 'howto'; } }); y += 50 * u;
       this.button(ctx, 'psettings', bx, y, bw, 40 * u, S.settings, { flat: true, size: 14 * u, action: () => { this.overlay = 'settings'; } }); y += 50 * u;
-      this.button(ctx, 'quit', bx, y, bw, 40 * u, S.quit, { flat: true, size: 14 * u, action: () => this.go('levels') });
+      if (this.session.level.endless) this.button(ctx, 'endshift', bx, y, bw, 40 * u, S.endShift, { color: '#e2574c', size: 14 * u, action: () => { this.overlay = null; this.session.endEndless('cashout'); } });
+      else this.button(ctx, 'quit', bx, y, bw, 40 * u, S.quit, { flat: true, size: 14 * u, action: () => this.go('levels') });
       this.text(ctx, SS.Input.touchMode ? S.controlsTouch : S.controlsKeys, vw / 2, vh - SS.View.insets.b - 18 * u, 11 * u, 'rgba(255,255,255,0.75)', 600);
     },
 
@@ -674,7 +684,8 @@
       const pw = Math.min(540 * u, vw * 0.86), ph = Math.min(400 * u, vh * 0.94), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
       ctx.save(); ctx.translate(vw / 2, vh / 2); ctx.scale(k, k); ctx.translate(-vw / 2, -vh / 2);
       this.panel(ctx, px, py, pw, ph);
-      this.text(ctx, res.endless ? S.shiftOver : S.shiftComplete, vw / 2, py + 32 * u, 28 * u, '#ffd23f', 800, true);
+      this.text(ctx, res.endless ? (res.endlessDone ? S.endlessComplete : S.shiftOver) : S.shiftComplete, vw / 2, py + 32 * u, 28 * u, '#ffd23f', 800, true);
+      if (res.endless) this.text(ctx, S.endlessReached.replace('{n}', res.day).replace('{max}', res.days), vw / 2, py + 54 * u, 13 * u, '#7ff0d8', 800);
       if (!res.endless) for (let s = 0; s < 3; s++) {
         const shown = s < this.starsShown;
         const pop = shown ? U.easeOutBack(U.clamp((this.t - 0.5 - s * 0.45) / 0.35, 0, 1)) : 1;
@@ -693,7 +704,8 @@
       const w = SS.WORLDS[this.worldId];
       const nextI = this.session.levelIndex + 1;
       const hasNext = !res.endless && nextI < w.levels.length && this.levelAvailable(nextI);
-      const nb = hasNext ? 3 : 2, by = py + ph - 60 * u, bw = (pw - 48 * u - (nb - 1) * 12 * u) / nb;
+      const nb = hasNext ? 4 : 3, by = py + ph - 60 * u, bw = (pw - 48 * u - (nb - 1) * 12 * u) / nb;
+      this.saveButton(ctx, px + 24 * u + (bw + 12 * u) * (nb - 1), by, bw, 44 * u, u);
       this.button(ctx, 'rshop', px + 24 * u, by, bw, 44 * u, S.upgrades, { flat: true, size: 14 * u, action: () => { this.shopBack = 'levels'; this.go('shop'); } });
       this.button(ctx, 'rretry', px + 36 * u + bw, by, bw, 44 * u, S.retry, { flat: !!hasNext, size: 14 * u, action: () => this.startLevel(this.session.levelIndex) });
       if (hasNext) this.button(ctx, 'rnext', px + 48 * u + bw * 2, by, bw, 44 * u, S.next, { size: 15 * u, action: () => this.nextLevel() });
@@ -718,6 +730,7 @@
         this.text(ctx, b, cx + colW - 18 * u, y, 13 * u, '#ffd75a', 800, false, 'right');
       });
       const by = py + ph - 60 * u, bw = (pw - 72 * u) / 3;
+      this.saveButton(ctx, px + pw / 2 - 80 * u, by - 54 * u, 160 * u, 40 * u, u);
       this.button(ctx, 'gmenu', px + 24 * u, by, bw, 44 * u, S.menu, { flat: true, size: 14 * u, action: () => this.go('levels') });
       this.button(ctx, 'gshop', px + 36 * u + bw, by, bw, 44 * u, S.upgrades, { flat: true, size: 14 * u, action: () => { this.shopBack = 'levels'; this.go('shop'); } });
       this.button(ctx, 'gretry', px + 48 * u + bw * 2, by, bw, 44 * u, S.retry, { size: 16 * u, action: () => this.startLevel(this.session.levelIndex) });
