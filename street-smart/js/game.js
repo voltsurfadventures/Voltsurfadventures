@@ -24,6 +24,8 @@
 
   let SC_ID = 0;
 
+  const HEIST_T = 5.6 + 1.0; // seconds of the opening heist before you take control
+
   class Session {
     constructor(worldId, levelIndex, opts) {
       opts = opts || {};
@@ -77,7 +79,8 @@
         this.W.obstacles.push({ kind: 'light', x: I.x + G.CROSS_HALF + 16, y: G.ROAD_TOP - 3, w: 10, d: 6, I, side: 'far' });
       }
       this.rainX = this.level.rain ? this.W.length * U.rand(0.3, 0.6) : null; this.rainT = 0; this.rainK = 0;
-      if (!this.demo) { this.initPlayer(); this.nextOrder(); }
+      this.cops = [];
+      if (!this.demo) { this.initPlayer(); this.setupHeist(); this.nextOrder(); }
       this.prefillTraffic();
     }
 
@@ -979,7 +982,7 @@
           if (s.escape >= cfg.escape) this.escapeSeller(s);
           s.escape = Math.max(0, s.escape - dt * 0.7);
         } else if (s.state === 'leave') {
-          mvx = s.leaveDir; mvy = 0; spd = 90;
+          mvx = s.leaveDir; mvy = 0; spd = s.fled ? 215 : 90;
           if (s.t > 4) { this.sellers.splice(i, 1); continue; }
         }
         s.x += mvx * spd * dt; s.y += mvy * spd * dt;
@@ -1037,7 +1040,70 @@
       s.bubble = U.pick(S.sellerBye); s.bubbleT = 1.6;
       this.stats.sellers++;
       this.addScore(40, S.popEscaped, p.x, p.y - 96, '#ffe08a');
+      if (s.type === 'ride') this.callCops(s);
     }
+
+    /* ---- police: after you say NO to a fake CRAB driver, the công an run him off ---- */
+    callCops(s) {
+      const fromLeft = s.x > this.cam.x + this.viewW / 2;
+      const x = fromLeft ? this.cam.x - 40 : this.cam.x + this.viewW + 40;
+      this.cops.push({ x, y: s.y + 4, dir: fromLeft ? 1 : -1, target: s, t: 0, phase: 0, bubble: S.copShout, bubbleT: 2.2, state: 'run' });
+      SS.Audio.sfx('whistle', { pan: this.pan(x) });
+      this.popup(S.popCops, this.player.x, this.player.y - 124, '#9fd0ff', 1.6, 20);
+    }
+    updateCops(dt) {
+      for (let i = this.cops.length - 1; i >= 0; i--) {
+        const c = this.cops[i], s = c.target;
+        c.t += dt; c.phase += dt * 11;
+        if (c.bubbleT > 0) c.bubbleT -= dt;
+        // the scammer bolts as soon as he hears the whistle
+        if (s && !s.fled && c.t > 0.3) {
+          s.fled = true; s.state = 'leave'; s.t = 0; s.leaveDir = c.dir; s.bubble = S.scammerFlee; s.bubbleT = 1.6;
+          this.addScore(80, S.popScammerGone, this.player.x, this.player.y - 150, '#9fd0ff');
+        }
+        const tx = s ? s.x : c.x + c.dir * 300;
+        c.dir = tx >= c.x ? 1 : -1;
+        c.x += c.dir * 230 * dt;
+        if (s) c.y += (s.y + 4 - c.y) * Math.min(1, dt * 3);
+        if (c.t > 1 && c.t % 1.1 < dt) SS.Audio.sfx('whistle', { pan: this.pan(c.x), vol: 0.6 });
+        if (c.t > 6 || (c.x < this.cam.x - 300 || c.x > this.cam.x + this.viewW + 300) && c.t > 1.5) this.cops.splice(i, 1);
+      }
+    }
+
+    /* ---- the opening heist: a tourist rides off on Minh's scooter, then you take over ---- */
+    setupHeist() {
+      const p = this.player;
+      const spot = this.freeSpot(300, 'far');
+      p.x = spot.x; p.y = spot.y; p.face = 1;
+      const bikeX = p.x + 90, bikeY = G.ROAD_TOP + 16;
+      this.heist = { t: 0, bikeX, bikeY, tourX: bikeX + 520, tourY: bikeY - 8, rideX: bikeX, rideV: 0, riding: false, gone: false, done: false,
+        camX: bikeX - this.viewW * 0.5, said: {} };
+      this.cam.x = this.heist.camX;
+    }
+    updateHeist(dt) {
+      const H = this.heist, p = this.player, t = (H.t += dt);
+      if (H.done) return;
+      // 0.3–2.5 s: he strolls up to the bike
+      if (t > 0.3 && t < 2.5) { H.tourX += (H.bikeX + 18 - H.tourX) * Math.min(1, dt * 1.6); H.walk = (H.walk || 0) + dt * 8; }
+      // 2.5 s: hops on; 2.8 s: rides off
+      if (t >= 2.5 && !H.riding) { H.riding = true; SS.Audio.sfx('horn', { pan: this.pan(H.bikeX), type: 2 }); }
+      if (H.riding) {
+        if (t > 2.8) { H.rideV = Math.min(460, H.rideV + 340 * dt); H.rideX += H.rideV * dt; }
+        if (Math.random() < dt * 14) this.particle('dust', H.rideX - 40, H.bikeY - 4, -40, -8, 0.7);
+        if (H.rideX > this.cam.x + this.viewW + 200) H.gone = true;
+      }
+      if (t > 3.0 && !H.said.minh) { H.said.minh = true; SS.Audio.sfx('gasp'); this.cam.shake = 5; }
+      if (t > 2.6 && !H.said.tour) { H.said.tour = true; }
+      p.face = H.riding ? 1 : 1;
+      // camera: the bike, then follow it a little, then back to Minh
+      const onMinh = p.x - this.viewW * 0.38;
+      H.camX = t < 2.8 ? H.bikeX - this.viewW * 0.5 : t < 4.2 ? Math.min(H.rideX - this.viewW * 0.55, H.bikeX + 260 - this.viewW * 0.5) : onMinh;
+    }
+    endIntro() {
+      if (this.heist) { this.heist.done = true; this.heist.gone = true; this.heist.riding = true; }
+      this.state = 'play'; this.stateT = 0;
+    }
+    skipIntro() { if (this.state === 'intro') this.endIntro(); }
     sellerGiveUp(s) {
       const p = this.player;
       if (s.engaged && !s.latchedEver) {
@@ -1290,7 +1356,11 @@
       }
 
       const p = this.player;
-      if (this.state === 'intro' && this.stateT > 2.4) { this.state = 'play'; this.stateT = 0; }
+      if (this.state === 'intro') {
+        if (this.heist) this.updateHeist(dt);
+        if (this.stateT > (this.heist ? HEIST_T : 2.4)) this.endIntro();
+      }
+      this.updateCops(dt);
 
       // power-up timers
       if (this.freezeT > 0) this.freezeT -= dt;
@@ -1356,7 +1426,9 @@
       if (SS.Save.data.settings.zoom === false) zt = 1;
       this.zoom = U.approach(this.zoom || 1, zt, dt * (zt < (this.zoom || 1) ? 1.3 : 0.5));
       const maxX = this.W.length + 380 - vw;
-      if (this.inter && this.inter.active) {
+      if (this.heist && !this.heist.done) {
+        this.cam.x += (this.heist.camX - this.cam.x) * Math.min(1, dt * 3);
+      } else if (this.inter && this.inter.active) {
         this.cam.x += (this.inter.lockX - this.cam.x) * Math.min(1, dt * 3);
       } else {
         // follow both ways, so you can always walk back

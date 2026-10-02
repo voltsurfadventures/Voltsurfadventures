@@ -261,6 +261,12 @@
     for (const s of this.sellers) ents.push({ y: s.y + 0.5, k: 'seller', o: s });
     for (const c of this.W.coins) if (!c.taken && c.x > x0 && c.x < x1) ents.push({ y: c.y - 0.1, k: 'c', o: c });
     if (this.player) ents.push({ y: this.player.y + 0.3, k: 'p', o: this.player });
+    for (const c of this.cops) ents.push({ y: c.y + 0.4, k: 'cop', o: c });
+    const H = this.heist;
+    if (H && !H.gone) {
+      if (H.riding) ents.push({ y: H.bikeY, k: 'heistRide', o: H });
+      else { ents.push({ y: H.bikeY, k: 'heistBike', o: H }); ents.push({ y: H.tourY, k: 'tourist', o: H }); }
+    }
     for (const c of this.customers) if (c.x > x0 && c.x < x1) ents.push({ y: c.y + 0.2, k: 'cust', o: c });
     ents.sort((a, b) => a.y - b.y);
   };
@@ -310,8 +316,28 @@
       else if (e.k === 'p') this.drawPlayer(ctx);
       else if (e.k === 'seller') this.drawSeller(ctx, e.o);
       else if (e.k === 'cust') this.drawCustomer(ctx, e.o);
+      else if (e.k === 'cop') this.drawCop(ctx, e.o);
+      else if (e.k === 'heistBike') this.drawHeistBike(ctx, e.o.bikeX, e.o.bikeY, false);
+      else if (e.k === 'heistRide') this.drawHeistBike(ctx, e.o.rideX, e.o.bikeY, true);
+      else if (e.k === 'tourist') Art.person(ctx, { x: e.o.tourX, y: e.o.tourY, s: Art.depth(e.o.tourY) * 1.1, face: -1, phase: e.o.walk || 0, moving: this.heist.t < 2.4 ? 1 : 0,
+        skin: '#f2a08c', shirt: '#f4f2ec', tankTop: true, pants: '#3b6ea5', legsBare: true, hairStyle: 'bald', sunglasses: true, flipflops: true, arms: this.heist.t > 2.2 ? 'up' : null, mouth: 0.5, ink: '#24150f' });
       else if (e.k === 'c') { const c = e.o; Art.coin(ctx, c.x, c.y - 12 - Math.sin(this.time * 3 + c.ph) * 3, 7.5, this.time * 2.5 + c.ph); }
     }
+  };
+  // Minh's red scooter in the opening heist (parked, then ridden off by the bald tourist)
+  P.drawHeistBike = function (ctx, x, y, riding) {
+    const v = riding
+      ? { key: 'heist_ride', kind: 'single', body: '#c8321e', riders: [{ role: 'driver', x: -6, shirt: '#f4f2ec', helmet: null, hair: '#f2a08c', skin: '#f2a08c', pants: '#3b6ea5', headY: -60 }] }
+      : { key: 'heist_park', kind: 'single', body: '#c8321e', riders: [] };
+    const spr = Art.scooterSprite(v, 0), sc = Art.depth(y);
+    ctx.save(); ctx.translate(x, y + (riding ? Math.sin(this.time * 30) * 0.8 : 0)); ctx.scale(sc, sc);
+    ctx.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h);
+    if (riding) { ctx.fillStyle = '#111'; Art.rr(ctx, -2, -66, 14, 4, 2); ctx.fill(); } // his sunglasses
+    ctx.restore();
+  };
+  P.drawCop = function (ctx, c) {
+    Art.person(ctx, { ink: '#24150f', x: c.x, y: c.y, s: Art.depth(c.y) * 1.08, face: c.dir, phase: c.phase, moving: 1,
+      skin: '#d9a77a', shirt: '#4f6b3a', pants: '#3f5530', hat: 'police', hair: '#16100c', shoe: '#15151a', arms: 'up', mouth: 0.7 });
   };
   P.drawScooter = function (ctx, s) {
     const sc = Art.depth(s.y) * (s.isBB ? 1.14 : 1);
@@ -829,6 +855,13 @@
     }
     // speech bubbles
     for (const s of this.sellers) if (s.bubble && s.state !== 'lurk') this.bubble(ctx, s.x, s.y - 92 * Art.depth(s.y), s.bubble, { size: 15 });
+    for (const c of this.cops) if (c.bubbleT > 0) this.bubble(ctx, c.x, c.y - 100 * Art.depth(c.y), c.bubble, { size: 16, color: '#1d4fa0', border: '#1d4fa0' });
+    // opening heist lines
+    const H = this.heist;
+    if (H && !H.done) {
+      if (H.t > 2.6 && H.t < 4.4 && !H.gone) this.bubble(ctx, H.rideX + 10, H.bikeY - 92, S.heistTourist, { size: 16 });
+      if (H.t > 3.0) this.bubble(ctx, this.player.x, this.player.y - 104 * Art.depth(this.player.y), S.heistMinh, { size: 17, display: true, color: '#c8241e', border: '#c8241e' });
+    }
     for (const s of this.scooters) {
       if (!s.bubble || s.x < cx - 50 || s.x > cx + vw + 50) continue;
       if (s.isBB) this.bubble(ctx, s.x, s.y - 112 * Art.depth(s.y), s.bubble.text, { size: 16, display: true, color: '#c8241e', border: '#c8241e' });
@@ -1053,7 +1086,10 @@
     return ph;
   };
   P.drawIntroCard = function (ctx, vw, vh, u) {
-    const k = this.stateT < 0.4 ? U.easeOutCubic(this.stateT / 0.4) : this.stateT > 2.0 ? 1 - (this.stateT - 2.0) / 0.4 : 1;
+    // with the opening heist, the level card only shows once the camera is back on Minh
+    const st = this.stateT - (this.heist ? 3.2 : 0);
+    if (st < 0) return;
+    const k = st < 0.4 ? U.easeOutCubic(st / 0.4) : st > 2.0 ? 1 - (st - 2.0) / 0.4 : 1;
     ctx.globalAlpha = U.clamp(k, 0, 1);
     const w = Math.min(500 * u, vw * 0.74), h = 150 * u, x = vw / 2 - w / 2, y = vh * 0.3;
     ctx.fillStyle = 'rgba(12,14,24,0.85)'; Art.rr(ctx, x, y, w, h, 16 * u); ctx.fill();
