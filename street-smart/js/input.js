@@ -65,11 +65,6 @@
       if (e.pointerType === 'touch' || e.pointerType === 'pen') this.touchMode = true;
       try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* */ }
       const p = this.toView(e);
-      // a tap during the opening heist skips it
-      if (SS.UI && SS.UI.screen === 'game' && SS.UI.session && SS.UI.session.state === 'intro' && !SS.UI.overlay) {
-        const pb0 = this.btns.pause;
-        if (!(pb0 && Math.hypot(p.x - pb0.x, p.y - pb0.y) < pb0.r * 1.25)) { SS.UI.session.skipIntro(); this.ptrOwner[e.pointerId] = 'ui'; return; }
-      }
       if (this.gameControlsActive()) {
         // pause button works for mouse and touch
         const pb = this.btns.pause;
@@ -231,6 +226,7 @@
         ctx.fillRect(pb.x + 2 * u, pb.y - 8 * u, 5 * u, 16 * u);
       }
       if (!this.touchMode) return;
+      if (SS.UI && SS.UI.session && SS.UI.session.state === 'intro') return; // no controls during the opening scene
       const j = this.joy, active = j.id !== null;
       if (this.mode() === 'dpad') {
         const P = this.pad, arm = P.r * 0.68, w = P.r * 0.62;
