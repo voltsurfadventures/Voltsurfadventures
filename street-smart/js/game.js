@@ -83,6 +83,7 @@
       this.rainX = this.level.rain ? this.W.length * U.rand(0.3, 0.6) : null; this.rainT = 0; this.rainK = 0;
       this.cops = [];
       this.influencers = []; this.inflT = U.rand(30, 45);
+      this.dogs = []; this.dogT = U.rand(10, 16);
       this.day = 1; this.dayOrders = 0; this.scamT = 20;
       this.rideDef = this.demo ? null : SS.Save.ride(); // riding a scooter this shift?
       if (!this.demo) { this.initPlayer(); if (!this.rideDef) this.setupHeist(); this.nextOrder(); }
@@ -1141,6 +1142,84 @@
         if (f.x < this.cam.x - 400 || f.x > this.cam.x + this.viewW + 400) this.influencers.splice(i, 1);
       }
     }
+    /* ---- golden street dogs: some nap on the footpath (a tripping hazard), some trot about,
+     *      and the grumpy ones chase you and bite. Sprinting or riding past a sleeper wakes it up angry. ---- */
+    updateDogs(dt) {
+      const p = this.player;
+      this.dogT -= dt;
+      if (this.dogT <= 0 && this.dogs.length < 2) {
+        this.dogT = U.rand(14, 24) / (this.endless ? 1.3 : 1);
+        const ahead = (p.vx || 1) >= 0 ? 1 : -1;
+        const side = Math.random() < 0.5 ? 'far' : 'near';
+        const y = side === 'far' ? U.rand(198, 216) : U.rand(462, 512);
+        const nap = Math.random() < 0.45;
+        const fromRight = nap ? ahead > 0 : Math.random() < 0.5;
+        const x = fromRight ? this.cam.x + this.viewW + 60 : this.cam.x - 60;
+        const grumpy = !nap && Math.random() < 0.4;
+        this.dogs.push({ x, y, home: y, dir: fromRight ? -1 : 1, face: fromRight ? -1 : 1, phase: Math.random() * 6, t: 0,
+          state: nap ? 'nap' : 'trot', grumpy, chaseT: 0, chaseCD: 0, barkCD: 0, bubble: null, bubbleT: 0, spd: U.rand(40, 70),
+          tone: U.pick(['#d9a441', '#d39a36', '#e0ae52']), roadT: !nap && Math.random() < 0.35 ? U.rand(1, 4) : -1 });
+        if (!this.dogHintShown) { this.dogHintShown = true; this.hint = { text: S.dogHint, t: 3.6 }; }
+      }
+      const fast = p && (p.sprinting || this.rideDef) && Math.hypot(p.vx, p.vy) > WALK * 1.1;
+      for (let i = this.dogs.length - 1; i >= 0; i--) {
+        const d = this.dogs[i];
+        d.t += dt;
+        if (d.bubbleT > 0) { d.bubbleT -= dt; if (d.bubbleT <= 0) d.bubble = null; }
+        if (d.barkCD > 0) d.barkCD -= dt;
+        if (d.chaseCD > 0) d.chaseCD -= dt;
+        const dx = p.x - d.x, dy = p.y - d.y, dist = Math.hypot(dx, dy * 1.3);
+        if (d.state === 'nap') {
+          if (Math.random() < dt * 0.8) this.particle('zz', d.x + d.face * 14, d.y - 26, U.rand(4, 12), -18, 1.4, 0, '#ffffff');
+          if (fast && dist < 130 && !p.tumble) { // woken up by a speeding courier: not happy
+            d.state = 'trot'; d.grumpy = true; d.chaseT = 3; d.face = Math.sign(dx) || 1;
+            this.dogBark(d, 3);
+          }
+        } else if (d.state === 'trot') {
+          d.phase += dt * 9;
+          if (d.grumpy && d.chaseT <= 0 && d.chaseCD <= 0 && dist < 170 && !p.tumble && p.invuln <= 0) { d.chaseT = 3.2; this.dogBark(d, 2); }
+          if (d.chaseT > 0) { // chase!
+            d.chaseT -= dt; if (d.chaseT <= 0) d.chaseCD = 4;
+            const k = 150 / Math.max(1, Math.hypot(dx, dy));
+            d.x += dx * k * dt; d.y += dy * k * dt; d.face = Math.sign(dx) || d.face; d.phase += dt * 8;
+            if (d.barkCD <= 0) this.dogBark(d, 2);
+          } else {
+            d.x += d.dir * d.spd * dt; d.face = d.dir;
+            if (d.roadT > 0) { d.roadT -= dt; if (d.roadT <= 0) d.crossTo = d.home < 300 ? U.rand(462, 512) : U.rand(198, 216); }
+            if (d.crossTo != null) { const ty = d.crossTo; d.y += Math.sign(ty - d.y) * Math.min(Math.abs(ty - d.y), 70 * dt); if (Math.abs(ty - d.y) < 1) { d.home = ty; d.crossTo = null; } }
+            else d.y += (d.home - d.y) * Math.min(1, dt * 2);
+          }
+        } else if (d.state === 'flee') {
+          d.x += d.dir * 230 * dt; d.phase += dt * 16; d.face = d.dir;
+        }
+        d.y = U.clamp(d.y, G.WALK_MIN, G.WALK_MAX);
+        // walk (or ride) into a dog: trip and hurt
+        const sz = SS.Art.depth(d.y);
+        if (d.state !== 'flee' && p && !p.tumble && p.invuln <= 0 && Math.abs(dx) < 36 * sz && Math.abs(dy) < 15) this.dogHit(d);
+        if (d.x < this.cam.x - 500 || d.x > this.cam.x + this.viewW + 500) this.dogs.splice(i, 1);
+      }
+    }
+    dogBark(d, n) {
+      d.barkCD = U.rand(0.8, 1.4);
+      d.bubble = U.pick(S.dogLines); d.bubbleT = 1;
+      SS.Audio.sfx(Math.random() < 0.3 ? 'growl' : 'bark', { pan: this.pan(d.x), n, pitch: U.rand(360, 470) });
+    }
+    dogHit(d) {
+      const p = this.player, bite = d.chaseT > 0;
+      if (p.latchedBy) this.releaseSeller(p.latchedBy, 'leave');
+      p.lives--; this.stats.hits++; p.invuln = 2.2; p.conf = Math.max(0, p.conf - 25);
+      const dir = p.face || 1;
+      p.tumble = { t: 0, vx: dir * (this.rideDef ? 160 : 90), vy: U.rand(-20, 20), z: 0, vz: 220, rot: 0, vr: dir * 8, landed: false };
+      this.spill(bite ? 10 : 14, true);
+      this.cam.shake = 10; this.flash = 0.35; this.hurtPulse = 1;
+      SS.Audio.sfx('bark', { pan: this.pan(d.x), yelp: true, n: 3, pitch: 420 }); SS.Audio.sfx('tumble');
+      SS.Haptics.vibrate([50, 30, 80]);
+      this.popup(bite ? S.popDogBite : S.popDogTrip, p.x, p.y - 104, '#ff6a5a', 1.4, 20);
+      if (this.rideDef) this.popup(S.crashOff, p.x, p.y - 130, '#ffb0a0', 1.4, 16);
+      for (let i = 0; i < 8; i++) this.particle('dust', d.x, d.y - 4, U.rand(-70, 70), U.rand(-40, 10), 0.7);
+      for (let i = 0; i < 6; i++) this.particle('star', p.x, p.y - 60, U.rand(-80, 80), U.rand(-120, -20), 0.9);
+      d.state = 'flee'; d.dir = d.x < p.x ? -1 : 1; d.chaseT = 0; d.bubble = null;
+    }
     wipeOut(f) {
       const p = this.player;
       f.state = 'down'; f.t = 0; f.fallDir = p.x < f.x ? 1 : -1; f.bubble = S.influencerFall; f.bubbleT = 1.6;
@@ -1536,6 +1615,7 @@
         if (this.state === 'play') {
           this.updateSellers(dt);
           this.updateInfluencers(dt);
+          this.updateDogs(dt);
           this.updateEndlessExtras(dt);
           this.updateIntersections(dt);
           this.updateOrders(dt);

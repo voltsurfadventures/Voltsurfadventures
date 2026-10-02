@@ -264,6 +264,7 @@
     if (this.player) ents.push({ y: this.player.y + 0.3, k: 'p', o: this.player });
     for (const c of this.cops) ents.push({ y: c.y + 0.4, k: 'cop', o: c });
     for (const f of this.influencers) ents.push({ y: f.y + 0.35, k: 'infl', o: f });
+    for (const d of this.dogs) ents.push({ y: d.y + 0.3, k: 'dog', o: d });
     const H = this.heist;
     if (H && !H.gone) {
       if (H.riding) ents.push({ y: H.bikeY, k: 'heistRide', o: H });
@@ -320,6 +321,7 @@
       else if (e.k === 'cust') this.drawCustomer(ctx, e.o);
       else if (e.k === 'cop') this.drawCop(ctx, e.o);
       else if (e.k === 'infl') this.drawInfluencer(ctx, e.o);
+      else if (e.k === 'dog') this.drawDog(ctx, e.o);
       else if (e.k === 'heistBike') this.drawHeistBike(ctx, e.o.bikeX, e.o.bikeY, false);
       else if (e.k === 'heistRide') this.drawHeistBike(ctx, e.o.rideX, e.o.bikeY, true, e.o.wheelie);
       else if (e.k === 'tourist') Art.person(ctx, { x: e.o.tourX, y: e.o.tourY, s: Art.depth(e.o.tourY) * 1.1, face: -1, phase: e.o.walk || 0, moving: e.o.sneak && this.heist.t < 3.2 ? 0.6 : 0, hunch: e.o.sneak ? 1 : 0, crouch: e.o.sneak && this.heist.t > 2.9,
@@ -345,6 +347,64 @@
     if (wheelie) { ctx.translate(-34, -6); ctx.rotate(-wheelie); ctx.translate(34, 6); }
     ctx.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h);
     if (riding) { ctx.fillStyle = '#111'; Art.rr(ctx, -2, -66, 14, 4, 2); ctx.fill(); } // his sunglasses
+    ctx.restore();
+  };
+  // a golden Vietnamese street dog (chó vàng): pointy ears, curly tail, skinny legs
+  P.drawDog = function (ctx, d) {
+    const sc = Art.depth(d.y) * 1.35, ink = '#24150f', fur = d.tone, dark = '#a8732a', light = '#f3d896';
+    const nap = d.state === 'nap', run = d.state !== 'nap' ? (d.chaseT > 0 || d.state === 'flee' ? 1.6 : 1) : 0;
+    ctx.save(); ctx.translate(d.x, d.y); ctx.scale(sc * d.face, sc);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0, 0, 26, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    if (nap) {
+      // curled up asleep, breathing slowly
+      const br = 1 + Math.sin(this.time * 2.2 + d.phase) * 0.04;
+      ctx.fillStyle = fur; ctx.strokeStyle = ink; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.ellipse(-2, -9, 24, 10 * br, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = light; ctx.beginPath(); ctx.ellipse(-2, -4, 16, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      // tail wrapped round
+      ctx.strokeStyle = ink; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-24, -8); ctx.quadraticCurveTo(-28, 0, -12, -1); ctx.stroke();
+      ctx.strokeStyle = fur; ctx.lineWidth = 3.4; ctx.stroke();
+      // head resting on paws
+      ctx.fillStyle = fur; ctx.strokeStyle = ink; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.ellipse(20, -8, 9, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = light; ctx.beginPath(); ctx.ellipse(28, -6, 6, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      Art.circle(ctx, 33.5, -7, 1.8, ink);
+      ctx.fillStyle = dark; ctx.beginPath(); ctx.moveTo(14, -13); ctx.lineTo(10, -21); ctx.lineTo(19, -15); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(19, -9); ctx.quadraticCurveTo(22, -7, 25, -9); ctx.stroke(); // shut eye
+      ctx.restore(); return;
+    }
+    const ph = d.phase * (run > 1 ? 1.4 : 1), sw = Math.sin(ph) * 7 * Math.min(1, run), bob = Math.abs(Math.sin(ph)) * 1.5 * run;
+    ctx.translate(0, -bob);
+    // legs (back pair behind body)
+    const leg = (x, a, col) => { ctx.strokeStyle = ink; ctx.lineWidth = 5.4; ctx.beginPath(); ctx.moveTo(x, -16); ctx.lineTo(x + a, -1 + bob); ctx.stroke(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke(); };
+    leg(-14, -sw, dark); leg(12, sw, dark);
+    // tail: up and wagging, tucked when fleeing
+    const flee = d.state === 'flee', wag = Math.sin(this.time * (d.chaseT > 0 ? 10 : 16)) * 0.5;
+    ctx.save(); ctx.translate(-20, -22); ctx.rotate(flee ? 0.9 : -0.9 + wag);
+    ctx.strokeStyle = ink; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-10, -6, -6, -14); ctx.stroke();
+    ctx.strokeStyle = fur; ctx.lineWidth = 3.2; ctx.stroke(); ctx.restore();
+    // body
+    ctx.fillStyle = fur; ctx.strokeStyle = ink; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.ellipse(0, -22, 22, 9.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = light; ctx.beginPath(); ctx.ellipse(2, -16, 14, 3, 0, 0, Math.PI * 2); ctx.fill();
+    leg(-10, sw, fur); leg(16, -sw, fur);
+    // head: up and alert, lower and snarling when chasing
+    const angry = d.chaseT > 0, hy = angry ? -28 : -34;
+    ctx.fillStyle = fur; ctx.strokeStyle = ink; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(14, -28); ctx.lineTo(20, hy + 4); ctx.lineTo(22, -20); ctx.closePath(); ctx.fill(); // neck
+    ctx.beginPath(); ctx.ellipse(24, hy, 9, 7.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // pointy ears
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.moveTo(18, hy - 4); ctx.lineTo(17, hy - 15 + (flee ? 6 : 0)); ctx.lineTo(24, hy - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // snout
+    ctx.fillStyle = light; ctx.beginPath(); ctx.ellipse(32, hy + 2, 6.5, 4.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    Art.circle(ctx, 37.5, hy + 1, 2, ink);
+    Art.circle(ctx, 25, hy - 2, 1.7, ink);
+    if (angry) { // bared teeth + angry brow
+      ctx.fillStyle = '#fff'; ctx.fillRect(29, hy + 5, 7, 2.2);
+      ctx.strokeStyle = ink; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(22, hy - 5); ctx.lineTo(28, hy - 3); ctx.stroke();
+    }
     ctx.restore();
   };
   P.drawInfluencer = function (ctx, f) {
@@ -626,6 +686,7 @@
         case 'confetti': ctx.globalAlpha = Math.min(1, k * 2); ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillStyle = q.color; ctx.fillRect(-3, -1.5, 6, 3); ctx.restore(); break;
         case 'shard': ctx.globalAlpha = k; ctx.fillStyle = '#333'; ctx.fillRect(q.x, q.y, 3, 2); break;
         case 'frost': ctx.globalAlpha = k * 0.9; ctx.fillStyle = '#dff6ff'; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillRect(-2, -0.6, 4, 1.2); ctx.fillRect(-0.6, -2, 1.2, 4); ctx.restore(); break;
+        case 'zz': ctx.globalAlpha = k; ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.round(9 + (1 - k) * 6) + 'px sans-serif'; ctx.fillText('z', q.x, q.y); break;
         case 'tear': ctx.globalAlpha = k; ctx.fillStyle = '#7fd0ff'; ctx.beginPath(); ctx.moveTo(q.x, q.y - 4); ctx.quadraticCurveTo(q.x + 3, q.y, q.x, q.y + 2.5); ctx.quadraticCurveTo(q.x - 3, q.y, q.x, q.y - 4); ctx.fill(); break;
         case 'drop': ctx.globalAlpha = k * 0.7; ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(q.x, q.y, 6 * (1 - k) + 1, 2 * (1 - k) + 0.5, 0, 0, TAU); ctx.stroke(); break;
         case 'bun': ctx.globalAlpha = 1; Art.circle(ctx, q.x, q.y, 7, '#fbf7ee'); ctx.strokeStyle = '#d9cdb0'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.x, q.y - 3, 3, 0, Math.PI); ctx.stroke(); break;
@@ -903,6 +964,7 @@
     }
     // speech bubbles
     for (const s of this.sellers) if (s.bubble && s.state !== 'lurk') this.bubble(ctx, s.x, s.y - 92 * Art.depth(s.y), s.bubble, { size: 15 });
+    for (const d of this.dogs) if (d.bubbleT > 0 && d.bubble) this.bubble(ctx, d.x, d.y - 52 * Art.depth(d.y), d.bubble, { size: 14, color: '#8a4b0f', border: '#ffb14a' });
     for (const f of this.influencers) if (f.bubbleT > 0 && f.bubble) this.bubble(ctx, f.x, f.y - 128 * Art.depth(f.y), f.bubble, { size: 15, color: '#c0247a', border: '#ff7ac0' });
     for (const c of this.cops) if (c.bubbleT > 0) this.bubble(ctx, c.x, c.y - 100 * Art.depth(c.y), c.bubble, { size: 16, color: '#1d4fa0', border: '#1d4fa0' });
     // opening heist lines
