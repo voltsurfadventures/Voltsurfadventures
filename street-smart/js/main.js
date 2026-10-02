@@ -51,8 +51,6 @@
     // first tap on a phone/tablet: go full screen once (never nag after the player leaves it)
     auto(e) {
       if (this.autoTried) return;
-      if (e && e.pointerType === 'mouse') return;
-      if (!SS.Input.touchMode && !(e && e.type === 'touchend')) return;
       this.autoTried = true;
       this.enter();
     },
@@ -101,7 +99,14 @@
       document.addEventListener('resume', () => SS.Audio.resume(), false);
 
       this.waitForFonts().then(() => {
+        // set up audio and queue the main theme straight away: an installed app plays it now,
+        // a browser starts it on the first touch (see the listeners below)
+        SS.Audio.unlock();
         SS.UI.init();
+        const kick = () => SS.Audio.unlock();
+        window.addEventListener('pointerdown', kick, true);
+        window.addEventListener('touchend', kick, true);
+        window.addEventListener('keydown', kick, true);
         const ld = document.getElementById('loading');
         if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 600); }
         this.last = performance.now();

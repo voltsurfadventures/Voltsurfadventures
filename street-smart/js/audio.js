@@ -74,8 +74,16 @@
     bbBuffer: null, bbFailed: false, bbSrc: null, bbActive: false, bbChantTimer: 0,
 
     /* ---------- set-up ---------- */
+    running() { return !!(this.ctx && this.ctx.state === 'running'); },
     unlock() {
-      if (this.unlocked) { if (this.ctx && this.ctx.state === 'suspended' && !this.bgSuspended) this.ctx.resume(); return; }
+      if (this.unlocked) {
+        if (this.ctx && this.ctx.state !== 'running' && !this.bgSuspended) {
+          this.ctx.resume();
+          // iOS: a silent buffer inside the gesture completes the unlock
+          try { const b = this.ctx.createBuffer(1, 1, 22050), s = this.ctx.createBufferSource(); s.buffer = b; s.connect(this.ctx.destination); s.start(0); } catch (e) { /* ignore */ }
+        }
+        return;
+      }
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       try { this.ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { try { this.ctx = new AC(); } catch (e2) { return; } }
@@ -620,13 +628,28 @@
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.4 * (o.vol || 1), t + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
       n.connect(f); f.connect(g); g.connect(this.out(o.pan)); n.start(t); n.stop(t + 1.05);
     },
+    // a real-sounding "cough-cough": a burst of breath noise through throat formants
+    // plus a short voiced rasp, twice
     sfx_cough(t) {
       const c = this.ctx, out = this.out();
-      for (let i = 0; i < 3; i++) {
-        const tt = t + i * 0.24, n = this.noiseSrc(), f = c.createBiquadFilter(), g = c.createGain();
-        f.type = 'bandpass'; f.frequency.value = 700 + i * 80; f.Q.value = 1.8;
-        g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(0.5, tt + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.16);
-        n.connect(f); f.connect(g); g.connect(out); n.start(tt); n.stop(tt + 0.2);
+      for (let i = 0; i < 2; i++) {
+        const tt = t + i * 0.26, len = i ? 0.2 : 0.24;
+        const bus = c.createGain(); bus.gain.value = 1.15; bus.connect(out);
+        // breath burst through two formants
+        const n = this.noiseSrc(), g = c.createGain();
+        for (const [fq, q, gain] of [[520, 2.2, 1.0], [1450, 3, 0.7], [2600, 4, 0.35]]) {
+          const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = fq * (1 - i * 0.06); f.Q.value = q;
+          const fg = c.createGain(); fg.gain.value = gain; n.connect(f); f.connect(fg); fg.connect(g);
+        }
+        g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(1.4, tt + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.25, tt + 0.07); g.gain.exponentialRampToValueAtTime(0.0001, tt + len);
+        g.connect(bus); n.start(tt); n.stop(tt + len + 0.05);
+        // voiced rasp (the "hck" of the throat)
+        const o = c.createOscillator(), og = c.createGain(), lp = c.createBiquadFilter();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(190 - i * 15, tt); o.frequency.exponentialRampToValueAtTime(110, tt + len);
+        lp.type = 'lowpass'; lp.frequency.value = 1200;
+        og.gain.setValueAtTime(0.0001, tt); og.gain.linearRampToValueAtTime(0.35, tt + 0.015); og.gain.exponentialRampToValueAtTime(0.0001, tt + len * 0.8);
+        o.connect(lp); lp.connect(og); og.connect(bus); o.start(tt); o.stop(tt + len);
       }
     },
     sfx_gasp(t) {

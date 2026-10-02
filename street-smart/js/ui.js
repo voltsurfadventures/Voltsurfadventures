@@ -25,17 +25,26 @@
     musicStarted: false,
 
     init() {
+      // cover art (title screen). If it is missing, the old code-drawn title is used.
+      this.cover = new Image();
+      this.cover.onload = () => { this.coverReady = true; };
+      this.cover.src = 'assets/ui/cover.jpg';
       this.demo = new SS.Session(this.worldId, 1, { demo: true });
       this.go('title');
     },
 
     go(screen) {
       this.screen = screen; this.t = 0; this.overlay = null; this.pressed = null;
-      if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport'].includes(screen)) {
+      if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport', 'story'].includes(screen)) {
         if (this.session) { this.session.destroy(); this.session = null; }
         if (SS.Audio.unlocked) { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); }
         SS.Audio.setIntensity(0); SS.Audio.setTension(0);
       }
+    },
+
+    playStory(then) {
+      this.go('story');
+      SS.Story.start(() => { if (this.screen === 'story') then(); });
     },
 
     startLevel(i) {
@@ -149,10 +158,10 @@
     update(dt) {
       this.t += dt;
       if (this.toast) { this.toast.t -= dt; if (this.toast.t <= 0) this.toast = null; }
-      // start menu music on the first tap (browsers block audio before that)
+      // the main theme starts as soon as audio exists (at load in the app; on the first tap in a browser)
       if (SS.Audio.unlocked && !this.musicStarted) {
         this.musicStarted = true;
-        if (this.screen !== 'game') { if (SS.Save.data.settings.synthMusic) SS.Audio.playJingle('title'); setTimeout(() => { if (this.screen !== 'game') { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); } }, 1600); }
+        if (this.screen !== 'game') { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); }
       }
       if (this.screen === 'game') {
         const s = this.session;
@@ -165,6 +174,9 @@
           const want = Math.min(this.res.stars, Math.floor((this.t - 0.5) / 0.45) + 1);
           if (this.t > 0.5 && want > this.starsShown) { this.starsShown = want; SS.Audio.sfx('star'); SS.Haptics.vibrate(15); }
         }
+      } else if (this.screen === 'story') {
+        SS.Story.update(dt);
+        SS.Input.consumeEdges();
       } else {
         this.demo.update(dt);
         SS.Input.consumeEdges();
@@ -251,6 +263,13 @@
         } else if (this.screen === 'results') this.drawResults(ctx, vw, vh, u);
         else this.drawGameOver(ctx, vw, vh, u);
       } else {
+        if (this.screen === 'story') {
+          SS.Story.draw(ctx, vw, vh, u);
+          this.hits.push({ id: 'storynext', x: 0, y: 0, w: vw, h: vh, action: () => SS.Story.next() });
+          const ins = SS.View.insets;
+          this.button(ctx, 'storyskip', vw - ins.r - 104 * u, ins.t + 16 * u, 88 * u, 34 * u, S.skip, { color: '#16141a', text: '#ffffff', size: 13 * u, action: () => SS.Story.finish() });
+          return;
+        }
         this.demo.render(ctx);
         if (this.screen === 'title') this.drawTitle(ctx, vw, vh, u);
         else if (this.screen === 'levels') this.drawLevels(ctx, vw, vh, u);
@@ -283,6 +302,7 @@
     },
 
     drawTitle(ctx, vw, vh, u) {
+      if (this.coverReady) { this.drawCoverTitle(ctx, vw, vh, u); return; }
       const ins = SS.View.insets;
       const g = ctx.createLinearGradient(0, 0, vw * 0.7, 0);
       g.addColorStop(0, 'rgba(8,6,16,0.82)'); g.addColorStop(0.6, 'rgba(8,6,16,0.35)'); g.addColorStop(1, 'rgba(8,6,16,0)');
@@ -297,9 +317,10 @@
       this.text(ctx, w.name + '  ·  ' + w.city.toUpperCase(), lx, vh * 0.3 - size * 0.85, 13 * u, '#7ff0d8', 800);
       const bw = 220 * u, bh = 56 * u, bx = lx - bw / 2;
       let by = vh * 0.3 + size * 0.85 + 34 * u;
-      this.button(ctx, 'play', bx, by, bw, bh, S.play, { size: 26 * u, action: () => this.go('levels') });
+      this.button(ctx, 'play', bx, by, bw, bh, S.play, { size: 26 * u, action: () => { if (!SS.Save.data.storySeen) this.playStory(() => this.go('levels')); else this.go('levels'); } });
       by += bh + 12 * u;
-      this.button(ctx, 'howto', bx, by, bw, 38 * u, S.howToPlay, { flat: true, size: 13 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
+      this.button(ctx, 'howto', bx, by, bw / 2 - 6 * u, 38 * u, S.howToPlay, { flat: true, size: 12 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
+      this.button(ctx, 'story', bx + bw / 2 + 6 * u, by, bw / 2 - 6 * u, 38 * u, S.storyBtn, { flat: true, size: 12 * u, action: () => this.playStory(() => this.go('title')) });
       by += 38 * u + 10 * u;
       this.button(ctx, 'settings', bx, by, bw / 2 - 6 * u, 42 * u, S.settings, { flat: true, size: 13 * u, action: () => this.go('settings') });
       this.button(ctx, 'credits', bx + bw / 2 + 6 * u, by, bw / 2 - 6 * u, 42 * u, S.credits, { flat: true, size: 13 * u, action: () => this.go('credits') });
@@ -314,6 +335,56 @@
       } else if (SS.Fullscreen.needsHomeScreenTip()) {
         this.text(ctx, S.iosFullTip, vw / 2, vh - ins.b - 32 * u, 11.5 * u, '#ffd23f', 700);
       }
+    },
+    // title screen built around the cover art: art on the left, menu column on the right
+    drawCoverTitle(ctx, vw, vh, u) {
+      const ins = SS.View.insets, img = this.cover;
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, vw, vh);
+      const colW = 236 * u, gap = 18 * u;
+      const aw = vw - ins.l - ins.r - colW - gap * 3, ah = vh - ins.t - ins.b - 16 * u;
+      const k = U.easeOutBack(U.clamp(this.t / 0.8, 0, 1));
+      const sc = Math.min(aw / img.width, ah / img.height) * (0.94 + 0.06 * k);
+      const w = img.width * sc, h = img.height * sc;
+      const cx = ins.l + gap + aw / 2, cy = ins.t + 8 * u + ah / 2;
+      ctx.globalAlpha = U.clamp(this.t / 0.5, 0, 1);
+      ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+      ctx.globalAlpha = U.clamp((this.t - 0.3) / 0.5, 0, 1);
+      const bx = vw - ins.r - gap - colW, bw = colW;
+      const total = 56 * u + 12 * u + 40 * u + 10 * u + 40 * u;
+      let by = vh / 2 - total / 2;
+      this.button(ctx, 'play', bx, by, bw, 56 * u, S.play, { size: 26 * u, action: () => { if (!SS.Save.data.storySeen) this.playStory(() => this.go('levels')); else this.go('levels'); } });
+      by += 56 * u + 12 * u;
+      this.button(ctx, 'howto', bx, by, bw / 2 - 5 * u, 40 * u, S.howToPlay, { flat: true, size: 11.5 * u, action: () => { this.howtoNext = () => this.go('title'); this.go('howto'); } });
+      this.button(ctx, 'story', bx + bw / 2 + 5 * u, by, bw / 2 - 5 * u, 40 * u, S.storyBtn, { flat: true, size: 12 * u, action: () => this.playStory(() => this.go('title')) });
+      by += 40 * u + 10 * u;
+      this.button(ctx, 'settings', bx, by, bw / 2 - 5 * u, 40 * u, S.settings, { flat: true, size: 12 * u, action: () => this.go('settings') });
+      this.button(ctx, 'credits', bx + bw / 2 + 5 * u, by, bw / 2 - 5 * u, 40 * u, S.credits, { flat: true, size: 12 * u, action: () => this.go('credits') });
+      ctx.globalAlpha = 1;
+      this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 14 * u, u);
+      this.text(ctx, S.privacy + '   v' + SS.CONFIG.VERSION, vw / 2, vh - ins.b - 12 * u, 10 * u, 'rgba(255,255,255,0.45)', 600);
+      if (!SS.Audio.running()) {
+        // browsers keep sound off until the first touch: ask for it, big and clear
+        const k = 0.75 + 0.25 * Math.sin(this.t * 5);
+        ctx.globalAlpha = k; ctx.fillStyle = 'rgba(0,0,0,0.55)'; Art.rr(ctx, vw / 2 - 170 * u, vh - ins.b - 70 * u, 340 * u, 44 * u, 22 * u); ctx.fill();
+        this.text(ctx, S.tapAnywhere, vw / 2, vh - ins.b - 48 * u, 17 * u, '#ffd47a', 800, true);
+        ctx.globalAlpha = 1;
+      }
+      if (SS.Fullscreen.available() && !SS.Fullscreen.isOn()) {
+        this.button(ctx, 'fullscr', vw - ins.r - 150 * u, ins.t + 44 * u, 134 * u, 34 * u, S.fullscreenBtn, { color: '#3fb7a6', size: 12 * u, action: () => SS.Fullscreen.enter() });
+      } else if (SS.Fullscreen.needsHomeScreenTip()) {
+        this.text(ctx, S.iosFullTip, vw / 2, vh - ins.b - 32 * u, 11.5 * u, '#ffd23f', 700);
+      }
+    },
+    // the story goal: savings toward a new scooter
+    scooterFund(ctx, x, y, w, u) {
+      const have = SS.Save.data.coins, need = SS.CONFIG.SCOOTER_PRICE, k = U.clamp(have / need, 0, 1);
+      ctx.fillStyle = 'rgba(15,18,28,0.7)'; Art.rr(ctx, x, y, w, 40 * u, 10 * u); ctx.fill();
+      ctx.strokeStyle = SS.COL_PLAYER; ctx.lineWidth = 2 * u; Art.rr(ctx, x, y, w, 40 * u, 10 * u); ctx.stroke();
+      this.text(ctx, S.scooterFund, x + 10 * u, y + 12 * u, 10.5 * u, '#9ff0c0', 800, false, 'left');
+      this.text(ctx, have.toLocaleString('en-US') + ' / ' + need.toLocaleString('en-US'), x + w - 10 * u, y + 12 * u, 10.5 * u, '#ffffff', 800, false, 'right');
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'; Art.rr(ctx, x + 10 * u, y + 23 * u, w - 20 * u, 9 * u, 4.5 * u); ctx.fill();
+      if (k > 0) { ctx.fillStyle = SS.COL_PLAYER; Art.rr(ctx, x + 10 * u, y + 23 * u, Math.max(9 * u, (w - 20 * u) * k), 9 * u, 4.5 * u); ctx.fill(); }
+      if (k >= 1 && !this.fundToastShown) { this.fundToastShown = true; this.showToast(S.scooterReady); }
     },
     coinBadge(ctx, rx, y, u) {
       ctx.font = SS.font(17 * u, 800, true);
@@ -331,6 +402,7 @@
       this.dim(ctx, 0.55);
       this.backButton(ctx, () => this.go('title'));
       this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 16 * u, u);
+      this.scooterFund(ctx, ins.l + 124 * u, ins.t + 14 * u, 190 * u, u);
       const w = SS.WORLDS[this.worldId];
       this.text(ctx, S.levelSelect, vw / 2, ins.t + 30 * u, 22 * u, '#ffd23f', 800, true);
       this.text(ctx, w.name + '  ·  ' + w.city, vw / 2, ins.t + 54 * u, 12 * u, '#7ff0d8', 800);

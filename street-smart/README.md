@@ -1,4 +1,6 @@
-# STREET SMART — Hanoi
+# BANH ZAI — Hanoi
+
+*(Formerly "Street Smart". The name is set in one place: `TITLE` in `js/config.js`.)*
 
 *"Frogger taught you to dodge. This teaches you to flow."*
 
@@ -8,8 +10,21 @@ This folder is the web project. Drop it into Capacitor's web directory to build 
 
 ```
 street-smart/
-├── index.html            the game shell (loading screen, rotate screen, @font-face)
-├── assets/fonts/         put the font files here (see "Fonts")
+├── index.html            ★ entry file: the game shell (loading screen, rotate screen)
+├── manifest.webmanifest  home-screen / full-screen settings
+├── css/
+│   ├── fonts.css         @font-face rules for the bundled fonts
+│   └── style.css         page shell styles
+├── assets/
+│   ├── audio/            music, horn recordings, bánh bao call
+│   ├── fonts/            Be Vietnam Pro + Baloo 2 (.woff2) and their licences
+│   ├── characters/       reference PNGs (see "Handoff package")
+│   ├── backgrounds/      reference PNGs
+│   ├── ui/               reference PNGs and screenshots
+│   ├── icons/            reference PNGs + placeholder app icon
+│   ├── effects/          reference PNGs
+│   └── asset-manifest.json
+├── tools/export-assets.js  re-creates the reference PNGs from the code art
 └── js/
     ├── config.js         ★ title, IAP flag, UI strings, cargo, sellers, lighting, worlds & levels
     ├── save.js           save/load module, in-app-purchase hook, haptics
@@ -20,23 +35,184 @@ street-smart/
     ├── world.js          level layout generator (seeded, so each level is always the same)
     ├── game.js           gameplay: flow/confidence AI, sellers, bánh bao guy, durian clouds
     ├── render.js         layered rendering, lighting, effects, HUD
+    ├── story.js          opening manga cutscene
     ├── ui.js             menus & screens
     └── main.js           boot, responsive hi-DPI canvas, safe areas, game loop, auto low-quality
 ```
 
+## Handoff package (for a graphics pass)
+
+**Important: this game loads no image files.** Every character, vehicle, shop, prop, icon and effect is drawn by JavaScript at runtime, mostly in `js/art.js`, with the screen layout in `js/render.js`, menus in `js/ui.js` and the cutscene in `js/story.js`. The PNGs in `assets/characters`, `assets/backgrounds`, `assets/ui`, `assets/icons` and `assets/effects` are **reference renders** of that code art, exported with the game's own drawing functions (`tools/export-assets.js`). They show exactly what each visual looks like, its size and its anchor, so an art tool can redraw them. To use new art in the game, the matching function in the "Drawn by" column must be changed to draw the new image instead (for example with `ctx.drawImage`); no gameplay code needs to change.
+
+Everything the game uses is inside this folder: code, fonts (`assets/fonts`, 18 `.woff2` files) and sounds (`assets/audio`). There are no remote URLs; the game makes zero network requests.
+
+### 1. Run it locally (phone or desktop)
+
+Browsers block some features on `file://`, so serve the folder over HTTP:
+
+```bash
+cd street-smart
+python3 -m http.server 8080        # or: npx http-server -p 8080
+```
+
+- **Desktop:** open <http://localhost:8080>, make the window wider than it is tall.
+- **Phone:** put the phone on the same Wi-Fi, find your computer's local IP (e.g. `192.168.1.20`) and open `http://192.168.1.20:8080` in Chrome (Android) or Safari (iPhone). Turn the phone sideways. On Android the first tap goes full screen; on iPhone use Share → Add to Home Screen for full screen.
+- **Controls:** touch and drag anywhere on the left half to walk (invisible joystick); SPRINT, HOLD BREATH, NO THANKS and BUY on the right. Desktop: WASD/arrows, Shift sprint, Space hold breath, E no thanks (hold E to buy), Esc pause.
+
+### 2. Entry file
+
+`index.html`. It links `css/fonts.css` and `css/style.css`, then loads the scripts in `js/` in this order: config, save, banhbao-clip, audio, art, input, world, game, render, story, ui, main. `js/main.js` boots the game.
+
+### 3. Visual assets
+
+All PNGs have transparent backgrounds except the full-screen screenshots (`street_*`, `story_shot_*`, `screen_*`) and the app icon. Exported at **2 device pixels per game unit**; characters and vehicles carry the game's extra oversampling (×1.08, and ×1.22 for characters/vehicles), exactly as the in-game sprite cache makes them. The machine-readable list is `assets/asset-manifest.json`.
+
+| File | Pixel size | Where it is used | What it shows | Drawn by (code) |
+|---|---|---|---|---|
+| `assets/characters/car_sedan.png` | 396×264 | Gameplay: traffic, side view | Car: sedan (no lettering) | `art.js carSprite()` |
+| `assets/characters/car_taxi.png` | 396×264 | Gameplay: traffic, side view | Car: taxi (no lettering) | `art.js carSprite()` |
+| `assets/characters/car_van.png` | 396×264 | Gameplay: traffic, side view | Car: van (no lettering) | `art.js carSprite()` |
+| `assets/characters/customer_waiting.png` | 211×317 | Gameplay: the customer waiting for a delivery | Customer holding a phone, waving | `render.js drawCustomer()` |
+| `assets/characters/player_idle.png` | 211×317 | Gameplay: the player (Minh) | Minh, the courier: green jacket, green helmet with white stripe, big green delivery box, white outline | `render.js playerLook() + art.js person()` |
+| `assets/characters/player_sitting_sad.png` | 211×317 | Story cutscene shot 6 | Minh sitting on a stool in the rain | `story.js minhSad` |
+| `assets/characters/player_walk_carry_sheet.png` | 1688×317 | Gameplay: player carrying an order | Walk cycle carrying a bowl of phở, 8 frames of 211x317 px | `art.js person() + carryItem()` |
+| `assets/characters/player_walk_sheet.png` | 1688×317 | Gameplay: player walking (frame from walk phase) | Walk cycle, 8 frames of 211x317 px, left to right | `render.js playerLook() + art.js person()` |
+| `assets/characters/scooter_banhbao.png` | 396×317 | Gameplay: the bánh bao bike (bonus) | Scooter, the bánh bao bike: steamer box and megaphone (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_boxes.png` | 396×317 | Gameplay: traffic, side view | Scooter, tall stack of boxes (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_chickens.png` | 396×317 | Gameplay: traffic, side view | Scooter, chickens in cages (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_couple.png` | 396×317 | Gameplay: traffic, side view | Scooter, rider + passenger (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_crates.png` | 396×317 | Gameplay: traffic, side view | Scooter, stacked crates on the back (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_crossing_away.png` | 185×290 | Gameplay: cross-street traffic going away | Scooter seen from behind | `art.js scooterVSprite()` |
+| `assets/characters/scooter_crossing_toward.png` | 185×290 | Gameplay: cross-street traffic coming toward the camera | Scooter seen from the front | `art.js scooterVSprite()` |
+| `assets/characters/scooter_delivery.png` | 396×317 | Gameplay: traffic, side view | Scooter, delivery rider with a box (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_family.png` | 396×317 | Gameplay: traffic, side view | Scooter, family of four on one bike (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_flowers.png` | 396×317 | Gameplay: traffic, side view | Scooter, flower baskets (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_ridehail.png` | 396×317 | Gameplay: traffic, side view | Scooter, ride-hail rider in green with a passenger (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/scooter_single.png` | 396×317 | Gameplay: traffic, side view | Scooter, one rider (faces right; flipped for left) | `art.js scooterSprite()` |
+| `assets/characters/seller_fruit.png` | 211×317 | Gameplay: street seller (SS.SELLERS.fruit) | Fruit seller with a shoulder pole and baskets, conical hat | `render.js drawSeller()` |
+| `assets/characters/seller_ride.png` | 211×317 | Gameplay: street seller (SS.SELLERS.ride) | Fake ride-hail driver in a green helmet waving a phone | `render.js drawSeller()` |
+| `assets/characters/seller_shoe.png` | 211×317 | Gameplay: street seller (SS.SELLERS.shoe) | Shoe-shine man crouching with a brush | `render.js drawSeller()` |
+| `assets/characters/seller_sunglasses.png` | 211×317 | Gameplay: street seller (SS.SELLERS.sunglasses) | Sunglasses seller with a display rack | `render.js drawSeller()` |
+| `assets/characters/seller_watch.png` | 211×317 | Gameplay: street seller (SS.SELLERS.watch) | Watch seller opening his jacket full of watches | `render.js drawSeller()` |
+| `assets/characters/vendor_shopkeeper.png` | 211×317 | Gameplay: shopkeeper handing over the order | Vendor in a red apron, waving | `render.js drawCustomer() (vendor branch)` |
+| `assets/backgrounds/far_skyline_0.png` | 1124×411 | Background: distant buildings behind the shops (tiles repeat) | Far skyline tile 1 of 4 | `art.js farTile()` |
+| `assets/backgrounds/far_skyline_1.png` | 1124×411 | Background: distant buildings behind the shops (tiles repeat) | Far skyline tile 2 of 4 | `art.js farTile()` |
+| `assets/backgrounds/far_skyline_2.png` | 1124×411 | Background: distant buildings behind the shops (tiles repeat) | Far skyline tile 3 of 4 | `art.js farTile()` |
+| `assets/backgrounds/far_skyline_3.png` | 1124×411 | Background: distant buildings behind the shops (tiles repeat) | Far skyline tile 4 of 4 | `art.js farTile()` |
+| `assets/backgrounds/prop_durian_stall.png` | 324×346 | Gameplay: footpath obstacle | Durian stall with "SẦU RIÊNG" sign | `art.js (see render.js drawObstacle)` |
+| `assets/backgrounds/prop_flower_pots.png` | 216×238 | Gameplay: footpath obstacle | Potted plants | `art.js (see render.js drawObstacle)` |
+| `assets/backgrounds/prop_food_cart.png` | 260×281 | Gameplay: footpath obstacle | Street food cart with umbrella | `art.js (see render.js drawObstacle)` |
+| `assets/backgrounds/prop_parked_scooters.png` | 458×260 | Gameplay: footpath obstacle | Row of parked scooters on the footpath (blocks walking) | `art.js (see render.js drawObstacle)` |
+| `assets/backgrounds/prop_street_pole.png` | 108×1016 | Gameplay: power pole with tangled wires | Street pole | `art.js poleSprite()` |
+| `assets/backgrounds/prop_table_stools.png` | 291×152 | Gameplay: footpath obstacle | Low table with plastic stools | `art.js (see render.js drawObstacle)` |
+| `assets/backgrounds/shop_banhmi.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "BÁNH MÌ" and its goods (banhmi), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_barber.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "HỚT TÓC" and its goods (barber), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_beer.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "BIA HƠI" and its goods (beer), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_cafe.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "CÀ PHÊ" and its goods (cafe), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_cane.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "NƯỚC MÍA" and its goods (cane), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_grill.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "BÚN CHẢ" and its goods (grill), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_grocery.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "TẠP HÓA" and its goods (grocery), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_pho.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "PHỞ BÒ" and its goods (pho), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_pho_golden.png` | 536×389 | Background: shop fronts (golden lighting) | Shop "PHỞ BÒ" at golden | `art.js shopSprite()` |
+| `assets/backgrounds/shop_pho_night.png` | 536×389 | Background: shop fronts (night lighting) | Shop "PHỞ BÒ" at night, neon sign | `art.js shopSprite()` |
+| `assets/backgrounds/shop_rice.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "CƠM TẤM" and its goods (rice), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_steamer.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "BÁNH BAO" and its goods (steamer), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/shop_tea.png` | 536×389 | Background: shop fronts along the street | Shop front with sign "TRÀ ĐÁ" and its goods (tea), daytime | `art.js shopSprite() / drawShop()` |
+| `assets/backgrounds/story_shot_1.png` | 2336×1080 | Opening story cutscene, shot 1 | Paper cut-out: Minh rides his scooter into the Old Quarter ("VROOOM!") | `story.js shots[0]` |
+| `assets/backgrounds/story_shot_2.png` | 2336×1080 | Opening story cutscene, shot 2 | He parks at the café and leaves the key in ("TING!") | `story.js shots[1]` |
+| `assets/backgrounds/story_shot_3.png` | 2336×1080 | Opening story cutscene, shot 3 | The tourist snatches the key ("SNATCH!!") | `story.js shots[2]` |
+| `assets/backgrounds/story_shot_4.png` | 2336×1080 | Opening story cutscene, shot 4 | Minh comes out to find his scooter gone ("TRỜI ƠI!!") | `story.js shots[3]` |
+| `assets/backgrounds/story_shot_5.png` | 2336×1080 | Opening story cutscene, shot 5 | Rain; Bà Lan tells Minh to deliver on foot | `story.js shots[4]` |
+| `assets/backgrounds/story_shot_6.png` | 2336×1080 | Opening story cutscene, shot 6 | Goal card: save 1,500 coins for a new scooter | `story.js shots[5]` |
+| `assets/backgrounds/street_golden.png` | 2336×1080 | Gameplay background, level 2 | Full street scene at golden: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
+| `assets/backgrounds/street_morning.png` | 2336×1080 | Gameplay background, level 1 | Full street scene at morning: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
+| `assets/backgrounds/street_night.png` | 2336×1080 | Gameplay background, level 3 | Full street scene at night: sky, far buildings, shop fronts, footpaths, road and traffic | `render.js render()` |
+| `assets/story/street.jpg` | 1376×768 | Art reference (not loaded by the game) | Painted Old Quarter street at dusk: traffic, vendors, carts (supplied by the author; only crops without lettering are shown) | `story.js` |
+| `assets/ui/cover.jpg` | 1376×768 | Title screen (loaded by the game) | Banh Zai cover art: Minh in CRAB uniform running from the tourist on his stolen scooter (supplied by the author, made with Gemini) | `ui.js drawCoverTitle()` |
+| `assets/ui/button_primary.png` | 480×140 | Menus: main buttons | Orange rounded button (PLAY) | `ui.js button()` |
+| `assets/ui/logo.png` | 1520×320 | Title screen + loading | "STREET SMART" logo lettering (font: Baloo 2) | `ui.js logo()` |
+| `assets/ui/screen_gameplay_hud.png` | 2336×1080 | Gameplay HUD | HUD: confidence + breath meters, hearts, coins, order chip, touch buttons, PICK UP marker, guide arrow | `render.js drawHUD() + input.js draw()` |
+| `assets/ui/screen_levels.png` | 2336×1080 | Level select | Level cards, Scooter Fund meter, Upgrades and Food Passport buttons | `ui.js drawLevels()` |
+| `assets/ui/screen_title.png` | 2336×1080 | Title screen | Title screen layout: logo, PLAY, HOW TO PLAY, STORY, SETTINGS, CREDITS | `ui.js drawTitle()` |
+| `assets/icons/app_icon_1024.png` | 1024×1024 | App Store / Google Play icon (PLACEHOLDER, not loaded by the game) | Minh on a dark background with the logo | `tools/export-assets.js` |
+| `assets/icons/coin.png` | 48×48 | Gameplay + HUD: coins | Gold coin | `art.js coin()` |
+| `assets/icons/food_banhbao.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: bánh bao (BÁNH BAO) | `art.js carryItem()` |
+| `assets/icons/food_banhmi.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: bánh mì (BÁNH MÌ) | `art.js carryItem()` |
+| `assets/icons/food_buncha.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: bún chả (BÚN CHẢ) | `art.js carryItem()` |
+| `assets/icons/food_caphe.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: iced coffee (CÀ PHÊ) | `art.js carryItem()` |
+| `assets/icons/food_comtam.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: cơm tấm (CƠM TẤM) | `art.js carryItem()` |
+| `assets/icons/food_nuocmia.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: sugarcane juice (NƯỚC MÍA) | `art.js carryItem()` |
+| `assets/icons/food_pho.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: phở (PHỞ BÒ) | `art.js carryItem()` |
+| `assets/icons/food_trada.png` | 96×96 | Gameplay: order badge, carried item, order chip, passport | Food: iced tea (TRÀ ĐÁ) | `art.js carryItem()` |
+| `assets/icons/heart.png` | 48×48 | HUD: lives | Heart | `art.js heart()` |
+| `assets/icons/hud_breath.png` | 64×64 | HUD: meter icon | Breath (lungs) | `art.js hudIcon()` |
+| `assets/icons/hud_conf.png` | 64×64 | HUD: meter icon | Confidence (walking figure) | `art.js hudIcon()` |
+| `assets/icons/sign_basket.png` | 64×64 | Background: icon-style shop signs | Sign pictogram: basket | `art.js icon()` |
+| `assets/icons/sign_bowl.png` | 64×64 | Background: icon-style shop signs | Sign pictogram: bowl | `art.js icon()` |
+| `assets/icons/sign_bread.png` | 64×64 | Background: icon-style shop signs | Sign pictogram: bread | `art.js icon()` |
+| `assets/icons/sign_bun.png` | 64×64 | Background: icon-style shop signs | Sign pictogram: bun | `art.js icon()` |
+| `assets/icons/sign_cup.png` | 64×64 | Background: icon-style shop signs | Sign pictogram: cup | `art.js icon()` |
+| `assets/icons/sign_glass.png` | 64×64 | Background: icon-style shop signs | Sign pictogram: glass | `art.js icon()` |
+| `assets/icons/sign_scissors.png` | 64×64 | Background: icon-style shop signs | Sign pictogram: scissors | `art.js icon()` |
+| `assets/effects/glow_lantern.png` | 277×277 | Effect: warm light pools, lanterns, bánh bao glow | Radial glow (additive) | `art.js glow()` |
+| `assets/effects/headlight_cone.png` | 476×195 | Effect: scooter headlights at night | Headlight beam (additive) | `art.js headlightCone()` |
+| `assets/effects/neon_glow.png` | 411×228 | Effect: glow around neon signs at night | Neon sign glow | `art.js neonGlowSprite()` |
+| `assets/effects/puff_durian.png` | 139×139 | Effect: durian stink cloud | Green-yellow puff | `art.js puff()` |
+| `assets/effects/puff_dust.png` | 139×139 | Effect: dust kicked up by scooters | Soft round puff (tinted per use) | `art.js puff()` |
+
+**Not exported as separate files (drawn inline every frame, see `js/render.js`):** particles (dust, steam, sparks, stars, petals, confetti, frost, splashes, feathers), rain streaks, the durian cloud squiggles, PICK UP / DELIVER beacons and rings, the guide arrow, the player marker, the bánh bao BONUS zone, speech bubbles, the HUD meters and the order chip. They appear in `ui/screen_gameplay_hud.png`. The cutscene puppets are cut paper drawn in `js/story.js`, with faces and the CRAB box cut from `ui/cover.jpg`; see `backgrounds/story_shot_*.png`.
+
+**Fonts** (SIL Open Font License; licence texts in `assets/fonts/OFL-*.txt`): Be Vietnam Pro 400/600/700/800 (UI text) and Baloo 2 700/800 (titles, logo, signs), each split into Latin, Latin Extended and Vietnamese subsets: `baloo-2-latin-700-normal.woff2`, `baloo-2-latin-800-normal.woff2`, `baloo-2-latin-ext-700-normal.woff2`, `baloo-2-latin-ext-800-normal.woff2`, `baloo-2-vietnamese-700-normal.woff2`, `baloo-2-vietnamese-800-normal.woff2`, `be-vietnam-pro-latin-400-normal.woff2`, `be-vietnam-pro-latin-600-normal.woff2`, `be-vietnam-pro-latin-700-normal.woff2`, `be-vietnam-pro-latin-800-normal.woff2`, `be-vietnam-pro-latin-ext-400-normal.woff2`, `be-vietnam-pro-latin-ext-600-normal.woff2`, `be-vietnam-pro-latin-ext-700-normal.woff2`, `be-vietnam-pro-latin-ext-800-normal.woff2`, `be-vietnam-pro-vietnamese-400-normal.woff2`, `be-vietnam-pro-vietnamese-600-normal.woff2`, `be-vietnam-pro-vietnamese-700-normal.woff2`, `be-vietnam-pro-vietnamese-800-normal.woff2`.
+
+**Sounds:** `assets/audio/banhbao_call.mp3` (50 KB), `assets/audio/car_horn_1.mp3` (8 KB), `assets/audio/car_horn_2.mp3` (5 KB), `assets/audio/horn_1.mp3` (6 KB), `assets/audio/horn_2.mp3` (6 KB), `assets/audio/horn_3.mp3` (5 KB), `assets/audio/horn_4.mp3` (6 KB), `assets/audio/horn_5.mp3` (4 KB), `assets/audio/horn_6.mp3` (4 KB), `assets/audio/music_main.mp3` (2945 KB). `banhbao_call.mp3` is a copy of the clip embedded in `js/banhbao-clip.js` (the game plays the embedded copy). All other sound effects and the fallback music are synthesised with Web Audio in `js/audio.js`.
+
+### 4. Screen size and sprite sheets
+
+- **Canvas:** the game works in logical units. Screen height is always **540 units**; width is 540 × the screen's aspect ratio (e.g. **1168 × 540** on an 844 × 390 phone, **960 × 540** at 16:9). The canvas backing store is CSS pixels × devicePixelRatio, capped at **2** (1.25 in low-quality mode). Landscape only.
+- **Screen bands (logical y):** sky and shop fronts 0–176 (shop fronts end at y = 176), far footpath 176–224, road 224–440, near footpath 440–540. Characters and vehicles scale with depth from 0.86× (far) to 1.06× (near), times 1.22.
+- **Sprite sheets:** the game has none; animation is drawn procedurally from a walk phase. For reference the exporter builds two: `assets/characters/player_walk_carry_sheet.png` = 8 frames of **211×317 px**, left to right; `assets/characters/player_walk_sheet.png` = 8 frames of **211×317 px**, left to right. Person sprites are drawn in an 80 × 120-unit box with the feet at (40, 108); side-view scooters face right and are flipped for left-moving traffic.
+
+### 5. Art style and what is placeholder
+
+- **Gameplay style:** flat, rounded "sticker" cartoon. Simple shapes, no gradients on characters, a dark brown ink outline (`#24150f`, about 1.25 units) around every sprite, and a white sticker outline on the player. Warm Hanoi palette; three lighting presets (morning, golden hour, neon night) tint the scene. Shop signs use only the approved Vietnamese words with correct diacritics, set in Baloo 2.
+- **Cutscene style:** black-and-white manga. Game art converted to ink plus halftone screentone, with courier green (`#00b14f`) as the only spot colour, plus hand-drawn vector close-ups, speed lines and sound-effect lettering.
+- **Placeholder:** all visual art is programmer art drawn in code. It is consistent and shippable, but it was not drawn by an artist, so every PNG above is a candidate for replacement. `icons/app_icon_1024.png` is a placeholder made by the exporter (the game does not use it). There is no splash screen image yet. Faces are minimal (dot eyes); there are no hand-drawn animation frames.
+- **Not placeholder:** the music (`music_main.mp3`, the author's own track) and the horn recordings (`horn_*`, `car_horn_*`) are real audio supplied by the author; the bánh bao call is the author's recording.
+
+### Changes made for this package
+
+No gameplay code was changed and no existing file was renamed.
+
+| Old | New |
+|---|---|
+| CSS inline in `index.html` (`<style>` block) | `css/style.css` (same rules) |
+| `@font-face` rules inline in `index.html`, pointing to missing `.ttf` files | `css/fonts.css`, pointing to the included `.woff2` files |
+| `assets/fonts/PUT_FONT_FILES_HERE.txt` | removed (the real fonts are now included) |
+| (none) | added `assets/characters/`, `assets/backgrounds/`, `assets/ui/`, `assets/icons/`, `assets/effects/`, `assets/asset-manifest.json`, `assets/audio/banhbao_call.mp3`, `tools/export-assets.js` |
+
+To re-export after changing the art code: `npm install playwright` then `node tools/export-assets.js`.
+
 ---
+
+## Story
+
+Minh was the fastest CRAB delivery rider in Hanoi's Old Quarter (CRAB is the game's parody courier company: green jacket, green cap, green CRAB box), until a bald Russian tourist in a tank top snatched the key he'd left in his scooter and rode off on it. Now he delivers on foot, saving his tips for a new scooter. The goal is **1,500 coins** (`SCOOTER_PRICE` in `js/config.js`), shown as the **Scooter Fund** on the level screen. Riding the new scooter is planned as Chapter 2.
+
+The opening cutscene (`js/story.js`) plays the first time you press PLAY, and again from the **STORY** button. It is a **paper cut-out animation**: cut-paper Hanoi scenery, puppets with brass-pinned joints moving in choppy 12 fps "stop-motion", paper drop shadows and grain, cut-out letter tiles for sound effects, torn-paper captions and paper speech balloons. Minh's and the tourist's faces and Minh's CRAB box are cut straight out of the Banh Zai cover art (`assets/ui/cover.jpg`), so the puppets keep the cover's likeness. Six scenes: the ride in, the key left in, the snatch, "TRỜI ƠI!!", Bà Lan in the rain, and the goal card. Story text is in `SS.STRINGS.story`. Tap for the next scene; SKIP ends it. (`assets/story/street.jpg` is kept as art reference; the cutscene no longer uses it.)
 
 ## How it plays
 
 Each level is a **delivery shift**: 3, 4 or 5 orders, plus an **Endless Rush Hour** mode that unlocks after level 1.
 
-1. **Pick up** each order at the shop under the **yellow flag** (pho, bánh mì, iced coffee and more).
-2. **Deliver** it to the customer under the **green pin**, often on the other side of the road.
+1. **Pick up** each order at the blue **PICK UP** marker (pho, bánh mì, iced coffee and more).
+2. **Deliver** it to the customer under the pink **DELIVER** marker, often on the other side of the road.
 3. **Hot food cools and iced drinks melt** (the HEAT or ICE bar), and sudden moves spill it (the CONDITION bar).
 4. Speed plus care earns **1 to 5 stars and a tip**. Four-star deliveries in a row build a **streak** bonus.
-5. Spend tips in the **upgrade shop**: sandals, padded box, insulated bag, big lungs, traffic whisperer, lucky charm.
+5. Coins earned in a shift are banked when the shift ends; restart or quit and that shift's coins are lost. Spend savings in the **upgrade shop**: sandals, padded box, insulated bag, big lungs, traffic whisperer, lucky charm.
 6. Each dish delivered with 4 or more stars earns a stamp in the **Food Passport**. Complete all 8 for a bonus.
 7. **Street events**: traffic lights at every intersection (cross while the main road is red) and sudden downpours that slow riders' reactions and cool food faster.
+
+**Fake CRAB drivers** (white T-shirt, black jeans, flip-flops) offer you a ride. Buying one takes you straight to your next stop, but it's a scam: when you arrive you're charged the same price again and a **SCAMMED!** alert shows how much you lost.
 
 Food, upgrade and level data are all in `js/config.js` (`SS.FOODS`, `SS.UPGRADES`, levels).
 
@@ -82,26 +258,13 @@ To test on your phone, open `http://<your-computer-ip>:8080` while both devices 
 
 **Desktop controls:** WASD or the arrow keys to walk, Shift to sprint, Space to hold your breath, E to say "No thanks" (hold E to buy), Esc or P to pause.
 
-**Mobile controls:** a compact arrow pad in the bottom-left corner (or a floating joystick that only appears where you touch; switch in Settings → Touch controls). On the right are SPRINT, HOLD BREATH, NO THANKS and BUY.
+**Mobile controls:** touch and drag anywhere on the left half of the screen to walk (an invisible joystick). On the right are SPRINT, HOLD BREATH, NO THANKS and BUY.
 
 ---
 
-## 2. Fonts (add these before release)
+## 2. Fonts (included)
 
-The game uses two free fonts under the SIL Open Font License. Download them and copy **exactly these filenames** into `assets/fonts/`:
-
-| File | Family / weight | Download |
-|---|---|---|
-| `BeVietnamPro-Regular.ttf` | Be Vietnam Pro 400 | https://fonts.google.com/specimen/Be+Vietnam+Pro |
-| `BeVietnamPro-SemiBold.ttf` | Be Vietnam Pro 600 | (same zip) |
-| `BeVietnamPro-Bold.ttf` | Be Vietnam Pro 700 | (same zip) |
-| `BeVietnamPro-ExtraBold.ttf` | Be Vietnam Pro 800 | (same zip) |
-| `Baloo2-Bold.ttf` | Baloo 2 700 | https://fonts.google.com/specimen/Baloo+2 (inside the zip's `static/` folder) |
-| `Baloo2-ExtraBold.ttf` | Baloo 2 800 | (same zip, `static/` folder) |
-
-Also put each family's `OFL.txt` in the same folder. The licence requires you to ship it with the fonts.
-
-Until the files are added, the game falls back to `system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, sans-serif`. All of these render Vietnamese diacritics, so the game is fully playable without the font files. It just looks less branded. The six 404s you'll see in the browser console are these missing font files.
+The game uses two free fonts under the SIL Open Font License, already in `assets/fonts/` as `.woff2` files, with their licence texts (`OFL-BeVietnamPro.txt`, `OFL-Baloo2.txt`) which must ship with them. `css/fonts.css` loads them, split by script so only the needed parts download. If a font file is ever missing, the game falls back to `system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, sans-serif`, all of which render Vietnamese diacritics.
 
 ---
 
@@ -229,9 +392,9 @@ All of this lives in `updateScooters()` and `updateConfidence()` in `js/game.js`
 
 **Must do**
 - [ ] **Audio rights for the bánh bao call.** `js/banhbao-clip.js` contains the audio track from the video you supplied. That video looks like a screen recording of a YouTube Short. Before selling the game, make sure you have permission to use that recording commercially, or replace it with your own recording. To replace it: `ffmpeg -i mycall.wav -ac 1 -ar 22050 -b:a 48k call.mp3`, base64-encode the MP3, and paste it into `SS.BANHBAO_CLIP`. If the clip ever fails to decode, the game falls back to a synthesised megaphone chant automatically.
-- [ ] Add the six font files and their `OFL.txt` (section 2).
+- [x] Fonts and their OFL licence texts are included (section 2).
 - [ ] Choose the final title (`SS.CONFIG.TITLE`), bundle id and version.
-- [ ] **App icon:** a 1024×1024 PNG with no transparency (required for iOS). Generate every size with `npx @capacitor/assets generate` from `assets/icon.png` in the Capacitor project.
+- [ ] **App icon:** a 1024×1024 PNG with no transparency (required for iOS). A placeholder is in `assets/icons/app_icon_1024.png`. Generate every size with `npx @capacitor/assets generate` from `assets/icon.png` in the Capacitor project.
 - [ ] **Splash screen:** a 2732×2732 PNG with the artwork centred, and a dark background matching `#0b0a12`. The same `@capacitor/assets` tool generates it from `assets/splash.png`.
 - [ ] **Store screenshots** (landscape):
   - iPhone 6.9" (2868×1320 or 2796×1290) and 6.5" (2778×1284)

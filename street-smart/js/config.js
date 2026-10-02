@@ -12,7 +12,7 @@
 
   /* ---------------- Global game config ---------------- */
   SS.CONFIG = {
-    TITLE: 'STREET SMART',               // change the game's name here
+    TITLE: 'BANH ZAI',                   // change the game's name here
     TAGLINE: 'Frogger taught you to dodge. This teaches you to flow.',
     VERSION: '1.0.0',
 
@@ -21,6 +21,7 @@
     // true            = levels flagged `requiresFullGame` are locked until
     //                   SS.Purchases.unlockFullGame() succeeds (save.js).
     IAP_ENABLED: false,
+    SCOOTER_PRICE: 1500,   // the story goal: save this many coins for a new scooter
 
     VIEW_H: 540,          // logical units of screen height; width follows aspect
     MAX_DPR: 2,           // devicePixelRatio cap (performance)
@@ -56,11 +57,12 @@
   // marker colours chosen to stand out against the warm street palette
   SS.COL_PICK = '#1fd1ff'; // pick up: electric cyan
   SS.COL_DROP = '#ff2e88'; // deliver: hot pink
-  SS.COL_PLAYER = '#b6ff1a'; // you: hi-vis lime (no one else wears it)
+  SS.COL_PLAYER = '#2a9a45'; // you: CRAB courier green (jacket, cap, box)
 
   SS.STRINGS = {
     loading: 'Loading…',
     tapToStart: 'Tap to start',
+    tapAnywhere: 'TAP ANYWHERE TO START',
     play: 'PLAY',
     settings: 'SETTINGS',
     credits: 'CREDITS',
@@ -73,6 +75,38 @@
     retry: 'RETRY',
     menu: 'MENU',
     levelSelect: 'CHOOSE A DELIVERY',
+    storyBtn: 'STORY',
+    brand: 'CRAB',                       // the courier company on Minh's uniform (parody, no real logos)
+    scamTitle: 'SCAMMED!',
+    scamLine: 'A fake CRAB driver charged you double: −{n} coins',
+    skip: 'SKIP',
+    scooterFund: 'SCOOTER FUND',
+    scooterReady: 'You can afford a new scooter! Riding is coming in Chapter 2.',
+    story: {
+      s0: 'Hanoi. The Old Quarter. Rush hour.',
+      s1p: 'Hanoi, the Old Quarter. Minh was the fastest CRAB rider in town.',
+      s2p: 'One hot afternoon he parked, ran in with an order... and left the key in.',
+      s6p: 'No scooter. No job. Just rain... until Bà Lan came by.',
+      minh2b: 'On foot? In THIS traffic?!',
+      s1: 'Minh was the fastest CRAB rider in town.',
+      vroom: 'VROOOM!',
+      s2a: 'One hot afternoon, he parked, ran in with an order...',
+      s2b: '...and left the key in. A Russian tourist was watching.',
+      ting: 'TING!',
+      snatch: 'SNATCH!!',
+      tourist1: 'Ooh, a souvenir!',
+      troiOi: 'TRỜI ƠI!!',
+      tourist2: 'Spasibo!',
+      minhWait: 'HEY! WAIT!',
+      s5: 'Key gone. Scooter gone. Job... gone.',
+      s6: 'No scooter. No job. Just rain... until Bà Lan spoke up.',
+      minh2: 'Minh: "On foot? In THIS traffic?!"',
+      baLan: 'No scooter? Then WALK! Deliver on foot and save every tip.',
+      goalTitle: 'YOUR GOAL',
+      goal: 'Save {n} coins for a new scooter',
+      goalSub: 'Then you are back on two wheels!',
+      tapToPlay: 'TAP TO START',
+    },
     level: 'LEVEL',
     best: 'Best',
     locked: 'Locked',
@@ -97,7 +131,7 @@
     cancel: 'CANCEL',
     progressReset: 'Progress reset',
     rotate: 'Please rotate your device',
-    rotateSub: 'Street Smart is played in landscape',
+    rotateSub: 'Banh Zai is played in landscape',
 
     hudConfidence: 'CONFIDENCE',
     hudBreath: 'BREATH',
@@ -152,10 +186,16 @@
     popSunglasses: 'Sunglasses on!',
     popOuch: 'Ouch!',
     popGassed: 'Durian overload!',
+    popHeartBack: '+1 ❤  Two jobs done!',
+    stinkHint: 'Hold your breath, durian stinks!',
+    popStinkHit: 'Choking on durian!',
+    coughs: ['*cough*', '*cough cough*', '*hack*', 'Ugh!'],
     popBump: 'Bump!',
     popConfidenceLow: 'Riders can\'t read you!',
 
     now: 'NOW!',
+    bbBonus: 'BONUS',
+    bbStepIn: 'STEP IN!',
     // orders, tips & ratings
     orderPickup: 'Pick up {food} at {shop}',
     orderDeliver: 'Deliver {food} to the customer',
@@ -223,7 +263,7 @@
       ['WATCH OUT', 'Sellers grab you: tap NO THANKS or BUY. Durian stink clouds: hold your breath. Bumps and sudden moves spill your cargo.'],
       ['TIPS & UPGRADES', 'Fast, clean deliveries earn big tips and 5 stars. Spend tips on upgrades. Step in front of the bánh bao bike at the right moment for a power-up.'],
     ],
-    howtoFooter: 'You wear the lime-green shirt. 3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
+    howtoFooter: 'You are Minh, the courier in green with the big box. 3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
     purchaseUnavailable: 'Purchases are not available yet',
     controlsTouch: 'Drag on the left: walk   ·   SPRINT   ·   HOLD BREATH   ·   NO THANKS   ·   BUY',
     controlsKeys: 'WASD / Arrows: walk   ·   Shift: sprint   ·   Space: hold breath   ·   E: no thanks (hold E: buy)   ·   Esc: pause',
@@ -267,7 +307,7 @@
       fruit: 'Fruit seller',
       watch: 'Watch seller',
       shoe: 'Shoe cleaner',
-      ride: 'Fake ride-hail driver',
+      ride: 'Fake CRAB driver',
     },
 
     creditsLines: [
@@ -323,7 +363,8 @@
                   lines: ['Fruit? Very fresh!', 'Mango? Very sweet!', 'Very fresh!'] },
     watch:      { behaviour: 'chase',  speed: 128, price: 40, hold: 0.3,  escape: 6, giveUp: 7,
                   lines: ['Buy watch! Buy watch!', 'Good price!', 'Buy watch!'] },
-    // Fake ride-hail driver: waves a phone at you. Buying = a wild bike ride further down the street.
+    // Fake CRAB driver: waves a phone at you. Buying = a wild bike ride to your next stop,
+    // but he scams you: you pay double (see Session.buyFrom) and get a SCAMMED alert.
     // NOTE: "Grab" is a trademark of Grab Holdings. Change these lines before release if you want to avoid it.
     ride:       { behaviour: 'follow', speed: 118, price: 120, hold: 0.3, escape: 5, giveUp: 12,
                   lines: ['You want to grab? You want to grab?', 'Moto? Cheap cheap!', 'Very fast! Very safe!'] },
@@ -408,9 +449,9 @@
           id: 'vn-1', name: 'Old Quarter Morning', time: 'morning', music: 'morning',
           cargo: 'pho', destination: 'TẠP HÓA', orders: 3, foods: ['pho', 'banhmi', 'caphe', 'banhbao'],
           brief: 'Bà Lan: “Your first shift! Collect each order at the blue PICK UP marker, then get it to the customer while it is still hot.”',
-          length: 11200, density: 0.62, speedMul: 0.9, wildRiders: 0.03,
+          length: 11200, density: 0.38, speedMul: 0.85, wildRiders: 0.0,
           intersections: [3400, 8000],
-          durianEvery: 2200, durianFirst: 1500, cars: 13,
+          durianEvery: 2200, durianFirst: 1500, cars: 5,
           sellerTypes: ['sunglasses', 'ride', 'fruit'], sellerFirst: 1100, sellerEvery: 1300,
           banhbaoFirst: 900, banhbaoEvery: 20,
           coinGroups: 26, obstacleDensity: 0.65,
@@ -420,9 +461,9 @@
           id: 'vn-2', name: 'Golden-Hour Market', time: 'golden', music: 'market',
           cargo: 'cake', destination: 'BIA HƠI', orders: 4, foods: ['buncha', 'comtam', 'nuocmia', 'trada', 'pho'], rain: true,
           brief: 'Bà Lan: “Market rush! Hot food cools and iced drinks melt. Keep moving, but keep it steady.”',
-          length: 13200, density: 0.95, speedMul: 1.0, wildRiders: 0.06,
+          length: 13200, density: 0.72, speedMul: 0.95, wildRiders: 0.04,
           intersections: [3000, 7000, 10600],
-          durianEvery: 1500, durianFirst: 1200, cars: 14,
+          durianEvery: 1500, durianFirst: 1200, cars: 9,
           sellerTypes: ['sunglasses', 'ride', 'fruit', 'watch', 'shoe'], sellerFirst: 900, sellerEvery: 1050,
           banhbaoFirst: 700, banhbaoEvery: 17,
           coinGroups: 34, obstacleDensity: 0.8,
@@ -432,9 +473,9 @@
           id: 'vn-3', name: 'Neon Rush Hour', time: 'night', music: 'night',
           cargo: 'eggs', destination: 'BÁNH MÌ', orders: 5, foods: ['pho', 'banhbao', 'buncha', 'caphe', 'comtam', 'banhmi'], rain: true,
           brief: 'Bà Lan: “Night shift in rush hour. Five orders. Do not spill my bún chả.”',
-          length: 14400, density: 1.12, speedMul: 1.14, wildRiders: 0.09,
+          length: 14400, density: 0.95, speedMul: 1.08, wildRiders: 0.08,
           intersections: [2800, 7000, 11400],
-          durianEvery: 1800, durianFirst: 1300, cars: 15,
+          durianEvery: 1800, durianFirst: 1300, cars: 12,
           sellerTypes: ['ride', 'sunglasses', 'fruit', 'watch', 'ride', 'shoe'], sellerFirst: 800, sellerEvery: 950,
           banhbaoFirst: 600, banhbaoEvery: 15,
           coinGroups: 40, obstacleDensity: 0.9,
@@ -445,9 +486,9 @@
           id: 'vn-endless', name: 'Endless Rush Hour', time: 'golden', music: 'market', endless: true,
           cargo: 'pho', destination: 'TẠP HÓA', orders: 9999, foods: ['pho', 'buncha', 'comtam', 'banhbao', 'banhmi', 'caphe', 'trada', 'nuocmia'], rain: true,
           brief: 'Bà Lan: “Endless orders, endless traffic. How long can you last?”',
-          length: 90000, density: 0.75, speedMul: 1.0, wildRiders: 0.06,
+          length: 90000, density: 0.65, speedMul: 1.0, wildRiders: 0.05,
           intersections: Array.from({ length: 21 }, (_, i) => 3200 + i * 4000),
-          durianEvery: 1900, durianFirst: 1500, cars: 13,
+          durianEvery: 1900, durianFirst: 1500, cars: 10,
           sellerTypes: ['sunglasses', 'ride', 'fruit', 'watch', 'shoe'], sellerFirst: 900, sellerEvery: 1100,
           banhbaoFirst: 700, banhbaoEvery: 18,
           coinGroups: 220, obstacleDensity: 0.8,

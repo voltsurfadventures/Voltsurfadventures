@@ -49,8 +49,11 @@
       this.variants = this.makeVariants();
       this.grid = new Map();
       this.score = 0;
-      this.coins = SS.Save.data.coins;
-      this.coinsStart = this.coins;
+      // coins in a shift start at 0; they go into your savings only when the shift ends
+      // (restart or quit mid-shift and they are lost)
+      this.coins = 0;
+      this.coinsStart = 0;
+      this.banked = false;
       this.stats = { coins: 0, nearMiss: 0, crossings: 0, banhbao: 0, sellers: 0, hits: 0 };
       this.freezeT = 0; this.slowT = 0; this.slowOn = true; this.slowGlitchT = 0;
       this.glare = 0; this.glareX = 0; this.glareY = 0;
@@ -390,6 +393,46 @@
         if (s.speed > 120 && Math.random() < dt * 2.2 * this.L.dust * SS.Main.quality) this.particle('dust', s.x - ax * s.len, s.y - 2, -ax * 20, -ay * 20, 0.7);
       }
       if (p) this.tension = tension;
+      this.separateTraffic();
+    }
+
+    // hard separation: bikes and cars never sit inside each other. Same-direction
+    // overlaps are pushed apart sideways when there is room, otherwise the one
+    // behind drops back and matches speed.
+    separateTraffic() {
+      this.buildGrid();
+      const seen = new Set();
+      for (const s of this.scooters) {
+        if (s.crashed > 0) continue;
+        const k = Math.floor(s.x / 80);
+        for (let kk = k - 1; kk <= k + 1; kk++) {
+          const cell = this.grid.get(kk); if (!cell) continue;
+          for (const n of cell) {
+            if (n === s || n.crashed > 0 || n.vertical !== s.vertical) continue;
+            const key = s.id < n.id ? s.id + ':' + n.id : n.id + ':' + s.id;
+            if (seen.has(key)) continue; seen.add(key);
+            const ax = s.ax, ay = s.ay;
+            const rx = n.x - s.x, ry = n.y - s.y;
+            const along = rx * ax + ry * ay, lat = rx * -ay + ry * ax;
+            const needAlong = (s.len + n.len) * 0.92, needLat = (s.halfW + n.halfW) * 1.5 + 6;
+            const oa = needAlong - Math.abs(along), ol = needLat - Math.abs(lat);
+            if (oa <= 0 || ol <= 0) continue;
+            const sameDir = ax * n.ax + ay * n.ay > 0;
+            const lo = s.vertical ? s.ix - G.CROSS_HALF + 14 : G.ROAD_TOP + 10, hi = s.vertical ? s.ix + G.CROSS_HALF - 14 : G.ROAD_BOT - 4;
+            if (ol / needLat < oa / needAlong || !sameDir) {
+              // sideways: split the push, respecting the kerbs
+              const dir = lat >= 0 ? 1 : -1, push = ol * 0.5 + 0.5;
+              if (s.vertical) { s.x = U.clamp(s.x + dir * push * ay, lo, hi); n.x = U.clamp(n.x - dir * push * ay, lo, hi); }
+              else { s.y = U.clamp(s.y - dir * push * ax, lo + s.halfW, hi - s.halfW); n.y = U.clamp(n.y + dir * push * ax, lo + n.halfW, hi - n.halfW); }
+            } else {
+              // nose-to-tail: the one behind backs off and matches speed
+              const back = along > 0 ? s : n, front = back === s ? n : s;
+              back.x -= back.ax * oa; back.y -= back.ay * oa;
+              back.speed = Math.min(back.speed, front.speed);
+            }
+          }
+        }
+      }
     }
 
     scooterVsPlayer(s, along, lat) {
@@ -521,9 +564,10 @@
     }
     banhBaoGrab(s, along, lat) {
       const p = this.player;
-      const inLane = Math.abs(lat) < 22;
-      s.window = !s.grabbed && along > 40 && along < 160 && p.onRoad;
-      if (inLane && !s.wasInLane && s.window) {
+      // the big yellow zone in front of his bike (drawn in render.js): stand in it as he arrives
+      const inLane = Math.abs(lat) < 36;
+      s.window = !s.grabbed && along > 28 && along < 200 && p.onRoad;
+      if (inLane && s.window) {
         s.grabbed = true; s.grabT = 0.9; s.speed = Math.min(s.speed, 90);
         this.stats.banhbao++;
         this.addScore(250, S.popGrab, p.x, p.y - 90, '#ffd75a');
@@ -544,6 +588,7 @@
     /* ------------------------------------------------------------------ */
     updatePlayer(dt) {
       const p = this.player, In = SS.Input;
+      if (this.scam) { this.scam.t -= dt; if (this.scam.t <= 0) this.scam = null; }
       p.invuln = Math.max(0, p.invuln - dt);
       p.bumpCD = Math.max(0, p.bumpCD - dt);
       p.nudgeCD = Math.max(0, p.nudgeCD - dt);
@@ -578,8 +623,17 @@
       nx = U.clamp(nx, camL, Math.min(camR, this.W.length + 320));
       ny = U.clamp(ny, G.WALK_MIN, G.WALK_MAX);
       let blockedX = false, blockedY = false;
-      if (this.collides(nx, p.y)) { nx = p.x; blockedX = true; }
-      if (this.collides(nx, ny)) { ny = p.y; blockedY = true; }
+      if (this.collides(p.x, p.y)) {
+        // already inside something (pushed by the screen edge, a knock-back or a ride drop):
+        // never trap the player; let them walk out and ease them toward the road
+        p.stuckT = (p.stuckT || 0) + dt;
+        if (p.stuckT > 0.25) ny += (p.y < (G.ROAD_TOP + G.ROAD_BOT) / 2 ? 1 : -1) * 90 * dt;
+        ny = U.clamp(ny, G.WALK_MIN, G.WALK_MAX);
+      } else {
+        p.stuckT = 0;
+        if (this.collides(nx, p.y)) { nx = p.x; blockedX = true; }
+        if (this.collides(nx, ny)) { ny = p.y; blockedY = true; }
+      }
       p.x = nx; p.y = ny;
       if (blockedX) p.vx *= 0.2;
       if (blockedY) p.vy *= 0.2;
@@ -716,20 +770,42 @@
 
     updateBreath(dt) {
       const p = this.player;
+      if (this.hurtPulse > 0) this.hurtPulse = Math.max(0, this.hurtPulse - dt * 1.4);
+      if (this.stinkHintCD > 0) this.stinkHintCD -= dt;
+      if (this.hint) { this.hint.t -= dt; if (this.hint.t <= 0) this.hint = null; }
       let inCloud = 0;
       for (const c of this.clouds) {
         const dx = p.x - c.x, dy = (p.y - 30 - c.y) * 1.3;
         if (dx * dx + dy * dy < (c.r * 0.85) * (c.r * 0.85)) inCloud = Math.max(inCloud, c.alpha);
       }
       p.inCloud = inCloud;
+      // breathing the stink (not holding your breath): cough, lose confidence, spill, and after a while lose a heart
+      if (inCloud > 0.1 && !p.holding && !p.tumble) {
+        p.breathCough -= dt;
+        if (p.breathCough <= 0) {
+          p.breathCough = 0.75;
+          SS.Audio.sfx('cough');
+          SS.Haptics.vibrate(25);
+          this.popup(U.pick(S.coughs), p.x + p.face * 18, p.y - 92, '#c6e65a', 0.8, 16);
+          for (let k = 0; k < 3; k++) this.particle('puff', p.x + p.face * 10, p.y - 62, p.face * U.rand(20, 50), U.rand(-25, 5), 0.7, 0, '#9aaa2a');
+        }
+        p.conf = Math.max(0, p.conf - 9 * inCloud * dt);
+        this.spill(1.6 * inCloud * dt, false);
+        p.stinkT = (p.stinkT || 0) + dt * inCloud;
+        this.hurtPulse = Math.min(1, (this.hurtPulse || 0) + dt * 3);
+        if ((this.stinkHintCD || 0) <= 0) { this.stinkHintCD = 6; this.hint = { text: S.stinkHint, t: 2.6 }; }
+        if (p.stinkT >= 2.4 && p.invuln <= 0) {
+          p.stinkT = 0; p.lives--; this.stats.hits++; p.invuln = 1.6; this.cam.shake = 8; this.flash = 0.3;
+          this.popup(S.popStinkHit, p.x, p.y - 112, '#ff6a5a', 1.4, 22);
+          SS.Audio.sfx('tumble'); SS.Haptics.vibrate([60, 40, 90]);
+          if (p.lives <= 0) this.lose('lives');
+        }
+      } else p.stinkT = Math.max(0, (p.stinkT || 0) - dt);
       if (p.gassed > 0) { p.breath = Math.min(100, p.breath + 10 * dt); return; }
       const lungs = 1 - 0.25 * SS.Save.up('lungs');
       if (p.holding) p.breath -= 15 * lungs * dt;
-      else if (inCloud > 0.1) {
-        p.breath -= 42 * inCloud * lungs * dt;
-        p.breathCough -= dt;
-        if (p.breathCough <= 0) { p.breathCough = 0.7; this.particle('puff', p.x + p.face * 10, p.y - 62, p.face * 30, -10, 0.6, 0, '#b8c94a'); }
-      } else p.breath = Math.min(100, p.breath + 24 * dt);
+      else if (inCloud > 0.1) p.breath -= 42 * inCloud * lungs * dt;
+      else p.breath = Math.min(100, p.breath + 24 * dt);
       if (p.breath <= 0) {
         p.breath = 0; p.gassed = 3.8; p.holding = false;
         SS.Audio.sfx('cough');
@@ -996,7 +1072,12 @@
       else if (s.type === 'fruit') { p.breath = 100; if (p.lives < C.LIVES) p.lives++; this.popup(S.popFruit, p.x, p.y - 124, '#b6f37a', 1.5); }
       else if (s.type === 'watch') { this.slowT = 10; this.slowOn = true; this.slowGlitchT = U.rand(1, 2.5); this.popup(S.popSlowmo, p.x, p.y - 124, '#ffd75a', 1.5); }
       else if (s.type === 'shoe') { p.boostT = 8; this.popup(S.popBoost, p.x, p.y - 124, '#9fe6ff', 1.5); }
-      else if (s.type === 'ride') this.startRide();
+      else if (s.type === 'ride') {
+        // it's a scam: the fake driver charges you double (the ride still happens)
+        // the second charge lands when you arrive (see updateRide)
+        this.pendingScam = price;
+        this.startRide();
+      }
       SS.Audio.sfx('powerup');
     }
 
@@ -1031,7 +1112,17 @@
         this.spill(6, true); // he drives like a maniac
         this.popup(S.popRide, p.x, p.y - 100, '#7fc96b', 1.6, 20);
       }
-      if (R.t >= 1.2) this.ride = null;
+      if (R.t >= 1.2) {
+        this.ride = null;
+        if (this.pendingScam) { // on arrival the fake driver demands the same again
+          const price = this.pendingScam, extra = Math.min(this.coins, price);
+          this.pendingScam = 0; this.coins -= extra;
+          this.scam = { t: 3.6, n: price + extra };
+          SS.Audio.sfx('glitch'); SS.Audio.sfx('nothanks');
+          SS.Haptics.vibrate([40, 60, 40, 60, 80]);
+          this.cam.shake = Math.max(this.cam.shake, 6);
+        }
+      }
     }
 
     /* ------------------------------------------------------------------ */
@@ -1045,11 +1136,11 @@
         if (st.timer <= 0) {
           st.timer = U.rand(4.5, 7.5) / (0.6 + this.level.density * 0.5);
           const c = {
-            x: st.x + U.rand(-20, 20), y: st.near ? st.y - 50 : st.y - 10, r: 26, rMax: U.rand(85, 115),
-            vx: U.rand(-16, 16), vy: st.near ? -U.rand(14, 24) : U.rand(14, 24), life: 0, max: U.rand(10, 13), alpha: 0,
+            x: st.x + U.rand(-20, 20), y: st.near ? st.y - 50 : st.y - 10, r: 30, rMax: U.rand(125, 165),
+            vx: U.rand(-16, 16), vy: st.near ? -U.rand(14, 24) : U.rand(14, 24), life: 0, max: U.rand(13, 16), alpha: 0,
             puffs: [],
           };
-          const n = SS.Main.quality > 0.6 ? 9 : 5;
+          const n = SS.Main.quality > 0.6 ? 14 : 7;
           for (let k = 0; k < n; k++) c.puffs.push({ a: Math.random() * 6.28, d: Math.random() * 0.6, s: U.rand(0.5, 0.9), sp: U.rand(-0.6, 0.6) });
           this.clouds.push(c);
           SS.Audio.sfx('gas', { pan: this.pan(c.x), vol: U.clamp(1 - Math.abs(this.pan(c.x)) * 0.6, 0.3, 1) });
@@ -1060,6 +1151,9 @@
         const c = this.clouds[i];
         c.life += dt * ts;
         c.r = U.lerp(c.r, c.rMax, Math.min(1, dt * 0.6));
+        // the stink creeps toward you
+        const pl = this.player;
+        if (pl && Math.abs(pl.x - c.x) < 420) c.vx = U.lerp(c.vx, Math.sign(pl.x - c.x) * 22, dt * 0.4);
         c.x += c.vx * dt * ts; c.y += c.vy * dt * ts;
         c.y = U.clamp(c.y, G.FACADE_BOT - 20, G.VIEW_H - 40);
         c.alpha = Math.min(1, c.life / 0.8) * Math.min(1, (c.max - c.life) / 2.5);
@@ -1393,6 +1487,12 @@
       const tip = Math.max(1, Math.round((6 + o.dist / 110) * (0.25 + 0.75 * q / 100) * (1 + 0.1 * Math.min(5, Math.max(0, this.streak - 1)))));
       o.tip = tip;
       this.tips += tip; this.coins += tip; this.delivered++; this.ratingSum += stars;
+      // every 2 jobs done wins a heart back (up to the maximum)
+      if (this.delivered % 2 === 0 && p.lives < C.LIVES) {
+        p.lives++;
+        this.popup(S.popHeartBack, p.x, p.y - 140, '#ff6a7a', 1.8, 22);
+        SS.Audio.sfx('powerup'); SS.Haptics.vibrate([20, 40, 20]);
+      }
       this.score += tip * 10 + stars * 60;
       const lines = (F.temp === 'cold' ? S.reactionsCold : S.reactions)[stars - 1];
       const c = o.cust; c.bubble = U.pick(lines); c.bubbleT = 2.8; c.mood = stars >= 4 ? 1 : stars <= 2 ? -1 : 0; c.leaveT = 3.2; c.leaveDir = Math.random() < 0.5 ? -1 : 1;
@@ -1513,13 +1613,14 @@
     }
 
     commitCoins() {
-      SS.Save.data.coins = Math.max(0, this.coins);
+      if (this.banked) return;
+      this.banked = true;
+      SS.Save.data.coins = Math.max(0, SS.Save.data.coins + Math.max(0, this.coins));
       SS.Save.save();
     }
 
     destroy() {
       SS.Audio.bbStop();
-      this.commitCoins();
     }
   }
 

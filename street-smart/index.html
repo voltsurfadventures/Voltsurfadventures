@@ -3,38 +3,45 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0a12">
-<title>Street Smart</title>
-<style>
-  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0a12; color: #fff; touch-action: none; }
-  #game { position: fixed; left: 0; top: 0; transform: none !important; touch-action: none; }
-  #safe-probe { position: fixed; width: 0; height: 0; visibility: hidden; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
-  #loading { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: #120c18; color: #ffd23f; font-weight: 800; }
-  #loading.done { opacity: 0; pointer-events: none; }
-  #rotate { display: none !important; }
-</style>
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Banh Zai</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <canvas id="game"></canvas>
 <div id="safe-probe"></div>
-<div id="loading">STREET SMART</div>
-<div id="rotate"></div>
-<script src="js/config.js?v=6"></script>
-<script src="js/look.js?v=6"></script>
-<script src="js/save.js?v=6"></script>
-<script src="js/banhbao-clip.js?v=6"></script>
-<script src="js/audio.js?v=6"></script>
-<script src="js/art.js?v=6"></script>
-<script src="js/input.js?v=6"></script>
-<script src="js/world.js?v=6"></script>
-<script src="js/game.js?v=6"></script>
-<script src="js/rules.js?v=6"></script>
-<script src="js/render.js?v=6"></script>
-<script src="js/painted.js?v=6"></script>
-<script src="js/story.js?v=6"></script>
-<script src="js/ui.js?v=6"></script>
-<script src="js/main.js?v=6"></script>
-<script src="js/phone.js?v=6"></script>
+<div id="loading"><div class="logo">BANH ZAI</div><div class="bar"><i></i></div><div class="sub">Loading…</div></div>
+<div id="rotate"><div class="phone"></div><h2>Please rotate your device</h2><p>Banh Zai is played in landscape</p></div>
+
+<!-- Game code: plain JS, no frameworks, no network requests. -->
+<script src="js/config.js"></script>
+<script>
+  // single source of truth for the title / strings, even on the HTML screens
+  (function () {
+    var C = SS.CONFIG, S = SS.STRINGS;
+    document.title = C.TITLE.charAt(0) + C.TITLE.slice(1).toLowerCase().replace(/ (.)/g, function (m, c) { return ' ' + c.toUpperCase(); });
+    document.querySelector('#loading .logo').textContent = C.TITLE;
+    document.querySelector('#loading .sub').textContent = S.loading;
+    document.querySelector('#rotate h2').textContent = S.rotate;
+    document.querySelector('#rotate p').textContent = S.rotateSub;
+  })();
+</script>
+<script src="js/save.js"></script>
+<script src="js/banhbao-clip.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/input.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/story.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>

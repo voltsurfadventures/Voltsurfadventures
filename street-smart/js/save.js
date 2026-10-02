@@ -17,6 +17,7 @@
     tutorialDone: false,
     settings: { music: 0.45, sfx: 0.9, vibration: true, graphics: 'auto', synthMusic: false, zoom: true },
     howtoSeen: false,
+    storySeen: false,     // opening cutscene watched
     upgrades: {},          // upgradeId -> level
     stamps: {},            // foodId -> true (food passport)
     passportDone: false,
@@ -45,6 +46,7 @@
             d.fullGame = !!p.fullGame;
             d.tutorialDone = !!p.tutorialDone;
             d.howtoSeen = !!p.howtoSeen;
+            d.storySeen = !!p.storySeen;
             d.upgrades = p.upgrades && typeof p.upgrades === 'object' ? p.upgrades : {};
             d.stamps = p.stamps && typeof p.stamps === 'object' ? p.stamps : {};
             d.passportDone = !!p.passportDone;
