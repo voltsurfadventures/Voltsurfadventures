@@ -784,6 +784,21 @@
       const dv = Math.hypot(p.vx - p.svx, p.vy - p.svy);
       let rate = Math.max(0, dv - 70) * 0.045;
       if (p.sprinting && speed > WALK) rate += 2.2;
+      // on a scooter: the faster you go, the more it sloshes (softer suspension soaks it up)
+      if (this.rideDef && speed > WALK * 0.6) {
+        const over = speed / WALK - 0.6, susp = 1 - 0.25 * SS.Save.up('suspension');
+        rate += 1.0 * Math.pow(over, 1.5) * susp;
+        p.bumpT = (p.bumpT || 0) - dt;
+        if (p.bumpT <= 0) {
+          p.bumpT = 0.25;
+          if (Math.random() < 0.045 * over * over * susp) { // hit a pothole
+            this.spill(2.2, true);
+            this.popup(S.popBumpy, p.x, p.y - 96, '#ffb14a', 0.8, 15);
+            if (SS.Save.up('suspension') < 3 && (this.bumpHintCD || 0) <= 0) { this.bumpHintCD = 25; this.hint = { text: S.bumpyHint, t: 3.2 }; }
+          }
+        }
+      }
+      if (this.bumpHintCD > 0) this.bumpHintCD -= dt;
       if (rate > 0) {
         p.spillAcc += rate * dt * this.cargoDef.sensitivity;
         p.cargo = Math.max(0, p.cargo - rate * dt * this.cargoDef.sensitivity);
@@ -805,20 +820,25 @@
       }
       p.inCloud = inCloud;
       // breathing the stink (not holding your breath): cough, lose confidence, spill, and after a while lose a heart
+      // a full-face helmet filters most of the stink
+      const helmet = SS.Save.up('helmet'), filt = 1 - 0.35 * helmet;
       if (inCloud > 0.1 && !p.holding && !p.tumble) {
         p.breathCough -= dt;
         if (p.breathCough <= 0) {
-          p.breathCough = 0.75;
+          p.breathCough = 0.75 * (1 + 0.9 * helmet);
           SS.Audio.sfx('cough');
           SS.Haptics.vibrate(25);
           this.popup(U.pick(S.coughs), p.x + p.face * 18, p.y - 92, '#c6e65a', 0.8, 16);
           for (let k = 0; k < 3; k++) this.particle('puff', p.x + p.face * 10, p.y - 62, p.face * U.rand(20, 50), U.rand(-25, 5), 0.7, 0, '#9aaa2a');
         }
-        p.conf = Math.max(0, p.conf - 9 * inCloud * dt);
-        this.spill(1.6 * inCloud * dt, false);
-        p.stinkT = (p.stinkT || 0) + dt * inCloud;
-        this.hurtPulse = Math.min(1, (this.hurtPulse || 0) + dt * 3);
-        if ((this.stinkHintCD || 0) <= 0) { this.stinkHintCD = 6; this.hint = { text: S.stinkHint, t: 2.6 }; }
+        p.conf = Math.max(0, p.conf - 9 * inCloud * filt * dt);
+        this.spill(1.6 * inCloud * filt * dt, false);
+        p.stinkT = (p.stinkT || 0) + dt * inCloud * (1 - 0.4 * helmet);
+        this.hurtPulse = Math.min(1, (this.hurtPulse || 0) + dt * 3 * filt);
+        if ((this.stinkHintCD || 0) <= 0) {
+          this.stinkHintCD = 6;
+          this.hint = { text: helmet < 2 && (this.stinkHints = (this.stinkHints || 0) + 1) % 2 === 0 ? S.stinkHintHelmet : S.stinkHint, t: 2.6 };
+        }
         if (p.stinkT >= 2.4 && p.invuln <= 0) {
           p.stinkT = 0; p.lives--; this.stats.hits++; p.invuln = 1.6; this.cam.shake = 8; this.flash = 0.3;
           this.popup(S.popStinkHit, p.x, p.y - 112, '#ff6a5a', 1.4, 22);
@@ -829,7 +849,7 @@
       if (p.gassed > 0) { p.breath = Math.min(100, p.breath + 10 * dt); return; }
       const lungs = 1 - 0.25 * SS.Save.up('lungs');
       if (p.holding) p.breath -= 15 * lungs * dt;
-      else if (inCloud > 0.1) p.breath -= 42 * inCloud * lungs * dt;
+      else if (inCloud > 0.1) p.breath -= 42 * inCloud * lungs * filt * dt;
       else p.breath = Math.min(100, p.breath + 24 * dt);
       if (p.breath <= 0) {
         p.breath = 0; p.gassed = 3.8; p.holding = false;

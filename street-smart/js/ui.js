@@ -434,7 +434,8 @@
       });
       // walk instead
       const wy = y0 + ch + 12 * u, walking = !SS.Save.ride();
-      this.button(ctx, 'walkinstead', vw / 2 - 90 * u, wy, 180 * u, 32 * u, walking ? S.walk + ' ✓' : S.walk, { flat: !walking, color: '#7fc96b', size: 13 * u, action: () => { G.ride = null; } });
+      this.button(ctx, 'walkinstead', vw / 2 - 190 * u, wy, 180 * u, 32 * u, walking ? S.walk + ' ✓' : S.walk, { flat: !walking, color: '#7fc96b', size: 13 * u, action: () => { G.ride = null; } });
+      this.button(ctx, 'upgradebike', vw / 2 + 10 * u, wy, 180 * u, 32 * u, '🛵 ' + S.upgradeBike, { color: '#ffd23f', size: 13 * u, action: () => { this.shopBack = 'dealer'; this.go('shop'); } });
     },
     // SAVE GAME: keeps your coins, unlocked levels and upgrades for next time (CONTINUE)
     saveButton(ctx, x, y, w, h, u) {
@@ -540,18 +541,22 @@
       this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 16 * u, u);
       this.text(ctx, S.upgradeTitle, vw / 2, ins.t + 30 * u, 22 * u, '#7fc96b', 800, true);
       this.text(ctx, S.upgradeSub, vw / 2, ins.t + 54 * u, 12 * u, '#e8e2d0', 600);
-      const ups = SS.UPGRADES, cols = 3, gap = 12 * u;
-      const cw = Math.min(250 * u, (vw - ins.l - ins.r - 40 * u - gap * (cols - 1)) / cols), ch = 132 * u;
+      const ups = SS.UPGRADES, cols = 4, gap = 12 * u;
+      const cw = Math.min(230 * u, (vw - ins.l - ins.r - 40 * u - gap * (cols - 1)) / cols), ch = 136 * u;
       const x0 = vw / 2 - (cols * cw + (cols - 1) * gap) / 2, y0 = ins.t + 72 * u;
       ups.forEach((up, i) => {
         const x = x0 + (i % cols) * (cw + gap), y = y0 + Math.floor(i / cols) * (ch + gap);
         const lvl = SS.Save.up(up.id), max = up.prices.length, price = up.prices[lvl];
         ctx.fillStyle = 'rgba(14,16,28,0.92)'; Art.rr(ctx, x, y, cw, ch, 12 * u); ctx.fill();
-        ctx.strokeStyle = 'rgba(127,201,107,0.5)'; ctx.lineWidth = 1.5 * u; Art.rr(ctx, x, y, cw, ch, 12 * u); ctx.stroke();
-        this.text(ctx, up.name, x + 14 * u, y + 20 * u, 14 * u, '#fff', 800, true, 'left');
+        ctx.strokeStyle = up.bike ? 'rgba(255,210,63,0.75)' : 'rgba(127,201,107,0.5)'; ctx.lineWidth = (up.bike ? 2.2 : 1.5) * u; Art.rr(ctx, x, y, cw, ch, 12 * u); ctx.stroke();
+        if (up.bike) {
+          ctx.fillStyle = '#ffd23f'; Art.rr(ctx, x + 12 * u, y - 8 * u, 40 * u, 15 * u, 7 * u); ctx.fill();
+          this.text(ctx, '🛵 ' + S.bikeTag, x + 32 * u, y, 9 * u, '#1a1408', 800);
+        }
+        this.text(ctx, up.name, x + 14 * u, y + 22 * u, 13 * u, '#fff', 800, true, 'left');
         for (let k = 0; k < max; k++) { ctx.fillStyle = k < lvl ? '#7fc96b' : 'rgba(255,255,255,0.18)'; Art.rr(ctx, x + cw - 14 * u - (max - k) * 16 * u, y + 14 * u, 12 * u, 12 * u, 3 * u); ctx.fill(); }
         ctx.font = SS.font(11 * u, 600); ctx.fillStyle = '#e8e2d0'; ctx.textAlign = 'left';
-        this.wrap(ctx, up.desc, cw - 28 * u).forEach((ln, k) => ctx.fillText(ln, x + 14 * u, y + 44 * u + k * 15 * u));
+        this.wrap(ctx, up.desc, cw - 28 * u).slice(0, 4).forEach((ln, k) => ctx.fillText(ln, x + 14 * u, y + 46 * u + k * 14 * u));
         if (lvl >= max) this.text(ctx, S.maxed, x + cw / 2, y + ch - 26 * u, 14 * u, '#7fc96b', 800, true);
         else {
           const afford = SS.Save.data.coins >= price;

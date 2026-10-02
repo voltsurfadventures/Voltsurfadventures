@@ -88,10 +88,13 @@
             }
             return;
           }
-          if (p.x < SS.View.w * 0.5) {
-            // a new thumb on the left always takes over (a lost touch can never lock the stick)
+          const jb0 = this.joyBase;
+          if (p.x < SS.View.w * 0.5 && (!jb0 || Math.hypot(p.x - jb0.x, p.y - jb0.y) < this.joy.r * 3.2)) {
+            // a new thumb on the left always takes over (a lost touch can never lock the stick).
+            // The stick stays anchored in the bottom-left corner; your thumb steers relative to it.
             if (this.joy.id !== null) delete this.ptrOwner[this.joy.id];
-            this.joy.id = e.pointerId; this.joy.bx = p.x; this.joy.by = p.y; this.joy.x = p.x; this.joy.y = p.y;
+            const jb = this.joyBase || { x: p.x, y: p.y };
+            this.joy.id = e.pointerId; this.joy.bx = jb.x; this.joy.by = jb.y; this.joy.x = p.x; this.joy.y = p.y;
             this.ptrOwner[e.pointerId] = 'joy';
             return;
           }
@@ -109,13 +112,8 @@
       const p = this.toView(e);
       if (owner === 'joy' && this.mode() === 'dpad') { this.joy.x = p.x; this.joy.y = p.y; }
       else if (owner === 'joy') {
-        const j = this.joy, R = j.r;
-        let dx = p.x - j.bx, dy = p.y - j.by;
-        const d = Math.hypot(dx, dy);
-        if (d > R * 1.6) { // drag the base along so the stick never "runs out"
-          const k = (d - R * 1.6) / d; j.bx += dx * k; j.by += dy * k;
-        }
-        j.x = p.x; j.y = p.y;
+        const j = this.joy;
+        j.x = p.x; j.y = p.y; // base stays anchored; distance past the rim just means full speed
       } else if (owner === 'ui') {
         if (SS.UI) SS.UI.pointerMove(p.x, p.y, e.pointerId);
       }
@@ -210,6 +208,7 @@
       this.joy.r = 36 * u;
       const pr = 40 * u; // arrow pad: ~100 CSS px across, tucked into the bottom-left corner
       this.pad = { x: ins.l + 10 * u + pr, y: V.h - ins.b - 8 * u - pr, r: pr };
+      this.joyBase = { x: ins.l + 8 * u + 30 * u, y: V.h - ins.b - 8 * u - 30 * u }; // fixed joystick, far bottom-left
     },
 
     /* ---------- drawing the touch controls ---------- */
@@ -247,10 +246,9 @@
           ctx.closePath(); ctx.fill();
         }
       } else {
-        // small see-through joystick: rests in the bottom-left corner, jumps to your thumb
-        // when you touch anywhere on the left half, and slides back when you let go
-        const P = this.pad, R = 30 * u;
-        const bx = active ? j.bx : P.x, by = active ? j.by : P.y;
+        // small see-through joystick, anchored in the far bottom-left corner
+        const P = this.joyBase || this.pad, R = 30 * u;
+        const bx = P.x, by = P.y;
         ctx.globalAlpha = active ? 0.55 : 0.32;
         ctx.fillStyle = 'rgba(15,18,28,0.45)';
         ctx.beginPath(); ctx.arc(bx, by, R, 0, Math.PI * 2); ctx.fill();
