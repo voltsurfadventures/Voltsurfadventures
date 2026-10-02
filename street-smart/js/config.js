@@ -77,7 +77,7 @@
     levelSelect: 'CHOOSE A DELIVERY',
     storyBtn: 'STORY',
     dealer: 'SCOOTER DEALER',
-    dealerSub: 'Coins buy scooters. Grab the risky road coins (worth 5) to get there faster!',
+    dealerSub: 'Coins buy scooters. Riding fast spills food, so add softer suspension in UPGRADES!',
     rideWith: 'RIDE',
     walk: 'Walk',
     owned: 'OWNED',
@@ -236,6 +236,11 @@
     heistMinh: 'HEY! MY BIKE!',
     popHeartBack: '+1 ❤  Two jobs done!',
     stinkHint: 'Hold your breath, durian stinks!',
+    stinkHintHelmet: 'Durian! A full-face helmet (UPGRADES) blocks the stink.',
+    bumpyHint: 'Faster = more spills! Softer suspension in UPGRADES helps.',
+    popBumpy: 'Bumpy!',
+    bikeTag: 'BIKE',
+    upgradeBike: 'UPGRADE BIKE',
     popStinkHit: 'Choking on durian!',
     coughs: ['*cough*', '*cough cough*', '*hack*', 'Ugh!'],
     popBump: 'Bump!',
@@ -283,7 +288,7 @@
     statBest: 'Best score',
     upgrades: 'UPGRADES',
     upgradeTitle: 'UPGRADE SHOP',
-    upgradeSub: 'Spend your tips. Upgrades last for every shift.',
+    upgradeSub: 'Spend your tips. BIKE upgrades make scooter riding much easier.',
     maxed: 'MAX',
     bought: 'Upgraded!',
     passport: 'FOOD PASSPORT',
@@ -313,7 +318,7 @@
     ],
     howtoFooter: 'You are Minh, the courier in green with the big box. 3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
     purchaseUnavailable: 'Purchases are not available yet',
-    controlsTouch: 'Drag on the left: walk   ·   SPRINT   ·   HOLD BREATH   ·   NO THANKS   ·   BUY',
+    controlsTouch: 'Joystick (bottom left): walk   ·   SPRINT   ·   HOLD BREATH   ·   NO THANKS   ·   BUY',
     controlsKeys: 'WASD / Arrows: walk   ·   Shift: sprint   ·   Space: hold breath   ·   E: no thanks (hold E: buy)   ·   Esc: pause',
     flowing: 'FLOWING',
     holding: 'HOLDING',
@@ -333,7 +338,7 @@
 
     // tutorial (level 1)
     tut: {
-      move: 'Touch and drag anywhere on the LEFT side of the screen to walk.',
+      move: 'Drag the joystick in the bottom-left corner to walk.',
       moveDesktop: 'Move with WASD or the arrow keys.',
       blocked: 'The footpath is blocked. Step out into the road.',
       steady: 'Walk slowly and STEADILY. Riders read your path and flow around you.',
@@ -393,6 +398,8 @@
     { id: 'lungs',   name: 'Big lungs',       desc: 'Durian stink and holding breath cost 25% less.', prices: [60, 140] },
     { id: 'whisper', name: 'Traffic whisperer', desc: 'Confidence builds 25% faster per level.',      prices: [80, 180] },
     { id: 'charm',   name: 'Lucky charm',     desc: 'Shrug off the first hit of every shift.',        prices: [250] },
+    { id: 'suspension', name: 'Softer suspension', bike: true, desc: 'Scooters spill much less at speed: 25% less per level.', prices: [120, 260, 450] },
+    { id: 'helmet',  name: 'Full-face helmet', bike: true, desc: 'Blocks durian stink: less coughing, choking and hurt.', prices: [150, 320] },
   ];
 
   SS.CARGO = {
