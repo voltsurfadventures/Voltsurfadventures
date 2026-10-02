@@ -290,6 +290,13 @@
           g.fillStyle = o.hatColor || '#c84b3a';
           g.beginPath(); g.arc(hxh, hy - 2, 10, Math.PI, TAU); g.fill();
           this.rr(g, hxh + 3, hy - 4, 12, 3.2, 1.5); g.fill();
+        } else if (o.hat === 'police') {
+          // Vietnamese police peaked cap: green crown, red band, black peak, gold badge
+          g.fillStyle = '#3f5f34'; g.beginPath(); g.ellipse(hxh - 1, hy - 8, 13, 5.5, -0.08, 0, Math.PI * 2); g.fill();
+          this.rr(g, hxh - 10, hy - 8, 19, 6, 2); g.fill();
+          g.fillStyle = '#c8321e'; g.fillRect(hxh - 10, hy - 4.5, 19, 2.6);
+          g.fillStyle = '#15151a'; this.rr(g, hxh + 3, hy - 3, 12, 3, 1.5); g.fill();
+          this.circle(g, hxh + 4, hy - 7, 2.2, '#f2c230');
         } else if (o.hat === 'helmet') {
           g.fillStyle = o.hatColor || '#e14b3b';
           g.beginPath(); g.arc(hxh, hy - 1, 11, Math.PI * 0.92, TAU + 0.1); g.fill();

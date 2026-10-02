@@ -628,6 +628,19 @@
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.4 * (o.vol || 1), t + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
       n.connect(f); f.connect(g); g.connect(this.out(o.pan)); n.start(t); n.stop(t + 1.05);
     },
+    // police whistle: two sharp trilled blasts
+    sfx_whistle(t, o) {
+      const c = this.ctx, out = this.out(o.pan), v = o.vol == null ? 1 : o.vol;
+      for (let i = 0; i < 2; i++) {
+        const tt = t + i * 0.32, len = i ? 0.38 : 0.22;
+        const osc = c.createOscillator(), trill = c.createOscillator(), tg = c.createGain(), g = c.createGain();
+        osc.type = 'sine'; osc.frequency.value = 2900;
+        trill.type = 'square'; trill.frequency.value = 38; tg.gain.value = 140;
+        trill.connect(tg); tg.connect(osc.frequency);
+        g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(0.22 * v, tt + 0.02); g.gain.setValueAtTime(0.22 * v, tt + len - 0.05); g.gain.exponentialRampToValueAtTime(0.0001, tt + len);
+        osc.connect(g); g.connect(out); osc.start(tt); trill.start(tt); osc.stop(tt + len + 0.02); trill.stop(tt + len + 0.02);
+      }
+    },
     // a real-sounding "cough-cough": a burst of breath noise through throat formants
     // plus a short voiced rasp, twice
     sfx_cough(t) {

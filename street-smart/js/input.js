@@ -62,6 +62,11 @@
       if (e.pointerType === 'touch' || e.pointerType === 'pen') this.touchMode = true;
       try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* */ }
       const p = this.toView(e);
+      // a tap during the opening heist skips it
+      if (SS.UI && SS.UI.screen === 'game' && SS.UI.session && SS.UI.session.state === 'intro' && !SS.UI.overlay) {
+        const pb0 = this.btns.pause;
+        if (!(pb0 && Math.hypot(p.x - pb0.x, p.y - pb0.y) < pb0.r * 1.25)) { SS.UI.session.skipIntro(); this.ptrOwner[e.pointerId] = 'ui'; return; }
+      }
       if (this.gameControlsActive()) {
         // pause button works for mouse and touch
         const pb = this.btns.pause;
@@ -204,8 +209,8 @@
       mk('nothanks', right - R, bottom - 2 * R - r - gap, r, S.btnNoThanks, '#f0b43c');
       mk('buy', right - 2 * R - r - gap, bottom - 2 * R - r - gap + 4 * u, r * 0.92, S.btnBuy, '#7fc96b');
       mk('pause', V.w - ins.r - 30 * u, ins.t + 30 * u, 22 * u, '', '#ffffff');
-      this.joy.r = 46 * u;
-      const pr = 50 * u; // arrow pad: ~100 CSS px across, tucked into the bottom-left corner
+      this.joy.r = 36 * u;
+      const pr = 40 * u; // arrow pad: ~100 CSS px across, tucked into the bottom-left corner
       this.pad = { x: ins.l + 10 * u + pr, y: V.h - ins.b - 8 * u - pr, r: pr };
     },
 
@@ -242,16 +247,20 @@
           ctx.lineTo(cx - ux * sz * 0.6 - uy * sz, cy - uy * sz * 0.6 - ux * sz);
           ctx.closePath(); ctx.fill();
         }
-      } else if (active && this.showStick) {
-        // floating joystick (invisible by default; set showStick to debug)
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = 'rgba(15,18,28,0.3)';
-        ctx.beginPath(); ctx.arc(j.bx, j.by, j.r, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2 * u; ctx.stroke();
-        const dx = j.x - j.bx, dy = j.y - j.by, d = Math.hypot(dx, dy), m = Math.min(d, j.r);
-        const kx = d > 0 ? j.bx + dx / d * m : j.bx, ky = d > 0 ? j.by + dy / d * m : j.by;
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.beginPath(); ctx.arc(kx, ky, 20 * u, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // small see-through joystick: rests in the bottom-left corner, jumps to your thumb
+        // when you touch anywhere on the left half, and slides back when you let go
+        const P = this.pad, R = 30 * u;
+        const bx = active ? j.bx : P.x, by = active ? j.by : P.y;
+        ctx.globalAlpha = active ? 0.55 : 0.32;
+        ctx.fillStyle = 'rgba(15,18,28,0.45)';
+        ctx.beginPath(); ctx.arc(bx, by, R, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.6 * u; ctx.stroke();
+        let kx = bx, ky = by;
+        if (active) { const dx = j.x - j.bx, dy = j.y - j.by, d = Math.hypot(dx, dy), m = Math.min(d, R); if (d > 0) { kx = bx + dx / d * m; ky = by + dy / d * m; } }
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.beginPath(); ctx.arc(kx, ky, 12 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
       }
       ctx.globalAlpha = 1;
       // action buttons
