@@ -24,7 +24,8 @@
 
   let SC_ID = 0;
 
-  const HEIST_T = 5.6 + 1.0; // seconds of the opening heist before you take control
+  const HEIST_END = 9.2;           // the opening heist scene
+  const HEIST_T = HEIST_END + 2.4;  // + the level card, then you take control // seconds of the opening heist before you take control
 
   class Session {
     constructor(worldId, levelIndex, opts) {
@@ -80,7 +81,7 @@
       }
       this.rainX = this.level.rain ? this.W.length * U.rand(0.3, 0.6) : null; this.rainT = 0; this.rainK = 0;
       this.cops = [];
-      this.influencers = []; this.inflT = 9;
+      this.influencers = []; this.inflT = U.rand(30, 45);
       if (!this.demo) { this.initPlayer(); this.setupHeist(); this.nextOrder(); }
       this.prefillTraffic();
     }
@@ -592,6 +593,12 @@
     /* ------------------------------------------------------------------ */
     updatePlayer(dt) {
       const p = this.player, In = SS.Input;
+      if (this.heist && !this.heist.done && this.state === 'intro') { // the opening scene moves Minh
+        const v = this.heist.minhV || 0;
+        p.x += v * dt; p.vx = v; p.vy = 0; if (v) p.face = v > 0 ? 1 : -1;
+        p.phase += Math.abs(v) * dt * 0.12;
+        return;
+      }
       if (this.scam) { this.scam.t -= dt; if (this.scam.t <= 0) this.scam = null; }
       p.invuln = Math.max(0, p.invuln - dt);
       p.bumpCD = Math.max(0, p.bumpCD - dt);
@@ -1049,8 +1056,8 @@
     updateInfluencers(dt) {
       const p = this.player;
       this.inflT -= dt;
-      if (this.inflT <= 0 && this.influencers.length < 2) {
-        this.inflT = U.rand(13, 21);
+      if (this.inflT <= 0 && this.influencers.length < 1) {
+        this.inflT = U.rand(45, 70);
         const side = Math.random() < 0.5 ? 'far' : 'near';
         const fromRight = Math.random() < 0.7;
         const x = fromRight ? this.cam.x + this.viewW + 60 : this.cam.x - 60;
@@ -1079,8 +1086,13 @@
           // bumped into by Minh
           if (p && !p.tumble && Math.hypot(p.x - f.x, (p.y - f.y) * 1.5) < 30) this.wipeOut(f);
         } else if (f.state === 'down') {
-          if (f.t > 2.4) { f.state = 'leave'; f.t = 0; f.bubble = S.influencerSad; f.bubbleT = 1.8; }
-        } else if (f.state === 'leave') { f.x += f.dir * 50 * dt; f.phase += dt * 6; f.face = f.dir; }
+          if (Math.random() < dt * 10) this.particle('tear', f.x + f.face * 6, f.y - 30, U.rand(-30, 30), U.rand(-40, -10), 0.6);
+          if (f.t > 1.8) { f.state = 'leave'; f.t = 0; f.dir = f.fallDir; f.bubble = S.influencerSad; f.bubbleT = 2.4; SS.Audio.sfx('seller', { pan: this.pan(f.x), pitch: 420, syllables: [1.3, 1.1, 0.9, 0.7] }); }
+        } else if (f.state === 'leave') {
+          // sobbing, running away without the camera
+          f.x += f.dir * 150 * dt; f.phase += dt * 14; f.face = f.dir;
+          if (Math.random() < dt * 14) this.particle('tear', f.x + f.dir * 8, f.y - 110, -f.dir * U.rand(20, 60), U.rand(-60, -20), 0.6);
+        }
         if (f.x < this.cam.x - 400 || f.x > this.cam.x + this.viewW + 400) this.influencers.splice(i, 1);
       }
     }
@@ -1131,37 +1143,52 @@
     /* ---- the opening heist: a tourist rides off on Minh's scooter, then you take over ---- */
     setupHeist() {
       const p = this.player;
-      const spot = this.freeSpot(300, 'far');
-      p.x = spot.x; p.y = spot.y; p.face = 1;
-      const bikeX = p.x + 90, bikeY = G.ROAD_TOP + 16;
-      this.heist = { t: 0, bikeX, bikeY, tourX: bikeX + 520, tourY: bikeY - 8, rideX: bikeX, rideV: 0, riding: false, gone: false, done: false,
-        camX: bikeX - this.viewW * 0.5, said: {} };
+      const spot = this.freeSpot(320, 'far');
+      p.x = spot.x; p.y = spot.y; p.face = -1;
+      const bikeX = p.x + 110, bikeY = G.ROAD_TOP - 2; // parked on the kerb
+      this.heist = { t: 0, bikeX, bikeY, tourX: bikeX + 560, tourY: bikeY - 6, rideX: bikeX, rideV: 0, riding: false, gone: false, done: false,
+        wheelie: 0, walk: 0, sneak: false, camX: bikeX - this.viewW * 0.5, said: {}, minhV: 0 };
       this.cam.x = this.heist.camX;
     }
+    /* The scene, beat by beat (seconds):
+     * 0.0  Minh has parked and turns to the café door; the key glints in the ignition (TING!)
+     * 1.6  the bald tourist tiptoes in from the right, spots the key
+     * 3.5  he jumps on — Minh spins round: "!"
+     * 3.9  wheelie getaway in a cloud of dust ("Spasibo!"), Minh sprints after him
+     * 5.4  Minh gives up, arms in the air — STOLEN!
+     * 7.0  camera back on Minh: deliver on foot and save for a new scooter */
     updateHeist(dt) {
       const H = this.heist, p = this.player, t = (H.t += dt);
       if (H.done) return;
-      // 0.3–2.5 s: he strolls up to the bike
-      if (t > 0.3 && t < 2.5) { H.tourX += (H.bikeX + 18 - H.tourX) * Math.min(1, dt * 1.6); H.walk = (H.walk || 0) + dt * 8; }
-      // 2.5 s: hops on; 2.8 s: rides off
-      if (t >= 2.5 && !H.riding) { H.riding = true; SS.Audio.sfx('horn', { pan: this.pan(H.bikeX), type: 2 }); }
-      if (H.riding) {
-        if (t > 2.8) { H.rideV = Math.min(460, H.rideV + 340 * dt); H.rideX += H.rideV * dt; }
-        if (Math.random() < dt * 14) this.particle('dust', H.rideX - 40, H.bikeY - 4, -40, -8, 0.7);
-        if (H.rideX > this.cam.x + this.viewW + 200) H.gone = true;
+      const once = (k, at, fn) => { if (t >= at && !H.said[k]) { H.said[k] = true; fn(); } };
+      // keep the stage clear: no traffic in the near-kerb lanes around the scene
+      for (const sc of this.scooters) if (!sc.vertical && sc.y < G.ROAD_TOP + 90 && sc.x > this.cam.x - 200 && sc.x < this.cam.x + this.viewW + 200) sc.y = Math.max(sc.y, G.ROAD_TOP + 130);
+      once('ting', 0.8, () => SS.Audio.sfx('star'));
+      // the tourist tiptoes up to the bike
+      if (t > 1.6 && t < 3.5) { H.sneak = true; H.tourX += (H.bikeX + 16 - H.tourX) * Math.min(1, dt * 1.5); H.walk += dt * 5; }
+      once('grab', 3.3, () => SS.Audio.sfx('pickup'));
+      once('jump', 3.5, () => { H.riding = true; H.sneak = false; SS.Audio.sfx('horn', { pan: this.pan(H.bikeX), type: 2, vol: 1 }); this.cam.shake = 6; });
+      once('turn', 3.6, () => { SS.Audio.sfx('gasp'); p.face = 1; });
+      if (H.riding && t > 3.9) {
+        once('go', 3.9, () => { SS.Audio.sfx('whoosh'); for (let k = 0; k < 14; k++) this.particle('dust', H.bikeX - 30, H.bikeY - 2, U.rand(-120, -20), U.rand(-30, 5), 1.1); });
+        H.wheelie = t < 4.6 ? Math.sin(Math.min(1, (t - 3.9) / 0.7) * Math.PI) * 0.35 : 0;
+        H.rideV = Math.min(520, H.rideV + 420 * dt); H.rideX += H.rideV * dt;
+        if (Math.random() < dt * 20) this.particle('dust', H.rideX - 46, H.bikeY - 2, -60, -10, 0.8);
+        if (H.rideX > this.cam.x + this.viewW + 260) H.gone = true;
       }
-      if (t > 3.0 && !H.said.minh) { H.said.minh = true; SS.Audio.sfx('gasp'); this.cam.shake = 5; }
-      if (t > 2.6 && !H.said.tour) { H.said.tour = true; }
-      p.face = H.riding ? 1 : 1;
-      // camera: the bike, then follow it a little, then back to Minh
-      const onMinh = p.x - this.viewW * 0.38;
-      H.camX = t < 2.8 ? H.bikeX - this.viewW * 0.5 : t < 4.2 ? Math.min(H.rideX - this.viewW * 0.55, H.bikeX + 260 - this.viewW * 0.5) : onMinh;
+      // Minh: walks to the door, spins round, sprints after the bike, gives up
+      H.minhV = t < 1.4 ? -38 : t < 3.6 ? 0 : t < 3.9 ? 0 : t < 5.4 ? 170 : 0;
+      once('stolen', 5.4, () => { SS.Audio.sfx('crash', { vol: 0.5 }); this.cam.shake = 10; SS.Haptics.vibrate([40, 40, 80]); });
+      // camera: the bike, follow the getaway, then back on Minh
+      const onMinh = p.x - this.viewW * 0.42;
+      H.camX = t < 3.9 ? H.bikeX - this.viewW * 0.5 : t < 5.6 ? Math.min(H.rideX - this.viewW * 0.6, H.bikeX + 320 - this.viewW * 0.5) : onMinh;
+      if (t >= HEIST_END) { H.done = true; H.gone = true; }
     }
     endIntro() {
       if (this.heist) { this.heist.done = true; this.heist.gone = true; this.heist.riding = true; }
       this.state = 'play'; this.stateT = 0;
     }
-    skipIntro() { if (this.state === 'intro') this.endIntro(); }
+    skipIntro() { /* the opening scene always plays in full */ }
     sellerGiveUp(s) {
       const p = this.player;
       if (s.engaged && !s.latchedEver) {

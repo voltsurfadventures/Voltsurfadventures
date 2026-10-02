@@ -68,7 +68,8 @@
       ctx.translate(-cx, cy);
       this.drawWorldUI(ctx, cx, vw);
       ctx.restore();
-      this.drawHUD(ctx, vw, vh);
+      if (!(this.heist && !this.heist.done)) this.drawHUD(ctx, vw, vh);
+      else this.drawHeistCinema(ctx, vw, vh, SS.View.unitsPerCss);
       // durian damage: the screen pulses red at the edges
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
       if (this.hurtPulse > 0.01) {
@@ -320,19 +321,20 @@
       else if (e.k === 'cop') this.drawCop(ctx, e.o);
       else if (e.k === 'infl') this.drawInfluencer(ctx, e.o);
       else if (e.k === 'heistBike') this.drawHeistBike(ctx, e.o.bikeX, e.o.bikeY, false);
-      else if (e.k === 'heistRide') this.drawHeistBike(ctx, e.o.rideX, e.o.bikeY, true);
-      else if (e.k === 'tourist') Art.person(ctx, { x: e.o.tourX, y: e.o.tourY, s: Art.depth(e.o.tourY) * 1.1, face: -1, phase: e.o.walk || 0, moving: this.heist.t < 2.4 ? 1 : 0,
-        skin: '#f2a08c', shirt: '#f4f2ec', tankTop: true, pants: '#3b6ea5', legsBare: true, hairStyle: 'bald', sunglasses: true, flipflops: true, arms: this.heist.t > 2.2 ? 'up' : null, mouth: 0.5, ink: '#24150f' });
+      else if (e.k === 'heistRide') this.drawHeistBike(ctx, e.o.rideX, e.o.bikeY, true, e.o.wheelie);
+      else if (e.k === 'tourist') Art.person(ctx, { x: e.o.tourX, y: e.o.tourY, s: Art.depth(e.o.tourY) * 1.1, face: -1, phase: e.o.walk || 0, moving: e.o.sneak && this.heist.t < 3.2 ? 0.6 : 0, hunch: e.o.sneak ? 1 : 0, crouch: e.o.sneak && this.heist.t > 2.9,
+        skin: '#f2a08c', shirt: '#f4f2ec', tankTop: true, pants: '#3b6ea5', legsBare: true, hairStyle: 'bald', sunglasses: true, flipflops: true, arms: this.heist.t > 2.9 ? 'up' : null, mouth: this.heist.t > 2.9 ? 0.7 : 0.15, ink: '#24150f' });
       else if (e.k === 'c') { const c = e.o; Art.coin(ctx, c.x, c.y - 12 - Math.sin(this.time * 3 + c.ph) * 3, 7.5, this.time * 2.5 + c.ph); }
     }
   };
   // Minh's red scooter in the opening heist (parked, then ridden off by the bald tourist)
-  P.drawHeistBike = function (ctx, x, y, riding) {
+  P.drawHeistBike = function (ctx, x, y, riding, wheelie) {
     const v = riding
       ? { key: 'heist_ride', kind: 'single', body: '#c8321e', riders: [{ role: 'driver', x: -6, shirt: '#f4f2ec', helmet: null, hair: '#f2a08c', skin: '#f2a08c', pants: '#3b6ea5', headY: -60 }] }
       : { key: 'heist_park', kind: 'single', body: '#c8321e', riders: [] };
     const spr = Art.scooterSprite(v, 0), sc = Art.depth(y);
     ctx.save(); ctx.translate(x, y + (riding ? Math.sin(this.time * 30) * 0.8 : 0)); ctx.scale(sc, sc);
+    if (wheelie) { ctx.translate(-34, -6); ctx.rotate(-wheelie); ctx.translate(34, 6); }
     ctx.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h);
     if (riding) { ctx.fillStyle = '#111'; Art.rr(ctx, -2, -66, 14, 4, 2); ctx.fill(); } // his sunglasses
     ctx.restore();
@@ -340,10 +342,10 @@
   P.drawInfluencer = function (ctx, f) {
     const L = f.look, sc = Art.depth(f.y), down = f.state === 'down';
     const o = { ink: '#24150f', x: f.x, y: f.y, s: sc, face: f.face, phase: f.phase, moving: f.state === 'walk' && !f.spinning ? 1 : f.state === 'leave' ? 1 : 0,
-      skin: L.skin, shirt: L.shirt, pants: L.pants, hair: L.hair, hairStyle: 'side', sunglasses: true, arms: down ? 'up' : 'up', mouth: f.bubbleT > 0 ? 0.6 : 0.2 };
+      skin: L.skin, shirt: L.shirt, pants: L.pants, hair: L.hair, hairStyle: 'side', sunglasses: f.state === 'walk', arms: 'up', mouth: f.state === 'walk' ? (f.bubbleT > 0 ? 0.6 : 0.2) : 0.6 + 0.4 * Math.abs(Math.sin(this.time * 12)) };
     if (down) { o.rot = f.fallDir * Math.PI / 2 * Math.min(1, f.t * 6); o.lift = 0; }
     Art.person(ctx, o);
-    if (down) return; // the camera is gone
+    if (f.state !== 'walk') return; // the camera is gone
     // selfie stick + GoPro held up in front, pointing back at the face
     ctx.save(); ctx.translate(f.x, f.y); ctx.scale(sc * f.face, sc);
     ctx.strokeStyle = '#1b1b20'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
@@ -504,6 +506,7 @@
     const o = this.playerLook();
     if (p.tumble) { o.rot = p.tumble.rot; o.lift = p.tumble.z + 18; o.moving = 0; o.mouth = 1; o.carry = null; o.arms = 'up'; }
     if (this.state === 'won') { o.face = 1; o.moving = 1; }
+    if (this.heist && !this.heist.done && this.heist.t > 3.6 && this.heist.t < 8) { o.arms = 'up'; o.mouth = 0.9; o.carry = null; }
     Art.person(ctx, o);
     // holding breath: puffed cheeks
     if (p.holding) { Art.circle(ctx, p.x + p.face * 8 * o.s, p.y - 63 * o.s, 4.2 * o.s, 'rgba(240,150,140,0.9)'); }
@@ -598,6 +601,7 @@
         case 'confetti': ctx.globalAlpha = Math.min(1, k * 2); ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillStyle = q.color; ctx.fillRect(-3, -1.5, 6, 3); ctx.restore(); break;
         case 'shard': ctx.globalAlpha = k; ctx.fillStyle = '#333'; ctx.fillRect(q.x, q.y, 3, 2); break;
         case 'frost': ctx.globalAlpha = k * 0.9; ctx.fillStyle = '#dff6ff'; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillRect(-2, -0.6, 4, 1.2); ctx.fillRect(-0.6, -2, 1.2, 4); ctx.restore(); break;
+        case 'tear': ctx.globalAlpha = k; ctx.fillStyle = '#7fd0ff'; ctx.beginPath(); ctx.moveTo(q.x, q.y - 4); ctx.quadraticCurveTo(q.x + 3, q.y, q.x, q.y + 2.5); ctx.quadraticCurveTo(q.x - 3, q.y, q.x, q.y - 4); ctx.fill(); break;
         case 'drop': ctx.globalAlpha = k * 0.7; ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(q.x, q.y, 6 * (1 - k) + 1, 2 * (1 - k) + 0.5, 0, 0, TAU); ctx.stroke(); break;
         case 'bun': ctx.globalAlpha = 1; Art.circle(ctx, q.x, q.y, 7, '#fbf7ee'); ctx.strokeStyle = '#d9cdb0'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.x, q.y - 3, 3, 0, Math.PI); ctx.stroke(); break;
       }
@@ -761,7 +765,8 @@
     const p = this.player, t = this.time;
     placed.length = 0;
     // order beacons: a column of light + a big food badge, easy to spot from far away
-    const o = this.order;
+    const cine = this.heist && !this.heist.done;           // hidden during the opening scene
+    const o = cine ? null : this.order;
     const beacon = (x, yFoot, col, food, label) => {
       const pulse = 0.5 + 0.5 * Math.sin(t * 4);
       const gr = ctx.createLinearGradient(0, yFoot, 0, 40);
@@ -878,8 +883,18 @@
     // opening heist lines
     const H = this.heist;
     if (H && !H.done) {
-      if (H.t > 2.6 && H.t < 4.4 && !H.gone) this.bubble(ctx, H.rideX + 10, H.bikeY - 92, S.heistTourist, { size: 16 });
-      if (H.t > 3.0) this.bubble(ctx, this.player.x, this.player.y - 104 * Art.depth(this.player.y), S.heistMinh, { size: 17, display: true, color: '#c8241e', border: '#c8241e' });
+      const t = H.t, p = this.player, py = p.y - 104 * Art.depth(p.y);
+      if (t > 0.8 && t < 1.8) { // key glint on the parked bike
+        const k = Math.sin(Math.min(1, (t - 0.8) / 1.0) * Math.PI);
+        ctx.save(); ctx.translate(H.bikeX + 26, H.bikeY - 58); ctx.rotate(t * 3); ctx.fillStyle = 'rgba(255,250,200,' + k.toFixed(2) + ')';
+        ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r = i % 2 ? 3 : 16 * k; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.restore();
+        this.bubble(ctx, H.bikeX + 26, H.bikeY - 84, S.heistTing, { size: 15, display: true });
+      }
+      if (t > 2.3 && t < 3.5) this.bubble(ctx, H.tourX, H.tourY - 104, S.heistSneak, { size: 15 });
+      if (t > 4.0 && t < 5.6 && !H.gone) this.bubble(ctx, H.rideX + 10, H.bikeY - 96, S.heistTourist, { size: 16 });
+      if (t > 3.6 && t < 4.1) this.bubble(ctx, p.x, py, S.heistBang, { size: 30, display: true, color: '#c8241e', border: '#c8241e' });
+      else if (t >= 4.1 && t < 5.4) this.bubble(ctx, p.x, py, S.heistMinh, { size: 18, display: true, color: '#c8241e', border: '#c8241e' });
+      else if (t >= 5.4 && t < 7.2) this.bubble(ctx, p.x, py, S.heistNo, { size: 20, display: true, color: '#c8241e', border: '#c8241e' });
     }
     for (const s of this.scooters) {
       if (!s.bubble || s.x < cx - 50 || s.x > cx + vw + 50) continue;
@@ -1104,9 +1119,31 @@
     ctx.globalAlpha = 1;
     return ph;
   };
+  // the opening heist as a mini film: widescreen bars, beat captions, a STOLEN! stamp
+  P.drawHeistCinema = function (ctx, vw, vh, u) {
+    const H = this.heist, t = H.t, S2 = SS.STRINGS;
+    const bar = vh * 0.11 * U.easeOutCubic(Math.min(1, t / 0.5)) * (t > 8.6 ? Math.max(0, (9.2 - t) / 0.6) : 1);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, vw, bar); ctx.fillRect(0, vh - bar, vw, bar);
+    const caps = [[0.3, 3.4, S2.heistCap1], [3.6, 5.3, S2.heistCap2], [7.0, 9.2, S2.heistCap3]];
+    for (const [a, b, txt] of caps) {
+      if (t < a || t > b) continue;
+      const k = Math.min(1, (t - a) * 3, (b - t) * 3);
+      ctx.globalAlpha = k; ctx.font = SS.font(Math.min(22, vw / 40), 700, false); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff7e6'; ctx.fillText(txt, vw / 2, vh - bar / 2); ctx.globalAlpha = 1;
+    }
+    if (t > 5.4 && t < 7.2) { // STOLEN! stamp
+      const k = Math.min(1, (t - 5.4) * 5), s = 1 + (1 - k) * 1.2, a = Math.min(1, (7.2 - t) * 3);
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(vw / 2, vh * 0.4); ctx.rotate(-0.12); ctx.scale(s, s);
+      ctx.font = SS.font(70, 800, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 12; ctx.strokeStyle = '#3a0508'; ctx.strokeText(S2.heistStolen, 0, 0);
+      ctx.fillStyle = '#ff3b3b'; ctx.fillText(S2.heistStolen, 0, 0);
+      ctx.lineWidth = 5; ctx.strokeStyle = '#ff3b3b'; const w = ctx.measureText(S2.heistStolen).width + 40; ctx.strokeRect(-w / 2, -50, w, 100);
+      ctx.restore();
+    }
+  };
   P.drawIntroCard = function (ctx, vw, vh, u) {
     // with the opening heist, the level card only shows once the camera is back on Minh
-    const st = this.stateT - (this.heist ? 3.2 : 0);
+    const st = this.stateT - (this.heist ? 9.2 : 0);
     if (st < 0) return;
     const k = st < 0.4 ? U.easeOutCubic(st / 0.4) : st > 2.0 ? 1 - (st - 2.0) / 0.4 : 1;
     ctx.globalAlpha = U.clamp(k, 0, 1);
