@@ -78,7 +78,10 @@
       this.applySettings(true);
       this.resize();
       window.addEventListener('resize', () => this.resize());
-      window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 120));
+      // iPhone reports the new size late after a rotation: measure again a few times
+      const later = () => { for (const ms of [60, 200, 450, 900]) setTimeout(() => this.resize(), ms); };
+      window.addEventListener('orientationchange', later);
+      if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', later);
       if (window.visualViewport) window.visualViewport.addEventListener('resize', () => this.resize());
       // full screen: phones go full screen on the first tap; re-measure when it changes
       Full.nativeSetup();
@@ -139,11 +142,18 @@
     resize() {
       const V = SS.View;
       const vv = window.visualViewport;
-      const cssW = Math.max(1, Math.round(vv ? vv.width : window.innerWidth));
-      const cssH = Math.max(1, Math.round(vv ? vv.height : window.innerHeight));
-      V.portrait = cssH > cssW * 1.05;
-      document.body.classList.toggle('portrait', V.portrait);
-      if (V.portrait && SS.UI && SS.UI.screen === 'game') SS.UI.pause();
+      const sw = Math.max(1, Math.round(vv ? vv.width : window.innerWidth));
+      const sh = Math.max(1, Math.round(vv ? vv.height : window.innerHeight));
+      // Phone held upright (or rotation-locked, which a web page cannot override on iPhone):
+      // turn the game itself sideways inside the screen so it always plays in landscape.
+      V.rotated = sh > sw * 1.05;
+      V.portrait = false;
+      document.body.classList.remove('portrait');
+      const cssW = V.rotated ? sh : sw, cssH = V.rotated ? sw : sh;
+      V.screenW = sw; V.screenH = sh;
+      const st = this.canvas.style;
+      if (V.rotated) { st.transformOrigin = '0 0'; st.transform = 'rotate(90deg)'; st.left = sw + 'px'; st.top = '0px'; }
+      else { st.transform = ''; st.left = '0px'; st.top = '0px'; }
       const dprCap = this.lowMode ? C.LOW_DPR : C.MAX_DPR;
       const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
       this.canvas.style.width = cssW + 'px';
@@ -161,6 +171,7 @@
       const cs = this.safe ? getComputedStyle(this.safe) : null;
       const px = (v) => (parseFloat(v) || 0) * (V.h / cssH);
       V.insets = cs ? { l: px(cs.paddingLeft), r: px(cs.paddingRight), t: px(cs.paddingTop), b: px(cs.paddingBottom) } : { l: 0, r: 0, t: 0, b: 0 };
+      if (V.rotated) { const I = V.insets; V.insets = { l: I.t, r: I.b, t: I.r, b: I.l }; } // screen edges map onto the turned game
       SS.Art.setScale(V.S);
       SS.Input.layout();
       this.ctx.imageSmoothingEnabled = true;

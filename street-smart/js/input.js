@@ -49,8 +49,11 @@
     },
 
     toView(e) {
-      const r = this.canvas.getBoundingClientRect();
       const V = SS.View;
+      if (V.rotated) { // the canvas is turned 90° clockwise: screen right edge = game top
+        return { x: (e.clientY / V.screenH) * V.w, y: ((V.screenW - e.clientX) / V.screenW) * V.h };
+      }
+      const r = this.canvas.getBoundingClientRect();
       return { x: ((e.clientX - r.left) / r.width) * V.w, y: ((e.clientY - r.top) / r.height) * V.h };
     },
 
