@@ -221,6 +221,10 @@
     influencerFall: 'MY CONTENT!!',
     influencerSad: 'That was a 4K camera...',
     popInfluencer: 'Content deleted! +200',
+    dogLines: ['GRRR!', 'WOOF!', 'GÂU GÂU!', 'GRRRR...'],
+    popDogTrip: 'Tripped over a dog!',
+    popDogBite: 'Dog bite!',
+    dogHint: 'Golden street dogs! Walk round sleeping ones. Angry ones chase: keep moving!',
     popCops: 'Công an! Police on the way!',
     scammerFlee: 'Uh oh... công an!',
     popScammerGone: 'Scammer chased off!',
@@ -338,7 +342,7 @@
 
     // tutorial (level 1)
     tut: {
-      move: 'Drag the joystick in the bottom-left corner to walk.',
+      move: 'Put your thumb on the LEFT side and drag to walk. The joystick bottom-left shows your direction.',
       moveDesktop: 'Move with WASD or the arrow keys.',
       blocked: 'The footpath is blocked. Step out into the road.',
       steady: 'Walk slowly and STEADILY. Riders read your path and flow around you.',

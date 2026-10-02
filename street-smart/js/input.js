@@ -88,13 +88,15 @@
             }
             return;
           }
-          const jb0 = this.joyBase;
-          if (p.x < SS.View.w * 0.5 && (!jb0 || Math.hypot(p.x - jb0.x, p.y - jb0.y) < this.joy.r * 3.2)) {
-            // a new thumb on the left always takes over (a lost touch can never lock the stick).
-            // The stick stays anchored in the bottom-left corner; your thumb steers relative to it.
+          if (p.x < SS.View.w * 0.5 && p.y > SS.View.h * 0.22) {
+            // Any thumb on the left half steers. The stick is drawn anchored in the bottom-left corner:
+            // touch the stick itself and it works like a normal stick; touch elsewhere and your
+            // thumb's starting point becomes the centre (so you never have to hunt for it).
+            // A new thumb on the left always takes over (a lost touch can never lock the stick).
             if (this.joy.id !== null) delete this.ptrOwner[this.joy.id];
-            const jb = this.joyBase || { x: p.x, y: p.y };
-            this.joy.id = e.pointerId; this.joy.bx = jb.x; this.joy.by = jb.y; this.joy.x = p.x; this.joy.y = p.y;
+            const jb = this.joyBase, onStick = jb && Math.hypot(p.x - jb.x, p.y - jb.y) < this.joy.r * 1.5;
+            const o = onStick ? jb : p;
+            this.joy.id = e.pointerId; this.joy.bx = o.x; this.joy.by = o.y; this.joy.x = p.x; this.joy.y = p.y;
             this.ptrOwner[e.pointerId] = 'joy';
             return;
           }
@@ -112,8 +114,12 @@
       const p = this.toView(e);
       if (owner === 'joy' && this.mode() === 'dpad') { this.joy.x = p.x; this.joy.y = p.y; }
       else if (owner === 'joy') {
-        const j = this.joy;
-        j.x = p.x; j.y = p.y; // base stays anchored; distance past the rim just means full speed
+        const j = this.joy, R = j.r;
+        const dx = p.x - j.bx, dy = p.y - j.by, d = Math.hypot(dx, dy);
+        if (d > R * 1.25) { // the centre follows your thumb, so turning round is instant
+          const k = (d - R * 1.25) / d; j.bx += dx * k; j.by += dy * k;
+        }
+        j.x = p.x; j.y = p.y;
       } else if (owner === 'ui') {
         if (SS.UI) SS.UI.pointerMove(p.x, p.y, e.pointerId);
       }
@@ -166,10 +172,10 @@
       } else if (j.id !== null) {
         let dx = (j.x - j.bx) / j.r, dy = (j.y - j.by) / j.r;
         let m = Math.hypot(dx, dy);
-        if (m < 0.18) { dx = 0; dy = 0; m = 0; }
+        if (m < 0.12) { dx = 0; dy = 0; m = 0; }
         else {
-          // remap: dead zone -> 0, >0.85 -> full walk (easy to hold a steady pace)
-          const mm = U.clamp((m - 0.18) / (0.85 - 0.18), 0, 1);
+          // remap: small dead zone -> 0, >0.7 -> full walk (easy to hold a steady pace)
+          const mm = U.clamp((m - 0.12) / (0.7 - 0.12), 0, 1);
           dx = (dx / m) * mm; dy = (dy / m) * mm;
         }
         ax = dx; ay = dy;
@@ -205,10 +211,10 @@
       mk('nothanks', right - R, bottom - 2 * R - r - gap, r, S.btnNoThanks, '#f0b43c');
       mk('buy', right - 2 * R - r - gap, bottom - 2 * R - r - gap + 4 * u, r * 0.92, S.btnBuy, '#7fc96b');
       mk('pause', V.w - ins.r - 30 * u, ins.t + 30 * u, 22 * u, '', '#ffffff');
-      this.joy.r = 36 * u;
+      this.joy.r = 38 * u;
       const pr = 40 * u; // arrow pad: ~100 CSS px across, tucked into the bottom-left corner
       this.pad = { x: ins.l + 10 * u + pr, y: V.h - ins.b - 8 * u - pr, r: pr };
-      this.joyBase = { x: ins.l + 8 * u + 30 * u, y: V.h - ins.b - 8 * u - 30 * u }; // fixed joystick, far bottom-left
+      this.joyBase = { x: ins.l + 10 * u + 42 * u, y: V.h - ins.b - 10 * u - 42 * u }; // fixed joystick, far bottom-left
     },
 
     /* ---------- drawing the touch controls ---------- */
@@ -246,17 +252,35 @@
           ctx.closePath(); ctx.fill();
         }
       } else {
-        // small see-through joystick, anchored in the far bottom-left corner
-        const P = this.joyBase || this.pad, R = 30 * u;
+        // see-through joystick, anchored in the far bottom-left corner
+        const P = this.joyBase || this.pad, R = 42 * u;
         const bx = P.x, by = P.y;
-        ctx.globalAlpha = active ? 0.55 : 0.32;
-        ctx.fillStyle = 'rgba(15,18,28,0.45)';
+        ctx.globalAlpha = active ? 0.8 : 0.5;
+        ctx.fillStyle = 'rgba(15,18,28,0.5)';
         ctx.beginPath(); ctx.arc(bx, by, R, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.6 * u; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2 * u; ctx.stroke();
+        // little direction chevrons round the rim
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        for (let a = 0; a < 4; a++) {
+          const ang = a * Math.PI / 2, cx = bx + Math.cos(ang) * R * 0.78, cy = by + Math.sin(ang) * R * 0.78, s2 = 5 * u;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(ang) * s2, cy + Math.sin(ang) * s2);
+          ctx.lineTo(cx + Math.cos(ang + 2.3) * s2, cy + Math.sin(ang + 2.3) * s2);
+          ctx.lineTo(cx + Math.cos(ang - 2.3) * s2, cy + Math.sin(ang - 2.3) * s2);
+          ctx.closePath(); ctx.fill();
+        }
         let kx = bx, ky = by;
-        if (active) { const dx = j.x - j.bx, dy = j.y - j.by, d = Math.hypot(dx, dy), m = Math.min(d, R); if (d > 0) { kx = bx + dx / d * m; ky = by + dy / d * m; } }
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        ctx.beginPath(); ctx.arc(kx, ky, 12 * u, 0, Math.PI * 2); ctx.fill();
+        const mag = Math.hypot(this.ax, this.ay);
+        if (active && mag > 0) {
+          const ang = Math.atan2(this.ay, this.ax);
+          kx = bx + Math.cos(ang) * R * 0.62 * Math.min(1, mag); ky = by + Math.sin(ang) * R * 0.62 * Math.min(1, mag);
+          // glowing arc shows which way you are heading
+          ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 4 * u;
+          ctx.beginPath(); ctx.arc(bx, by, R - 2 * u, ang - 0.5, ang + 0.5); ctx.stroke();
+        }
+        ctx.fillStyle = active ? '#ffffff' : 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.arc(kx, ky, 17 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.5 * u; ctx.stroke();
         ctx.globalAlpha = 1;
       }
       ctx.globalAlpha = 1;

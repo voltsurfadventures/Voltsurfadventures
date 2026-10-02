@@ -676,6 +676,36 @@
         o.connect(lp); lp.connect(og); og.connect(bus); o.start(tt); o.stop(tt + len);
       }
     },
+    // dog bark: a quick voiced "wuf" (falling pitch through a mouth formant), o.n barks; o.yelp for a pained yip
+    sfx_bark(t, o) {
+      if (!this.rate('bark', 180)) return;
+      const c = this.ctx, out = this.out(o.pan), v = o.vol == null ? 1 : o.vol, n = o.n || 2, base = o.pitch || 420;
+      for (let i = 0; i < n; i++) {
+        const tt = t + i * (o.yelp ? 0.14 : 0.2), len = o.yelp ? 0.12 : 0.13;
+        const osc = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+        osc.type = 'sawtooth';
+        if (o.yelp) { osc.frequency.setValueAtTime(base * 2.4, tt); osc.frequency.exponentialRampToValueAtTime(base * 1.4, tt + len); }
+        else { osc.frequency.setValueAtTime(base * 1.25, tt); osc.frequency.linearRampToValueAtTime(base * 1.4, tt + 0.03); osc.frequency.exponentialRampToValueAtTime(base * 0.6, tt + len); }
+        f.type = 'bandpass'; f.frequency.value = o.yelp ? 1600 : 900; f.Q.value = 1.6;
+        g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(0.5 * v, tt + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, tt + len);
+        osc.connect(f); f.connect(g); g.connect(out); osc.start(tt); osc.stop(tt + len + 0.02);
+        const ns = this.noiseSrc(), nf = c.createBiquadFilter(), ng = c.createGain();
+        nf.type = 'bandpass'; nf.frequency.value = 1200; nf.Q.value = 1;
+        ng.gain.setValueAtTime(0.0001, tt); ng.gain.linearRampToValueAtTime(0.25 * v, tt + 0.008); ng.gain.exponentialRampToValueAtTime(0.0001, tt + 0.07);
+        ns.connect(nf); nf.connect(ng); ng.connect(out); ns.start(tt); ns.stop(tt + 0.09);
+      }
+    },
+    // low growl
+    sfx_growl(t, o) {
+      if (!this.rate('growl', 900)) return;
+      const c = this.ctx, out = this.out(o.pan), len = 0.7;
+      const osc = c.createOscillator(), am = c.createOscillator(), amg = c.createGain(), lp = c.createBiquadFilter(), g = c.createGain();
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(95, t); osc.frequency.linearRampToValueAtTime(120, t + len);
+      am.type = 'square'; am.frequency.value = 24; amg.gain.value = 0.12; am.connect(amg); amg.connect(g.gain);
+      lp.type = 'lowpass'; lp.frequency.value = 700;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.2, t + 0.08); g.gain.setValueAtTime(0.2, t + len - 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      osc.connect(lp); lp.connect(g); g.connect(out); osc.start(t); am.start(t); osc.stop(t + len + 0.02); am.stop(t + len + 0.02);
+    },
     sfx_gasp(t) {
       const c = this.ctx, n = this.noiseSrc(), f = c.createBiquadFilter(), g = c.createGain();
       f.type = 'bandpass'; f.Q.value = 3; f.frequency.setValueAtTime(900, t); f.frequency.linearRampToValueAtTime(1800, t + 0.3);
