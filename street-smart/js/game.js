@@ -1616,6 +1616,7 @@
           this.updateSellers(dt);
           this.updateInfluencers(dt);
           this.updateDogs(dt);
+          if (this.player.lives === 1 && !this.lastHeartHint && !this.player.tumble) { this.lastHeartHint = true; this.hint = { text: S.lastHeart, t: 3.4 }; }
           this.updateEndlessExtras(dt);
           this.updateIntersections(dt);
           this.updateOrders(dt);
