@@ -133,12 +133,12 @@
         const pattern = rng();
         if (pattern < 0.55) { // line across the road (rewards crossing)
           const y0 = rng.range(G.ROAD_TOP + 18, G.ROAD_BOT - 70);
-          for (let k = 0; k < 5; k++) W.coins.push({ x: cx + k * 8, y: y0 + k * 16, taken: false, ph: rng() * 6 });
+          for (let k = 0; k < 5; k++) W.coins.push({ x: cx + k * 8, y: y0 + k * 16, taken: false, ph: rng() * 6, v: 5 }); // risky: in the traffic
         } else if (pattern < 0.85) { // line along the road
           const y0 = rng.range(G.ROAD_TOP + 20, G.ROAD_BOT - 14);
-          for (let k = 0; k < 5; k++) W.coins.push({ x: cx + k * 26, y: y0, taken: false, ph: rng() * 6 });
+          for (let k = 0; k < 5; k++) W.coins.push({ x: cx + k * 26, y: y0, taken: false, ph: rng() * 6, v: 5 });
         } else { // footpath arc
-          for (let k = 0; k < 4; k++) W.coins.push({ x: cx + k * 24, y: 512 - Math.sin(k / 3 * Math.PI) * 30, taken: false, ph: rng() * 6 });
+          for (let k = 0; k < 4; k++) W.coins.push({ x: cx + k * 24, y: 512 - Math.sin(k / 3 * Math.PI) * 30, taken: false, ph: rng() * 6, v: 1 }); // safe: on the footpath
         }
       }
       // drop coins that sit inside obstacles

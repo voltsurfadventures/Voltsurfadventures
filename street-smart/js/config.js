@@ -76,6 +76,24 @@
     menu: 'MENU',
     levelSelect: 'CHOOSE A DELIVERY',
     storyBtn: 'STORY',
+    dealer: 'SCOOTER DEALER',
+    dealerSub: 'Coins buy scooters. Grab the risky road coins (worth 5) to get there faster!',
+    rideWith: 'RIDE',
+    walk: 'Walk',
+    owned: 'OWNED',
+    riding: 'RIDING',
+    chooseRide: 'RIDE THIS',
+    nextScooter: 'NEXT',
+    allScooters: 'All scooters owned!',
+    statSpeed: 'Speed',
+    btnHorn: 'HORN',
+    btnTurbo: 'TURBO',
+    popHorn: 'BEEEP!',
+    popTurbo: 'TURBO!',
+    popBoughtScooter: 'New scooter! Ride it from the level screen.',
+    popRiskyCoin: '+5',
+    coinsToFund: 'Coins earned',
+    crashOff: 'Thrown off the scooter!',
     continueGame: 'CONTINUE',
     newGame: 'NEW GAME',
     saveGame: 'SAVE GAME',
@@ -92,7 +110,7 @@
     scamLine: 'A fake CRAB driver charged you double: −{n} coins',
     skip: 'SKIP',
     scooterFund: 'SCOOTER FUND',
-    scooterReady: 'You can afford a new scooter! Riding is coming in Chapter 2.',
+    scooterReady: 'You can afford a scooter! Tap the dealer (top left) to buy it.',
     story: {
       s0: 'Hanoi. The Old Quarter. Rush hour.',
       s1p: 'Hanoi, the Old Quarter. Minh was the fastest CRAB rider in town.',
@@ -291,7 +309,7 @@
       ['THE JOB', 'Collect hot food and iced drinks at the blue PICK UP marker. Deliver each order to the customer under the pink DELIVER marker before it goes cold.'],
       ['FLOW, DON\'T DASH', 'On the road, walk slowly and steadily. Riders read your path and steer around you. Stopping, reversing or sprinting confuses them, and that is when they hit you.'],
       ['WATCH OUT', 'Sellers grab you: tap NO THANKS or BUY. Durian stink clouds: hold your breath. Bumps and sudden moves spill your cargo.'],
-      ['TIPS & UPGRADES', 'Fast, clean deliveries earn big tips and 5 stars. Spend tips on upgrades. Step in front of the bánh bao bike at the right moment for a power-up.'],
+      ['COINS = SCOOTERS', 'Tips and coins buy scooters at the SCOOTER DEALER. Glowing road coins are worth 5: risky, but they get you riding sooner. Each scooter is faster and has its own ability.'],
     ],
     howtoFooter: 'You are Minh, the courier in green with the big box. 3 lives per shift. Spill an order completely and it is ruined, so move on to the next one.',
     purchaseUnavailable: 'Purchases are not available yet',
@@ -386,6 +404,18 @@
   /* ---------------- Street sellers ---------------- */
   // behaviour: 'pop' blocks your path, 'follow' slow & persistent,
   // 'chase' fast but short-lived, 'grab' waits and grabs your foot.
+  /* ---------------- Scooters (Chapter 2: back on two wheels) ----------------
+   * speed: × walking speed. ability: what the SPRINT button does when riding.
+   * Generic models, no real brands. */
+  SS.SCOOTERS = [
+    { id: 'cub',   name: 'Cub 50',    price: 800,  speed: 1.7, accel: 1.6, body: '#3d7fd0', ability: 'rack',
+      abilityName: 'Food rack', desc: 'Slow but steady. Food stays hot 35% longer and spills 40% less.' },
+    { id: 'retro', name: 'Retro 125', price: 1500, speed: 2.1, accel: 2.0, body: '#e8432d', ability: 'horn',
+      abilityName: 'Air horn', desc: 'Quicker. Tap HORN and riders ahead swerve out of your way.' },
+    { id: 'sport', name: 'Sport 150', price: 3000, speed: 2.6, accel: 2.6, body: '#f2c230', ability: 'turbo',
+      abilityName: 'Turbo', desc: 'Fastest. Tap TURBO for a huge burst of speed (cools down).' },
+  ];
+
   SS.SELLERS = {
     sunglasses: { behaviour: 'pop',    speed: 150, price: 25, hold: 0.0,  escape: 5, giveUp: 9,
                   lines: ['Sunglasses? Cheap cheap!', 'Cheap cheap!', 'Very cool!'] },

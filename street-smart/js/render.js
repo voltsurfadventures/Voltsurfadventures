@@ -304,7 +304,7 @@
     // only when something in front actually covers them (otherwise it just washes the colours out)
     const covered = p && (this.scooters.some((s) => s.y > p.y && s.y - p.y < 95 && Math.abs(s.x - p.x) < s.len + 26) ||
       this.W.obstacles.some((ob) => ob.y > p.y && ob.y - p.y < 70 && Math.abs(ob.x - p.x) < ob.w / 2 + 20));
-    if (covered && !(this.state === 'won' && this.stateT > 1.2)) {
+    if (covered && !this.rideDef && !(this.state === 'won' && this.stateT > 1.2)) {
       const o = this.playerLook();
       o.ink = null; o.outline = null;
       if (p.tumble) { o.rot = p.tumble.rot; o.lift = p.tumble.z + 18; o.moving = 0; o.carry = null; o.arms = 'up'; }
@@ -324,7 +324,15 @@
       else if (e.k === 'heistRide') this.drawHeistBike(ctx, e.o.rideX, e.o.bikeY, true, e.o.wheelie);
       else if (e.k === 'tourist') Art.person(ctx, { x: e.o.tourX, y: e.o.tourY, s: Art.depth(e.o.tourY) * 1.1, face: -1, phase: e.o.walk || 0, moving: e.o.sneak && this.heist.t < 3.2 ? 0.6 : 0, hunch: e.o.sneak ? 1 : 0, crouch: e.o.sneak && this.heist.t > 2.9,
         skin: '#f2a08c', shirt: '#f4f2ec', tankTop: true, pants: '#3b6ea5', legsBare: true, hairStyle: 'bald', sunglasses: true, flipflops: true, arms: this.heist.t > 2.9 ? 'up' : null, mouth: this.heist.t > 2.9 ? 0.7 : 0.15, ink: '#24150f' });
-      else if (e.k === 'c') { const c = e.o; Art.coin(ctx, c.x, c.y - 12 - Math.sin(this.time * 3 + c.ph) * 3, 7.5, this.time * 2.5 + c.ph); }
+      else if (e.k === 'c') {
+        const c = e.o, cy = c.y - 12 - Math.sin(this.time * 3 + c.ph) * 3;
+        if ((c.v || 1) > 1) { // risky road coin: big, glowing, worth 5
+          const gl = Art.glow('#ffd23f'); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.45 + 0.2 * Math.sin(this.time * 6 + c.ph);
+          ctx.drawImage(gl.c, c.x - 26, cy - 26, 52, 52); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+          Art.coin(ctx, c.x, cy, 11, this.time * 2.5 + c.ph);
+          ctx.font = SS.font(9, 800, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#7a4a00'; ctx.fillText('5', c.x, cy + 0.5);
+        } else Art.coin(ctx, c.x, cy, 7.5, this.time * 2.5 + c.ph);
+      }
     }
   };
   // Minh's red scooter in the opening heist (parked, then ridden off by the bald tourist)
@@ -354,6 +362,22 @@
     Art.circle(ctx, 31, -118.5, 3.4, '#5a6a80'); Art.circle(ctx, 31, -118.5, 1.6, '#9fd8ff');
     if (Math.floor(this.time * 3) % 2 === 0) Art.circle(ctx, 40, -122, 1.4, '#ff3b3b'); // recording light
     ctx.restore();
+  };
+  // Minh on his own scooter (CRAB box on the back)
+  P.scooterVariant = function (R, rider) {
+    return { key: 'own_' + R.id + (rider ? '_r' : ''), kind: rider ? 'delivery' : 'single', body: R.body,
+      riders: rider ? [{ role: 'driver', x: -6, shirt: SS.COL_PLAYER, helmet: SS.COL_PLAYER, stripe: true, skin: '#e9b98f', pants: '#4a3426', bag: SS.COL_PLAYER, headY: -60 }] : [] };
+  };
+  P.drawRiding = function (ctx, p) {
+    const R = this.rideDef, sc = Art.depth(p.y) * 1.08, spd = Math.hypot(p.vx, p.vy);
+    const spr = Art.scooterSprite(this.scooterVariant(R, true), 0);
+    ctx.save(); ctx.translate(p.x, p.y + (spd > 20 ? Math.sin(this.time * 28) * 0.7 : 0)); ctx.scale(sc * (p.face || 1), sc);
+    if (p.turboT > 0) { // turbo flames out of the exhaust
+      for (let i = 0; i < 3; i++) { const l = 18 + Math.random() * 22; ctx.fillStyle = i ? '#ffd23f' : '#ff6a2a'; ctx.beginPath(); ctx.moveTo(-58, -18 - i * 3); ctx.lineTo(-58 - l, -16 - i * 3 + (Math.random() - 0.5) * 6); ctx.lineTo(-58, -12 - i * 3); ctx.fill(); }
+    }
+    ctx.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h);
+    ctx.restore();
+    if (spd > 60 && Math.random() < 0.3) this.particle('dust', p.x - (p.face || 1) * 40, p.y - 2, -(p.face || 1) * 30, -6, 0.5);
   };
   P.drawCop = function (ctx, c) {
     Art.person(ctx, { ink: '#24150f', x: c.x, y: c.y, s: Art.depth(c.y) * 1.08, face: c.dir, phase: c.phase, moving: 1,
@@ -507,6 +531,7 @@
     if (p.tumble) { o.rot = p.tumble.rot; o.lift = p.tumble.z + 18; o.moving = 0; o.mouth = 1; o.carry = null; o.arms = 'up'; }
     if (this.state === 'won') { o.face = 1; o.moving = 1; }
     if (this.heist && !this.heist.done && this.heist.t > 3.6 && this.heist.t < 8) { o.arms = 'up'; o.mouth = 0.9; o.carry = null; }
+    if (this.rideDef && !p.tumble && !(this.state === 'won' && this.stateT > 0.6)) { this.drawRiding(ctx, p); ctx.globalAlpha = 1; return; }
     Art.person(ctx, o);
     // holding breath: puffed cheeks
     if (p.holding) { Art.circle(ctx, p.x + p.face * 8 * o.s, p.y - 63 * o.s, 4.2 * o.s, 'rgba(240,150,140,0.9)'); }
@@ -1008,16 +1033,26 @@
     // ---- top-right: lives + coins on one row, compact order chip underneath ----
     const pb = SS.Input.btns.pause;
     const rx = (pb ? pb.x - pb.r : vw - ins.r) - 10 * u;
-    ctx.font = SS.font(15 * u, 800, true); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    // coins: big counter that pops when you grab them, with progress to the next scooter
+    this.coinFlash = Math.max(0, (this.coinFlash || 0) - 1 / 30);
+    const pop = 1 + 0.25 * this.coinFlash;
+    ctx.font = SS.font(18 * u * pop, 800, true); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     const coinTxt = String(this.coins);
-    const cw = ctx.measureText(coinTxt).width + 38 * u;
-    ctx.fillStyle = 'rgba(10,12,20,0.6)'; Art.rr(ctx, rx - cw, y0, cw, 24 * u, 12 * u); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillText(coinTxt, rx - 28 * u, y0 + 12.5 * u);
-    Art.coin(ctx, rx - 14 * u, y0 + 12 * u, 7.5 * u, 0);
+    const cw = ctx.measureText(coinTxt).width + 44 * u;
+    ctx.fillStyle = 'rgba(10,12,20,0.7)'; Art.rr(ctx, rx - cw, y0, cw, 26 * u, 13 * u); ctx.fill();
+    if (this.coinFlash > 0) { ctx.strokeStyle = U.rgba('#ffd23f', this.coinFlash); ctx.lineWidth = 2.5 * u; Art.rr(ctx, rx - cw, y0, cw, 26 * u, 13 * u); ctx.stroke(); }
+    ctx.fillStyle = this.coinFlash > 0.3 ? '#ffd23f' : '#fff'; ctx.fillText(coinTxt, rx - 30 * u, y0 + 13.5 * u);
+    Art.coin(ctx, rx - 15 * u, y0 + 13 * u, 9 * u * pop, this.time * 3 * this.coinFlash);
+    const nx = SS.Save.nextScooter();
+    if (nx) {
+      const k = U.clamp((SS.Save.data.coins + this.coins) / nx.price, 0, 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'; Art.rr(ctx, rx - cw + 10 * u, y0 + 22 * u, cw - 20 * u, 3 * u, 1.5 * u); ctx.fill();
+      ctx.fillStyle = SS.COL_PLAYER; Art.rr(ctx, rx - cw + 10 * u, y0 + 22 * u, (cw - 20 * u) * k, 3 * u, 1.5 * u); ctx.fill();
+    }
     const o = this.order;
     if (o) {
       const F = o.food, carrying = o.state === 'carrying';
-      const chW = 132 * u, chH = 38 * u, chX = rx - chW, chY = y0 + 30 * u;
+      const chW = 132 * u, chH = 38 * u, chX = rx - chW, chY = y0 + 32 * u;
       ctx.fillStyle = 'rgba(10,12,20,0.6)'; Art.rr(ctx, chX, chY, chW, chH, 10 * u); ctx.fill();
       ctx.strokeStyle = carrying ? SS.COL_DROP : SS.COL_PICK; ctx.lineWidth = 2.5 * u; Art.rr(ctx, chX, chY, chW, chH, 10 * u); ctx.stroke();
       ctx.save(); ctx.translate(chX + 19 * u, chY + 22 * u); ctx.scale(0.95 * u, 0.95 * u);
