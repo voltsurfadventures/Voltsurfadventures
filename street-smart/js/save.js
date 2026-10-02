@@ -22,11 +22,12 @@
     stamps: {},            // foodId -> true (food passport)
     passportDone: false,
     endlessBest: 0,
+    garage: { owned: {}, ride: null }, // scooters bought + which one you ride
   });
 
   // progress (coins, levels, upgrades...) lives only in this play-through until the
   // player presses SAVE GAME; settings and "seen" flags are always kept.
-  const PROGRESS = ['coins', 'levels', 'fullGame', 'upgrades', 'stamps', 'passportDone', 'endlessBest'];
+  const PROGRESS = ['coins', 'levels', 'fullGame', 'upgrades', 'stamps', 'passportDone', 'endlessBest', 'garage'];
   const clean = (p) => {
     const d = DEFAULTS();
     if (!p || typeof p !== 'object') return d;
@@ -37,6 +38,7 @@
     d.stamps = p.stamps && typeof p.stamps === 'object' ? p.stamps : {};
     d.passportDone = !!p.passportDone;
     d.endlessBest = Math.max(0, p.endlessBest | 0);
+    if (p.garage && typeof p.garage === 'object') d.garage = { owned: Object.assign({}, p.garage.owned || {}), ride: p.garage.ride || null };
     return d;
   };
 
@@ -135,6 +137,10 @@
       this.save();
     },
 
+    // scooters
+    owns(id) { return !!(this.data.garage && this.data.garage.owned[id]); },
+    ride() { const g = this.data.garage; return g && g.ride && g.owned[g.ride] ? SS.SCOOTERS.find((s) => s.id === g.ride) || null : null; },
+    nextScooter() { return SS.SCOOTERS.find((s) => !this.owns(s.id)) || null; },
     // levels unlock in order across a world
     up(id) { return this.data.upgrades[id] | 0; },
 

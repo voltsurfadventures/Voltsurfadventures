@@ -84,7 +84,8 @@
       this.cops = [];
       this.influencers = []; this.inflT = U.rand(30, 45);
       this.day = 1; this.dayOrders = 0; this.scamT = 20;
-      if (!this.demo) { this.initPlayer(); this.setupHeist(); this.nextOrder(); }
+      this.rideDef = this.demo ? null : SS.Save.ride(); // riding a scooter this shift?
+      if (!this.demo) { this.initPlayer(); if (!this.rideDef) this.setupHeist(); this.nextOrder(); }
       this.prefillTraffic();
     }
 
@@ -172,6 +173,7 @@
       if (this.inter && this.inter.active) d *= 1.3;
       if (this.demo) d = 1.0;
       if (this.level.endless) d *= 1 + (this.day - 1) * 0.14;
+      if (this.rideDef) d *= 1.12; // on a scooter you're in the thick of it
       return d;
     }
 
@@ -618,14 +620,21 @@
         ax += Math.sin(w) * 0.35; ay += Math.cos(w * 1.3) * 0.35;
         if (p.gassed <= 0) p.breath = Math.max(p.breath, 45);
       }
-      p.sprinting = canMove && In.sprint && (Math.abs(ax) + Math.abs(ay) > 0.2) && p.gassed <= 0;
+      const R = this.rideDef;
+      p.sprinting = !R && canMove && In.sprint && (Math.abs(ax) + Math.abs(ay) > 0.2) && p.gassed <= 0;
+      // scooter ability on the SPRINT button (horn / turbo)
+      p.abilityCD = Math.max(0, (p.abilityCD || 0) - dt); p.turboT = Math.max(0, (p.turboT || 0) - dt);
+      if (R && canMove && In.sprint && !p.abilityHeld && p.abilityCD <= 0) this.useAbility();
+      p.abilityHeld = !!In.sprint;
       p.holding = canMove && In.breath && p.breath > 0 && p.gassed <= 0;
       let max = WALK * (1 + 0.07 * SS.Save.up('sandals')) * (p.sprinting ? C.SPRINT_MUL : 1) * (p.boostT > 0 ? 1.3 : 1) * (p.gassed > 0 ? 0.6 : 1);
+      // riding: much faster on the road, slow on the crowded footpath, turbo burst
+      if (R) max = WALK * R.speed * (p.onRoad ? 1 : 0.5) * (p.turboT > 0 ? 1.6 : 1) * (p.gassed > 0 ? 0.7 : 1);
       // sellers hanging on to you
       const sl = p.latchedBy;
       if (sl) max *= sl.cfg.hold;
       const tvx = ax * max, tvy = ay * max * 0.9;
-      const acc = C.PLAYER_ACCEL * (p.gassed > 0 ? 0.35 : 1) * (p.sprinting ? 1.4 : 1);
+      const acc = C.PLAYER_ACCEL * (p.gassed > 0 ? 0.35 : 1) * (p.sprinting ? 1.4 : 1) * (R ? R.accel * (p.turboT > 0 ? 1.8 : 1) : 1);
       // accelerate toward the target velocity (vector approach)
       const dvx = tvx - p.vx, dvy = tvy - p.vy, dl = Math.hypot(dvx, dvy), step = acc * dt;
       if (dl <= step) { p.vx = tvx; p.vy = tvy; } else { p.vx += dvx / dl * step; p.vy += dvy / dl * step; }
@@ -684,11 +693,13 @@
       for (const c of this.W.coins) {
         if (c.taken || Math.abs(c.x - p.x) > 26) continue;
         if (Math.abs(c.y - p.y) < 22) {
-          c.taken = true; this.coins++; this.stats.coins++;
-          this.addScore(10, null);
+          const v = c.v || 1;
+          c.taken = true; this.coins += v; this.stats.coins += v; this.coinFlash = 1;
+          this.addScore(10 * v, null);
           SS.Audio.sfx('coin', { pan: this.pan(c.x) });
-          for (let i = 0; i < 6; i++) this.particle('spark', c.x, c.y - 14, U.rand(-70, 70), U.rand(-90, 10), 0.5);
-          this.popup('+1', c.x, c.y - 30, '#ffd75a', 0.6, 15);
+          if (v > 1) SS.Audio.sfx('star');
+          for (let i = 0; i < (v > 1 ? 14 : 6); i++) this.particle('spark', c.x, c.y - 14, U.rand(-90, 90), U.rand(-110, 10), 0.6);
+          this.popup('+' + v, c.x, c.y - 30, v > 1 ? '#ffb347' : '#ffd75a', v > 1 ? 1 : 0.6, v > 1 ? 22 : 15);
         }
       }
       // steam off hot food, frosty sparkle off iced drinks (fades as the order cools / melts)
@@ -712,7 +723,7 @@
 
     updateConfidence(dt, speed) {
       const p = this.player;
-      const ref = WALK * (1 + 0.07 * SS.Save.up('sandals')) * (p.boostT > 0 ? 1.3 : 1);
+      const ref = this.rideDef ? WALK * this.rideDef.speed * (p.onRoad ? 1 : 0.5) * (p.turboT > 0 ? 1.6 : 1) : WALK * (1 + 0.07 * SS.Save.up('sandals')) * (p.boostT > 0 ? 1.3 : 1);
       const sv = Math.hypot(p.svx, p.svy);
       let delta = 0, why = null;
       if (p.onRoad) {
@@ -875,6 +886,7 @@
       this.shout(s);
       s.speed *= 0.35; s.panic = 0.4; s.panicLat = U.rand(-60, 60);
       this.popup(S.popOuch, p.x, p.y - 100, '#ff6a5a', 1.2, 22);
+      if (this.rideDef) this.popup(S.crashOff, p.x, p.y - 130, '#ffb0a0', 1.4, 16);
       for (let i = 0; i < 12; i++) this.particle('dust', p.x, p.y - 4, U.rand(-90, 90), U.rand(-40, 20), 0.8);
       for (let i = 0; i < 8; i++) this.particle('star', p.x, p.y - 60, U.rand(-80, 80), U.rand(-120, -20), 0.9);
       this.sunglassesHit();
@@ -1124,6 +1136,26 @@
       this.coins += 10; this.stats.influencers = (this.stats.influencers || 0) + 1;
       this.addScore(200, S.popInfluencer, p.x, p.y - 120, '#ff7ac0', 22);
       p.vx *= 0.4;
+    }
+
+    /* ---- scooter abilities ---- */
+    useAbility() {
+      const p = this.player, R = this.rideDef;
+      if (R.ability === 'horn') {
+        p.abilityCD = 4;
+        SS.Audio.sfx('horn', { pan: 0, vol: 1.4, type: 2 });
+        this.popup(S.popHorn, p.x, p.y - 110, '#ffd23f', 0.9, 22);
+        const dir = p.face || 1;
+        for (const s of this.scooters) {
+          if (s.vertical) continue;
+          const ahead = (s.x - p.x) * dir;
+          if (ahead > -40 && ahead < 300 && Math.abs(s.y - p.y) < 70) { s.panic = 0.7; s.panicLat = (s.y >= p.y ? 1 : -1) * 120 * (s.ax > 0 ? 1 : -1); this.shout(s); }
+        }
+      } else if (R.ability === 'turbo') {
+        p.abilityCD = 6; p.turboT = 1.8;
+        SS.Audio.sfx('whoosh'); this.popup(S.popTurbo, p.x, p.y - 110, '#9fe6ff', 0.9, 22);
+        this.cam.shake = Math.max(this.cam.shake, 4);
+      }
     }
 
     /* ---- police: after you say NO to a fake CRAB driver, the công an run him off ---- */
@@ -1624,7 +1656,7 @@
         if (this.atShop(o.shop) || Math.hypot(p.x - o.vendor.x, (p.y - o.vendor.y) * 1.3) < 62) this.pickUp(o);
       } else if (o.state === 'carrying') {
         const rain = this.rainT > 0 ? 1.35 : 1;
-        o.heat = Math.max(0, o.heat - o.coolRate * rain * dt);
+        o.heat = Math.max(0, o.heat - o.coolRate * rain * dt * (this.rideDef && this.rideDef.ability === 'rack' ? 0.65 : 1));
         if (o.heat <= 0 && !o.coldMsg) { o.coldMsg = true; this.popup(o.food.temp === 'cold' ? S.melted : S.cold, p.x, p.y - 100, '#9fd0ff', 1.4, 18); }
         const d = o.drop;
         const reached = d.kind === 'near' ? Math.hypot(p.x - d.x, (p.y - d.y) * 1.3) < 60 : (this.atShop(d.shop) && Math.abs(p.x - d.x) < d.shop.w / 2);
@@ -1635,7 +1667,7 @@
       const p = this.player, F = o.food;
       o.state = 'carrying'; o.heat = 100; o.t0 = this.time;
       p.cargo = 100;
-      this.cargoDef = { id: F.id, carry: F.carry, temp: F.temp, cup: F.cup, sensitivity: F.sens * (1 - 0.18 * SS.Save.up('box')) };
+      this.cargoDef = { id: F.id, carry: F.carry, temp: F.temp, cup: F.cup, sensitivity: F.sens * (1 - 0.18 * SS.Save.up('box')) * (this.rideDef && this.rideDef.ability === 'rack' ? 0.6 : 1) };
       // the time a calm, steady walker needs: distance plus a crossing; food keeps for a while beyond that
       o.dist = Math.abs(o.drop.x - p.x) + (o.drop.kind === 'near' ? 260 : 80);
       const allowed = o.dist / 68 + 9;

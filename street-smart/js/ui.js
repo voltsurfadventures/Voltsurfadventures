@@ -35,7 +35,7 @@
 
     go(screen) {
       this.screen = screen; this.t = 0; this.overlay = null; this.pressed = null;
-      if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport', 'story'].includes(screen)) {
+      if (['title', 'levels', 'settings', 'credits', 'howto', 'shop', 'passport', 'story', 'dealer'].includes(screen)) {
         if (this.session) { this.session.destroy(); this.session = null; }
         if (SS.Audio.unlocked) { SS.Audio.playMusic('menu'); SS.Audio.duckMusic(0.8); }
         SS.Audio.setIntensity(0); SS.Audio.setTension(0);
@@ -276,6 +276,7 @@
         else if (this.screen === 'settings') this.drawSettings(ctx, vw, vh, u, false);
         else if (this.screen === 'credits') this.drawCredits(ctx, vw, vh, u);
         else if (this.screen === 'shop') this.drawShop(ctx, vw, vh, u);
+        else if (this.screen === 'dealer') this.drawDealer(ctx, vw, vh, u);
         else if (this.screen === 'passport') this.drawPassport(ctx, vw, vh, u);
         else if (this.screen === 'howto') this.drawHowto(ctx, vw, vh, u, () => { SS.Save.data.howtoSeen = true; SS.Save.save(); const n = this.howtoNext || (() => this.go('title')); this.howtoNext = null; n(); });
       }
@@ -296,8 +297,11 @@
       const target = p.latchedBy || near;
       return {
         highlight: { nothanks: latched, breath: cloudNear && !p.holding, buy: !!target && s.coins >= (target ? target.cfg.price : 0) },
-        dim: { buy: !target, nothanks: !latched },
+        dim: { buy: !target, nothanks: !latched, sprint: !!(s.rideDef && (s.rideDef.ability === 'rack' || p.abilityCD > 0)) },
         price: target ? String(target.cfg.price) : null,
+        // riding: the SPRINT button becomes the scooter's ability
+        labels: s.rideDef ? { sprint: s.rideDef.ability === 'horn' ? S.btnHorn : s.rideDef.ability === 'turbo' ? S.btnTurbo : s.rideDef.abilityName.toUpperCase() } : null,
+        cooldown: s.rideDef && p.abilityCD > 0 ? { sprint: p.abilityCD / (s.rideDef.ability === 'turbo' ? 6 : 4) } : null,
       };
     },
 
@@ -379,20 +383,73 @@
         this.text(ctx, S.iosFullTip, vw / 2, vh - ins.b - 32 * u, 11.5 * u, '#ffd23f', 700);
       }
     },
+    // the scooter dealer: buy with coins, pick what you ride (or walk)
+    drawDealer(ctx, vw, vh, u) {
+      u = Math.min(u, vh * 0.96 / 410);
+      const ins = SS.View.insets, G = SS.Save.data.garage;
+      this.dim(ctx, 0.75);
+      this.backButton(ctx, () => this.go('levels'));
+      this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 16 * u, u);
+      this.text(ctx, S.dealer, vw / 2, ins.t + 30 * u, 22 * u, '#ffd23f', 800, true);
+      this.text(ctx, S.dealerSub, vw / 2, ins.t + 54 * u, 11.5 * u, '#e8e2d0', 600);
+      const list = SS.SCOOTERS, n = list.length, gap = 14 * u;
+      const cw = Math.min(250 * u, (vw - ins.l - ins.r - 40 * u - gap * (n - 1)) / n), ch = Math.min(270 * u, vh - ins.t - ins.b - 130 * u);
+      const x0 = vw / 2 - (n * cw + (n - 1) * gap) / 2, y0 = ins.t + 70 * u;
+      const maxSpeed = Math.max(...list.map((s) => s.speed));
+      list.forEach((sc, i) => {
+        const x = x0 + i * (cw + gap), y = y0, owned = SS.Save.owns(sc.id), riding = G.ride === sc.id && owned;
+        ctx.fillStyle = 'rgba(14,16,28,0.94)'; Art.rr(ctx, x, y, cw, ch, 14 * u); ctx.fill();
+        ctx.strokeStyle = riding ? '#7fc96b' : owned ? 'rgba(127,201,107,0.5)' : 'rgba(255,210,63,0.5)'; ctx.lineWidth = (riding ? 3 : 1.5) * u; Art.rr(ctx, x, y, cw, ch, 14 * u); ctx.stroke();
+        // the scooter itself
+        ctx.save(); ctx.translate(x + cw / 2 + 4 * u, y + 96 * u); const k = 0.95 * u; ctx.scale(k, k);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 0, 60, 8, 0, 0, Math.PI * 2); ctx.fill();
+        const spr = Art.scooterSprite(this.session ? this.session.scooterVariant(sc, false) : SS.Session.prototype.scooterVariant(sc, false), 0);
+        ctx.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h); ctx.restore();
+        this.text(ctx, sc.name, x + cw / 2, y + 116 * u, 17 * u, '#fff', 800, true);
+        // speed bar
+        this.text(ctx, S.statSpeed, x + 16 * u, y + 140 * u, 11 * u, 'rgba(255,255,255,0.7)', 700, false, 'left');
+        ctx.fillStyle = 'rgba(255,255,255,0.15)'; Art.rr(ctx, x + 70 * u, y + 135 * u, cw - 86 * u, 10 * u, 5 * u); ctx.fill();
+        ctx.fillStyle = sc.body; Art.rr(ctx, x + 70 * u, y + 135 * u, (cw - 86 * u) * sc.speed / maxSpeed, 10 * u, 5 * u); ctx.fill();
+        this.text(ctx, '★ ' + sc.abilityName, x + 16 * u, y + 162 * u, 12.5 * u, '#ffd75a', 800, false, 'left');
+        ctx.font = SS.font(10.5 * u, 600); ctx.fillStyle = '#e8e2d0'; ctx.textAlign = 'left';
+        this.wrap(ctx, sc.desc, cw - 32 * u).slice(0, 3).forEach((ln, k2) => ctx.fillText(ln, x + 16 * u, y + 182 * u + k2 * 14 * u));
+        const bx = x + 14 * u, bw = cw - 28 * u, by = y + ch - 46 * u;
+        if (riding) this.button(ctx, 'ride_' + sc.id, bx, by, bw, 34 * u, S.riding + ' ✓', { color: '#7fc96b', size: 14 * u, action: () => {} });
+        else if (owned) this.button(ctx, 'ride_' + sc.id, bx, by, bw, 34 * u, S.chooseRide, { color: '#3d7fd0', size: 14 * u, action: () => { G.ride = sc.id; SS.Audio.sfx('horn', { type: 2 }); } });
+        else {
+          const afford = SS.Save.data.coins >= sc.price;
+          this.button(ctx, 'buy_' + sc.id, bx, by, bw, 34 * u, sc.price.toLocaleString('en-US'), { size: 15 * u, color: afford ? '#ffd23f' : '#6a6a72', action: () => {
+            if (SS.Save.data.coins < sc.price) { this.showToast(S.popNoCoins + ' (' + (sc.price - SS.Save.data.coins).toLocaleString('en-US') + ' more)'); return; }
+            SS.Save.data.coins -= sc.price; G.owned[sc.id] = true; G.ride = sc.id;
+            SS.Audio.sfx('powerup'); SS.Audio.sfx('horn', { type: 2 }); SS.Haptics.vibrate([20, 40, 20]); this.showToast(S.popBoughtScooter);
+          } });
+          ctx.font = SS.font(15 * u, 800, true);
+          Art.coin(ctx, x + cw / 2 - ctx.measureText(sc.price.toLocaleString('en-US')).width / 2 - 14 * u, by + 17 * u, 7 * u, 0);
+          if (!afford) {
+            const k2 = U.clamp(SS.Save.data.coins / sc.price, 0, 1);
+            ctx.fillStyle = 'rgba(255,255,255,0.15)'; Art.rr(ctx, bx, by - 12 * u, bw, 5 * u, 2.5 * u); ctx.fill();
+            ctx.fillStyle = '#ffd23f'; Art.rr(ctx, bx, by - 12 * u, bw * k2, 5 * u, 2.5 * u); ctx.fill();
+          }
+        }
+      });
+      // walk instead
+      const wy = y0 + ch + 12 * u, walking = !SS.Save.ride();
+      this.button(ctx, 'walkinstead', vw / 2 - 90 * u, wy, 180 * u, 32 * u, walking ? S.walk + ' ✓' : S.walk, { flat: !walking, color: '#7fc96b', size: 13 * u, action: () => { G.ride = null; } });
+    },
     // SAVE GAME: keeps your coins, unlocked levels and upgrades for next time (CONTINUE)
     saveButton(ctx, x, y, w, h, u) {
       this.button(ctx, 'savegame', x, y, w, h, S.saveGame, { color: '#3fb7a6', size: 13 * u, action: () => { SS.Save.saveGame(); this.showToast(S.gameSaved); SS.Audio.sfx('coin'); } });
     },
     // the story goal: savings toward a new scooter
     scooterFund(ctx, x, y, w, u) {
-      const have = SS.Save.data.coins, need = SS.CONFIG.SCOOTER_PRICE, k = U.clamp(have / need, 0, 1);
+      const nx = SS.Save.nextScooter(), have = SS.Save.data.coins, need = nx ? nx.price : 1, k = nx ? U.clamp(have / need, 0, 1) : 1;
       ctx.fillStyle = 'rgba(15,18,28,0.7)'; Art.rr(ctx, x, y, w, 40 * u, 10 * u); ctx.fill();
       ctx.strokeStyle = SS.COL_PLAYER; ctx.lineWidth = 2 * u; Art.rr(ctx, x, y, w, 40 * u, 10 * u); ctx.stroke();
-      this.text(ctx, S.scooterFund, x + 10 * u, y + 12 * u, 10.5 * u, '#9ff0c0', 800, false, 'left');
-      this.text(ctx, have.toLocaleString('en-US') + ' / ' + need.toLocaleString('en-US'), x + w - 10 * u, y + 12 * u, 10.5 * u, '#ffffff', 800, false, 'right');
+      this.text(ctx, nx ? S.nextScooter + ': ' + nx.name : S.allScooters, x + 10 * u, y + 12 * u, 10.5 * u, '#9ff0c0', 800, false, 'left');
+      if (nx) this.text(ctx, have.toLocaleString('en-US') + ' / ' + need.toLocaleString('en-US'), x + w - 10 * u, y + 12 * u, 10.5 * u, '#ffffff', 800, false, 'right');
       ctx.fillStyle = 'rgba(255,255,255,0.15)'; Art.rr(ctx, x + 10 * u, y + 23 * u, w - 20 * u, 9 * u, 4.5 * u); ctx.fill();
       if (k > 0) { ctx.fillStyle = SS.COL_PLAYER; Art.rr(ctx, x + 10 * u, y + 23 * u, Math.max(9 * u, (w - 20 * u) * k), 9 * u, 4.5 * u); ctx.fill(); }
-      if (k >= 1 && !this.fundToastShown) { this.fundToastShown = true; this.showToast(S.scooterReady); }
+      if (nx && k >= 1 && !this.fundToastShown) { this.fundToastShown = true; this.showToast(S.scooterReady); }
     },
     coinBadge(ctx, rx, y, u) {
       ctx.font = SS.font(17 * u, 800, true);
@@ -410,7 +467,8 @@
       this.dim(ctx, 0.55);
       this.backButton(ctx, () => this.go('title'));
       this.coinBadge(ctx, vw - ins.r - 16 * u, ins.t + 16 * u, u);
-      this.scooterFund(ctx, ins.l + 124 * u, ins.t + 14 * u, 190 * u, u);
+      this.scooterFund(ctx, ins.l + 124 * u, ins.t + 14 * u, 215 * u, u);
+      this.hits.push({ id: 'fund', x: ins.l + 124 * u, y: ins.t + 14 * u, w: 215 * u, h: 40 * u, action: () => this.go('dealer') });
       const w = SS.WORLDS[this.worldId];
       this.text(ctx, S.levelSelect, vw / 2, ins.t + 30 * u, 22 * u, '#ffd23f', 800, true);
       this.text(ctx, w.name + '  ·  ' + w.city, vw / 2, ins.t + 54 * u, 12 * u, '#7ff0d8', 800);
@@ -467,6 +525,9 @@
       // upgrades + passport
       const bw = 170 * u, by = y0 + ch + 14 * u;
       this.saveButton(ctx, vw / 2 + bw * 0.5 + 24 * u, by, bw, 42 * u, u);
+      // the scooter dealer + what you ride this shift
+      const R = SS.Save.ride();
+      this.button(ctx, 'todealer', vw - ins.r - 16 * u - 150 * u, ins.t + 46 * u, 150 * u, 22 * u, (R ? S.rideWith + ': ' + R.name : S.rideWith + ': ' + S.walk) + '  ▸', { color: R ? '#3d7fd0' : '#6a6a72', size: 10.5 * u, action: () => this.go('dealer') });
       this.button(ctx, 'toshop', vw / 2 - bw * 1.5 - 24 * u, by, bw, 42 * u, S.upgrades, { size: 15 * u, color: '#7fc96b', action: () => { this.shopBack = 'levels'; this.go('shop'); } });
       this.button(ctx, 'topass', vw / 2 - bw / 2, by, bw, 42 * u, S.passport, { size: 14 * u, color: '#ff8fb0', action: () => { this.shopBack = 'levels'; this.go('passport'); } });
     },
@@ -668,7 +729,7 @@
       return [
         [S.statOrders, res.delivered + ' / ' + res.orders],
         [S.statRating, res.delivered ? res.avg.toFixed(1) + ' / 5' : '-'],
-        [S.statTips, String(res.tips)],
+        [S.coinsToFund, '+' + Math.max(0, res.coinsEarned | 0)],
         [S.statStreak, String(res.bestStreak)],
         [S.statNearMiss, String(st.nearMiss)],
         [S.statBanhBao, String(st.banhbao)],

@@ -282,13 +282,18 @@
         // label (wrap to two lines if needed)
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        const words = b.label.split(' ');
+        const label = (info.labels && info.labels[id]) || b.label;
+        if (info.cooldown && info.cooldown[id]) { // cooldown sweep
+          ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3 * u;
+          ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 3 * u, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - info.cooldown[id])); ctx.stroke();
+        }
+        const words = label.split(' ');
         const fs = (words.length > 1 ? 8.5 : 10) * u;
         ctx.font = SS.font(fs, 800);
         if (words.length > 1) {
           ctx.fillText(words[0], b.x, b.y - fs * 0.55);
           ctx.fillText(words.slice(1).join(' '), b.x, b.y + fs * 0.6);
-        } else ctx.fillText(b.label, b.x, b.y);
+        } else ctx.fillText(label, b.x, b.y);
         if (id === 'buy' && info.price) {
           ctx.font = SS.font(9 * u, 700);
           ctx.fillStyle = '#ffd75a';

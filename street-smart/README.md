@@ -200,6 +200,18 @@ Minh was the fastest CRAB delivery rider in Hanoi's Old Quarter (CRAB is the gam
 
 The opening cutscene (`js/story.js`) plays the first time you press PLAY, and again from the **STORY** button. It is a **paper cut-out animation**: cut-paper Hanoi scenery, puppets with brass-pinned joints moving in choppy 12 fps "stop-motion", paper drop shadows and grain, cut-out letter tiles for sound effects, torn-paper captions and paper speech balloons. Minh's and the tourist's faces and Minh's CRAB box are cut straight out of the Banh Zai cover art (`assets/ui/cover.jpg`), so the puppets keep the cover's likeness. Six scenes: the ride in, the key left in, the snatch, "TRỜI ƠI!!", Bà Lan in the rain, and the goal card. Story text is in `SS.STRINGS.story`. Tap for the next scene; SKIP ends it. (`assets/story/street.jpg` is kept as art reference; the cutscene no longer uses it.)
 
+## Scooters (Chapter 2)
+
+Coins buy scooters at the **SCOOTER DEALER** (tap the next-scooter bar or the RIDE button on the level screen). Three generic models, defined in `SS.SCOOTERS` (`js/config.js`):
+
+| Scooter | Price | Speed (× walking) | Ability (SPRINT button) |
+|---|---|---|---|
+| Cub 50 | 800 | 1.7 | Food rack: food stays hot 35% longer, spills 40% less |
+| Retro 125 | 1,500 | 2.1 | Air horn: riders ahead swerve out of your way (4 s cooldown) |
+| Sport 150 | 3,000 | 2.6 | Turbo: 1.8 s burst at 1.6× speed (6 s cooldown) |
+
+Pick which one you ride (or walk) at the dealer. Riding is fast on the road and slow on footpaths, and brings 12% more traffic; a crash throws Minh off and costs a heart as usual. Coins in the road are worth **5** (big, glowing) and footpath coins 1, so taking risks pays. The HUD coin counter shows progress to the next scooter, and results show coins earned. The opening theft scene only plays when you're on foot.
+
 ## How it plays
 
 Each level is a **delivery shift**: 3, 4 or 5 orders, plus an **Endless Rush Hour** mode that unlocks after level 1.
