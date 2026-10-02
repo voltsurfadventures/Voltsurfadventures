@@ -78,6 +78,15 @@
 
     onLevelEnd(session, won) {
       const res = session.results();
+      // dying (out of hearts) is final: unsaved progress is wiped, back to the last save or to zero
+      if (!won && res.reason === 'lives') {
+        res.died = true; res.restored = SS.Save.hasSave(); res.coinsEarned = 0;
+        if (res.restored) SS.Save.continueGame(); else SS.Save.newGame();
+        session.banked = true; // the coins from this run are lost too
+        this.res = res; this.screen = 'gameover'; this.t = 0; this.starsShown = 0;
+        SS.Audio.setAmbience(0.3, true); SS.Audio.setIntensity(0); SS.Audio.setTension(0);
+        return;
+      }
       session.commitCoins();
       const lvl = session.level;
       res.isBest = false;
@@ -785,8 +794,11 @@
       const pw = Math.min(500 * u, vw * 0.82), ph = Math.min(340 * u, vh * 0.92), px = vw / 2 - pw / 2, py = vh / 2 - ph / 2;
       ctx.save(); ctx.translate(vw / 2, vh / 2); ctx.scale(k, k); ctx.translate(-vw / 2, -vh / 2);
       this.panel(ctx, px, py, pw, ph);
-      this.text(ctx, S.gameOver, vw / 2, py + 36 * u, 30 * u, '#ff6a5a', 800, true);
-      this.text(ctx, res.reason === 'orders' ? S.cargoBroken : S.outOfLives, vw / 2, py + 70 * u, 14 * u, '#e8e2d0', 600);
+      this.text(ctx, res.died ? S.youDied : S.gameOver, vw / 2, py + 36 * u, 30 * u, '#ff6a5a', 800, true);
+      if (res.died) {
+        ctx.font = SS.font(13.5 * u, 700); ctx.fillStyle = '#ffd0c8'; ctx.textAlign = 'center';
+        this.wrap(ctx, res.restored ? S.diedToSave : S.diedToZero, pw - 50 * u).slice(0, 2).forEach((ln, i) => ctx.fillText(ln, vw / 2, py + 68 * u + i * 17 * u));
+      } else this.text(ctx, res.reason === 'orders' ? S.cargoBroken : S.outOfLives, vw / 2, py + 70 * u, 14 * u, '#e8e2d0', 600);
       this.text(ctx, S.score + ': ' + res.base, vw / 2, py + 100 * u, 18 * u, '#fff', 800, true);
       const lines = this.statsLines(res).slice(0, 6);
       const colW = (pw - 60 * u) / 2;
@@ -796,6 +808,12 @@
         this.text(ctx, b, cx + colW - 18 * u, y, 13 * u, '#ffd75a', 800, false, 'right');
       });
       const by = py + ph - 60 * u, bw = (pw - 72 * u) / 3;
+      if (res.died) { // no saving your way out of death
+        const bw2 = (pw - 60 * u) / 2;
+        this.button(ctx, 'gmenu', px + 24 * u, by, bw2, 44 * u, S.menu, { flat: true, size: 14 * u, action: () => this.go('title') });
+        this.button(ctx, 'gagain', px + 36 * u + bw2, by, bw2, 44 * u, S.startAgain, { size: 16 * u, color: '#ff6a5a', action: () => this.go('levels') });
+        ctx.restore(); return;
+      }
       this.saveButton(ctx, px + pw / 2 - 80 * u, by - 54 * u, 160 * u, 40 * u, u);
       this.button(ctx, 'gmenu', px + 24 * u, by, bw, 44 * u, S.menu, { flat: true, size: 14 * u, action: () => this.go('levels') });
       this.button(ctx, 'gshop', px + 36 * u + bw, by, bw, 44 * u, S.upgrades, { flat: true, size: 14 * u, action: () => { this.shopBack = 'levels'; this.go('shop'); } });
