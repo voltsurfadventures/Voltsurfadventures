@@ -262,6 +262,7 @@
     for (const c of this.W.coins) if (!c.taken && c.x > x0 && c.x < x1) ents.push({ y: c.y - 0.1, k: 'c', o: c });
     if (this.player) ents.push({ y: this.player.y + 0.3, k: 'p', o: this.player });
     for (const c of this.cops) ents.push({ y: c.y + 0.4, k: 'cop', o: c });
+    for (const f of this.influencers) ents.push({ y: f.y + 0.35, k: 'infl', o: f });
     const H = this.heist;
     if (H && !H.gone) {
       if (H.riding) ents.push({ y: H.bikeY, k: 'heistRide', o: H });
@@ -317,6 +318,7 @@
       else if (e.k === 'seller') this.drawSeller(ctx, e.o);
       else if (e.k === 'cust') this.drawCustomer(ctx, e.o);
       else if (e.k === 'cop') this.drawCop(ctx, e.o);
+      else if (e.k === 'infl') this.drawInfluencer(ctx, e.o);
       else if (e.k === 'heistBike') this.drawHeistBike(ctx, e.o.bikeX, e.o.bikeY, false);
       else if (e.k === 'heistRide') this.drawHeistBike(ctx, e.o.rideX, e.o.bikeY, true);
       else if (e.k === 'tourist') Art.person(ctx, { x: e.o.tourX, y: e.o.tourY, s: Art.depth(e.o.tourY) * 1.1, face: -1, phase: e.o.walk || 0, moving: this.heist.t < 2.4 ? 1 : 0,
@@ -333,6 +335,22 @@
     ctx.save(); ctx.translate(x, y + (riding ? Math.sin(this.time * 30) * 0.8 : 0)); ctx.scale(sc, sc);
     ctx.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h);
     if (riding) { ctx.fillStyle = '#111'; Art.rr(ctx, -2, -66, 14, 4, 2); ctx.fill(); } // his sunglasses
+    ctx.restore();
+  };
+  P.drawInfluencer = function (ctx, f) {
+    const L = f.look, sc = Art.depth(f.y), down = f.state === 'down';
+    const o = { ink: '#24150f', x: f.x, y: f.y, s: sc, face: f.face, phase: f.phase, moving: f.state === 'walk' && !f.spinning ? 1 : f.state === 'leave' ? 1 : 0,
+      skin: L.skin, shirt: L.shirt, pants: L.pants, hair: L.hair, hairStyle: 'side', sunglasses: true, arms: down ? 'up' : 'up', mouth: f.bubbleT > 0 ? 0.6 : 0.2 };
+    if (down) { o.rot = f.fallDir * Math.PI / 2 * Math.min(1, f.t * 6); o.lift = 0; }
+    Art.person(ctx, o);
+    if (down) return; // the camera is gone
+    // selfie stick + GoPro held up in front, pointing back at the face
+    ctx.save(); ctx.translate(f.x, f.y); ctx.scale(sc * f.face, sc);
+    ctx.strokeStyle = '#1b1b20'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(14, -66); ctx.lineTo(34, -112); ctx.stroke();
+    ctx.fillStyle = '#1b1b20'; Art.rr(ctx, 28, -124, 14, 11, 2); ctx.fill();
+    Art.circle(ctx, 31, -118.5, 3.4, '#5a6a80'); Art.circle(ctx, 31, -118.5, 1.6, '#9fd8ff');
+    if (Math.floor(this.time * 3) % 2 === 0) Art.circle(ctx, 40, -122, 1.4, '#ff3b3b'); // recording light
     ctx.restore();
   };
   P.drawCop = function (ctx, c) {
@@ -855,6 +873,7 @@
     }
     // speech bubbles
     for (const s of this.sellers) if (s.bubble && s.state !== 'lurk') this.bubble(ctx, s.x, s.y - 92 * Art.depth(s.y), s.bubble, { size: 15 });
+    for (const f of this.influencers) if (f.bubbleT > 0 && f.bubble) this.bubble(ctx, f.x, f.y - 128 * Art.depth(f.y), f.bubble, { size: 15, color: '#c0247a', border: '#ff7ac0' });
     for (const c of this.cops) if (c.bubbleT > 0) this.bubble(ctx, c.x, c.y - 100 * Art.depth(c.y), c.bubble, { size: 16, color: '#1d4fa0', border: '#1d4fa0' });
     // opening heist lines
     const H = this.heist;

@@ -80,6 +80,7 @@
       }
       this.rainX = this.level.rain ? this.W.length * U.rand(0.3, 0.6) : null; this.rainT = 0; this.rainK = 0;
       this.cops = [];
+      this.influencers = []; this.inflT = 9;
       if (!this.demo) { this.initPlayer(); this.setupHeist(); this.nextOrder(); }
       this.prefillTraffic();
     }
@@ -1043,6 +1044,63 @@
       if (s.type === 'ride') this.callCops(s);
     }
 
+    /* ---- influencers: film themselves with a GoPro on a stick, wander, spin around.
+     *      Walk into one: they fall over, the camera explodes, you get a bonus. ---- */
+    updateInfluencers(dt) {
+      const p = this.player;
+      this.inflT -= dt;
+      if (this.inflT <= 0 && this.influencers.length < 2) {
+        this.inflT = U.rand(13, 21);
+        const side = Math.random() < 0.5 ? 'far' : 'near';
+        const fromRight = Math.random() < 0.7;
+        const x = fromRight ? this.cam.x + this.viewW + 60 : this.cam.x - 60;
+        const y = side === 'far' ? U.rand(196, 214) : U.rand(462, 512);
+        const pal = this.world.palette;
+        this.influencers.push({ x, y, dir: fromRight ? -1 : 1, face: fromRight ? -1 : 1, phase: 0, t: 0, spinT: U.rand(1, 3), spinning: 0,
+          state: 'walk', bubble: null, bubbleT: 0, lineCD: 0.5,
+          look: { skin: U.pick(pal.skin), shirt: U.pick(['#ff5fa2', '#3fd0c9', '#ffd23f', '#9b6bff', '#ff7a2f']), pants: U.pick(['#1e2a44', '#e8e2d0', '#2b2b30']), hair: U.pick(['#e8c46a', '#1d1611', '#8a4b2a']) } });
+      }
+      for (let i = this.influencers.length - 1; i >= 0; i--) {
+        const f = this.influencers[i];
+        f.t += dt;
+        if (f.bubbleT > 0) { f.bubbleT -= dt; if (f.bubbleT <= 0) f.bubble = null; }
+        if (f.state === 'walk') {
+          // stroll, then stop to spin around filming themselves
+          if (f.spinning > 0) {
+            f.spinning -= dt; f.face = Math.sin(f.t * 9) > 0 ? 1 : -1;
+            if (f.spinning <= 0) f.spinT = U.rand(2, 4);
+          } else {
+            f.spinT -= dt;
+            f.x += f.dir * 34 * dt; f.phase += dt * 5; f.face = f.dir;
+            if (f.spinT <= 0) { f.spinning = U.rand(1.2, 2); if (!f.bubble) { f.bubble = U.pick(S.influencerLines); f.bubbleT = 1.8; } }
+          }
+          f.lineCD -= dt;
+          if (f.lineCD <= 0 && Math.abs(f.x - p.x) < 380) { f.lineCD = U.rand(3, 5); f.bubble = U.pick(S.influencerLines); f.bubbleT = 1.8; SS.Audio.sfx('seller', { pan: this.pan(f.x), pitch: 260, syllables: [1.2, 1, 1.3, 1.1] }); }
+          // bumped into by Minh
+          if (p && !p.tumble && Math.hypot(p.x - f.x, (p.y - f.y) * 1.5) < 30) this.wipeOut(f);
+        } else if (f.state === 'down') {
+          if (f.t > 2.4) { f.state = 'leave'; f.t = 0; f.bubble = S.influencerSad; f.bubbleT = 1.8; }
+        } else if (f.state === 'leave') { f.x += f.dir * 50 * dt; f.phase += dt * 6; f.face = f.dir; }
+        if (f.x < this.cam.x - 400 || f.x > this.cam.x + this.viewW + 400) this.influencers.splice(i, 1);
+      }
+    }
+    wipeOut(f) {
+      const p = this.player;
+      f.state = 'down'; f.t = 0; f.fallDir = p.x < f.x ? 1 : -1; f.bubble = S.influencerFall; f.bubbleT = 1.6;
+      // the GoPro flies off the stick and explodes
+      const cx = f.x + f.face * 30, cy = f.y - 110;
+      for (let k = 0; k < 18; k++) this.particle('spark', cx, cy, U.rand(-170, 170), U.rand(-200, 40), 0.9);
+      for (let k = 0; k < 12; k++) this.particle('shard', cx, cy, U.rand(-120, 120), U.rand(-160, 0), 1.2);
+      for (let k = 0; k < 4; k++) this.particle('puff', cx, cy, U.rand(-30, 30), U.rand(-40, 0), 0.8, 0, '#7a7a80');
+      SS.Audio.sfx('shatter'); SS.Audio.sfx('crash', { pan: this.pan(f.x), vol: 0.5 });
+      SS.Haptics.vibrate([30, 30, 60]);
+      this.cam.shake = Math.max(this.cam.shake, 7);
+      this.flash = Math.max(this.flash, 0.25);
+      this.coins += 10; this.stats.influencers = (this.stats.influencers || 0) + 1;
+      this.addScore(200, S.popInfluencer, p.x, p.y - 120, '#ff7ac0', 22);
+      p.vx *= 0.4;
+    }
+
     /* ---- police: after you say NO to a fake CRAB driver, the công an run him off ---- */
     callCops(s) {
       const fromLeft = s.x > this.cam.x + this.viewW / 2;
@@ -1385,6 +1443,7 @@
         this.updatePlayer(dt);
         if (this.state === 'play') {
           this.updateSellers(dt);
+          this.updateInfluencers(dt);
           this.updateIntersections(dt);
           this.updateOrders(dt);
           this.updateRain(dt);
